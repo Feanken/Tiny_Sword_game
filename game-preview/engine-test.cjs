@@ -15,7 +15,7 @@ const window = { TINY_ASSETS: assets, devicePixelRatio: 1, addEventListener() {}
 const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: () => 0, setItem() {} }, requestAnimationFrame() {}, setTimeout() {} };
 const source = fs.readFileSync('game.js', 'utf8').replace('resize(); preload(); requestAnimationFrame(frame);', `
   initialized = true; state = 'ready';
-  window.test = { startGame, update, startWave, spawnEnemy, spriteFrame, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
+  window.test = { startGame, update, startWave, spawnEnemy, spriteFrame, canStand, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
     get enemies() { return enemies; }, get allies() { return allies; }, get state() { return state; },
     get impacts() { return impacts; }, get projectiles() { return projectiles; },
     get phase() { return phase; }, get wave() { return waveIndex; }, get gold() { return gold; }, get wood() { return wood; }, get food() { return food; }, get score() { return score; }
@@ -34,10 +34,14 @@ for (let variant = 1; variant <= 4; variant++) {
 }
 console.log('All eight frames of every tree: correct rectangular crops and foot anchors');
 g.startGame(); assert.equal(g.state, 'playing'); assert.equal(g.allies.length, 1);
-g.hero.x = 196; g.hero.y = 319; const startingWood = g.wood; g.gather(); assert.equal(g.wood, startingWood + 8);
-g.gather(); assert.equal(g.wood, startingWood + 8, 'gather cooldown prevents duplicate rewards');
-g.update(.8); g.hero.x = 571; g.hero.y = 534; const startingGold = g.gold; g.gather(); assert.equal(g.gold, startingGold + 10);
-g.update(.8); g.hero.x = 1014; g.hero.y = 298; const startingFood = g.food; g.gather(); assert.equal(g.food, startingFood + 1);
+function finishWork() { for(let i=0;i<70;i++) g.update(1/60); }
+g.hero.x=196;g.hero.y=319;const startingWood=g.wood;g.gather();
+assert.ok(g.hero.work);assert.equal(g.wood,startingWood,'no resources before animation completes');
+g.gather();assert.equal(g.wood,startingWood);finishWork();assert.equal(g.wood,startingWood+8);
+g.hero.x=571;g.hero.y=534;const startingGold=g.gold;g.gather();finishWork();assert.equal(g.gold,startingGold+10);
+g.hero.x=1014;g.hero.y=298;const startingFood=g.food;g.gather();finishWork();assert.equal(g.food,startingFood+1);
+g.hero.x=196;g.hero.y=319;g.gather();g.keys.add('d');g.update(.1);g.keys.clear();assert.equal(g.hero.work,null,'moving cancels work');assert.equal(g.wood,startingWood+8);
+g.update(.3);g.gather();g.hurt(g.hero,1,{x:100,y:319});assert.equal(g.hero.work,null,'damage cancels work');g.hero.invuln=0;g.hero.stagger=0;
 g.hero.hp = 30; g.healHero(); assert.equal(g.hero.hp, 75); assert.equal(g.food, startingFood);
 g.castle.hp = 220; g.repairCastle(); assert.equal(g.castle.hp, 360); assert.ok(g.wood < startingWood);
 const recruitGold = g.gold; g.recruitUnit(); assert.equal(g.allies.length, 2); assert.equal(g.gold, recruitGold - 40);
@@ -84,7 +88,7 @@ console.log('Hero death, castle destruction, and complete match reset: passed');
 g.startGame();
 for (let tick = 0; tick < 36000 && g.state === 'playing'; tick++) {
   const target = g.enemies.filter(e => e.hp > 0).sort((a, b) => Math.hypot(a.x - g.hero.x, a.y - g.hero.y) - Math.hypot(b.x - g.hero.x, b.y - g.hero.y))[0];
-  g.keys.clear(); g.keys.add(' ');
+  g.keys.clear(); if(target && Math.hypot(target.x-g.hero.x,target.y-g.hero.y)<86) g.keys.add(' ');
   if (target) { const dx = target.x - g.hero.x, dy = target.y - g.hero.y; if (Math.hypot(dx, dy) > 65) { if (Math.abs(dx) > 12) g.keys.add(dx > 0 ? 'd' : 'a'); if (Math.abs(dy) > 12) g.keys.add(dy > 0 ? 's' : 'w'); } }
   if (g.hero.hp < 55 && g.food) g.healHero();
   if (g.castle.hp < 340 && g.wood >= 30) g.repairCastle();
@@ -93,3 +97,28 @@ for (let tick = 0; tick < 36000 && g.state === 'playing'; tick++) {
 }
 assert.equal(g.state, 'won', 'input-only bot can finish a match without modifying health, resources, or enemies');
 console.log('Full match with movement, attacks, recruiting, healing, repairs, and unmodified AI: won');
+
+// Every traversable shoreline tile, diagonal movement and extreme knockback.
+g.startGame();let shoreChecks=0;
+for(let y=90;y<630;y+=24)for(let x=90;x<1195;x+=24){
+ if(!g.canStand(x,y))continue;
+ if([[-30,0],[30,0],[0,-30],[0,30]].every(([dx,dy])=>g.canStand(x+dx,y+dy)))continue;
+ for(let dir=0;dir<8;dir++){
+  const actor={x,y,facing:1};g.move(actor,Math.cos(dir*Math.PI/4),Math.sin(dir*Math.PI/4),2,600);
+  assert.ok(g.canStand(actor.x,actor.y),'swept movement remains on land');
+  actor.knockX=Math.cos(dir*Math.PI/4)*5000;actor.knockY=Math.sin(dir*Math.PI/4)*5000;g.updateReaction(actor,.2);
+  assert.ok(g.canStand(actor.x,actor.y),'knockback remains on land');shoreChecks++;
+ }
+}
+assert.ok(shoreChecks>100);console.log('Shoreline checks passed:',shoreChecks,'normal, diagonal, and knockback paths');
+g.startGame();g.hero.x=60;g.hero.y=450;g.update(.016);assert.ok(g.canStand(g.hero.x,g.hero.y),'invalid old positions recover onto grass');
+g.startGame();g.startWave();g.update(.4);const archer=g.enemies[0];archer.kind='Archer';archer.entering=false;archer.x=500;archer.y=400;archer.cooldown=1;g.hero.x=560;g.hero.y=400;g.allies.length=0;const distanceBefore=Math.hypot(archer.x-g.hero.x,archer.y-g.hero.y);g.updateUnit(archer,.1);assert.ok(Math.hypot(archer.x-g.hero.x,archer.y-g.hero.y)>distanceBefore,'enemy archer retreats from close player');
+console.log('Archer distance keeping and work cancellation: passed');
+
+g.startGame();g.allies.length=0;g.startWave();for(let i=0;i<5;i++)g.spawnEnemy();
+g.hero.x=600;g.hero.y=400;
+g.enemies.forEach((e,i)=>{e.x=i===4?555:630+i*12;e.y=400;e.entering=false;e.hp=e.maxHp=100;e.cooldown=10;});
+g.heroAttack();g.update(.13);
+assert.equal(g.enemies[0].hp,73);assert.equal(g.enemies[1].hp,82);assert.equal(g.enemies[2].hp,82);
+assert.equal(g.enemies[3].hp,100,'fourth target is outside cleave limit');assert.equal(g.enemies[4].hp,100,'rear target is outside forward arc');
+console.log('Forward attack arc, three-target cleave cap, and secondary damage: passed');

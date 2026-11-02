@@ -64,6 +64,22 @@ try {
   assert.equal(await evaluate('document.querySelectorAll(".gallery-card").length'), 40);
   await evaluate('document.getElementById("galleryDialog").close()'); await delay(80);
   await screenshot('desktop-playing.png');
+  // Walk to the mine and use E through the same input path as a player.
+  for(let i=0;i<24;i++) {
+    const position=(await snapshot()).hero, dx=610-position.x, dy=501-position.y;
+    if(Math.hypot(dx,dy)<12)break;
+    const active=[...(Math.abs(dx)>8?[dx>0?'d':'a']:[]),...(Math.abs(dy)>8?[dy>0?'s':'w']:[])];
+    for(const key of active)await page('Input.dispatchKeyEvent',{type:'keyDown',key});
+    await delay(90);
+    for(const key of active)await page('Input.dispatchKeyEvent',{type:'keyUp',key});
+  }
+  const goldBeforeWork=(await snapshot()).gold;
+  await page('Input.dispatchKeyEvent',{type:'keyDown',key:'e'});await delay(280);
+  assert.equal((await snapshot()).work?.type,'gold','E starts the visible pickaxe animation');
+  await screenshot('mining-animation.png');
+  await page('Input.dispatchKeyEvent',{type:'keyUp',key:'e'});await delay(800);
+  assert.ok((await snapshot()).gold>=goldBeforeWork+10,'resource arrives after the animated action');
+  console.log('Mining animation, progress, delayed resource reward: passed');
   // Exercise a real wave, not just the opening screen.
   console.log('Desktop controls, economy, pause/resume, guide, and gallery: passed');
   for (let i = 0; i < 120 && (await snapshot()).phase !== 'battle'; i++) await delay(200);

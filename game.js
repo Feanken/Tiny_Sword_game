@@ -42,6 +42,29 @@
   const rows = { 1: [6, 14], 2: [3, 17], 3: [2, 18], 4: [2, 18], 5: [1, 18], 6: [1, 18], 7: [2, 18], 8: [2, 17], 9: [4, 16] };
   const land = (c, r) => !!rows[r] && c >= rows[r][0] && c <= rows[r][1];
   const onLand = (x, y) => land(Math.floor(x / TILE), Math.floor(y / TILE)) && x > 80 && x < 1195 && y > 80 && y < 630;
+  function canStand(x, y) {
+    // Stay inside the visible grass edge, including diagonal shore corners.
+    for (let i = 0; i < 8; i++) {
+      const angle = i * Math.PI / 4;
+      if (!onLand(x + Math.cos(angle) * 23, y + Math.sin(angle) * 23)) return false;
+    }
+    return onLand(x, y);
+  }
+  function translateEntity(entity, dx, dy) {
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
+    for (let i = 0; i < steps; i++) {
+      if (canStand(entity.x + dx / steps, entity.y)) entity.x += dx / steps;
+      if (canStand(entity.x, entity.y + dy / steps)) entity.y += dy / steps;
+    }
+  }
+  function keepOnLand(entity) {
+    if (canStand(entity.x, entity.y)) return;
+    for (let radius = 4; radius <= 320; radius += 4) for (let i = 0; i < 24; i++) {
+      const x = entity.x + Math.cos(i * Math.PI / 12) * radius, y = entity.y + Math.sin(i * Math.PI / 12) * radius;
+      if (canStand(x, y)) { entity.x = x; entity.y = y; return; }
+    }
+    entity.x = 788; entity.y = 370;
+  }
   const trees = [
     [200, 330, 1], [153, 488, 2], [222, 505, 3], [292, 554, 4], [349, 589, 1],
     [420, 185, 3], [484, 173, 4], [551, 184, 1], [621, 181, 2],
@@ -49,7 +72,7 @@
     [421, 604, 3], [487, 613, 4], [554, 613, 1], [629, 608, 2],
     [278, 322, 3], [346, 317, 2], [291, 472, 4],
   ].map(([x, y, variant], i) => ({ x, y, variant, seed: i * .71, radius: variant < 3 ? 14 : 12, size: variant < 3 ? 166 : 150, resource: i < 5 || i >= 18 }));
-  const roadEntry = { x: 102, y: 405 };
+  const roadEntry = { x: 110, y: 405 };
   const goldNodes = [[571, 534, 1], [610, 563, 3], [646, 531, 4]].map(([x, y, variant]) => ({ x, y, variant, radius: 13 }));
   const sheep = [[1014, 298], [1063, 316], [1010, 342]].map(([x, y], i) => ({ x, y, originX: x, originY: y, seed: i * 2, cooldown: 0 }));
   const buildings = [
@@ -96,6 +119,7 @@
       }
     }
     for (const tool of ['Axe', 'Pickaxe']) paths.add(blue('Pawn', `Interact ${tool}`));
+    paths.add(blue('Pawn', 'Idle Meat'));
     paths.add(blue('Monk', 'Heal_Effect'));
     for (const b of buildings) paths.add(`Buildings/${b.color} Buildings/${b.name}.png`);
     for (let i = 1; i <= 4; i++) {
@@ -221,6 +245,16 @@
     ctx.fillStyle = color; ctx.fillRect(x - width / 2, y, width * clamp(hp / max, 0, 1), 3);
   }
   function drawUnit(u, isHero = false) {
+    if (isHero && hero.work) {
+      const work = hero.work, progress = clamp(work.elapsed / work.duration, 0, 1);
+      const action = work.node.type === 'wood' ? 'Interact Axe' : work.node.type === 'gold' ? 'Interact Pickaxe' : 'Idle Meat';
+      drawSprite(blue('Pawn', action), u.x, u.y, 136, work.elapsed, spriteFrame(blue('Pawn', action)).count / work.duration, u.facing, 1, true);
+      healthBar(u.x, u.y - 63, progress, 1, '#eed18b', 49);
+      ctx.fillStyle = '#fff1c5'; ctx.font = 'bold 10px Segoe UI'; ctx.textAlign = 'center';
+      ctx.fillText(work.node.type === 'wood' ? 'MENEBANG' : work.node.type === 'gold' ? 'MENAMBANG' : 'MENGAMBIL BEKAL', u.x, u.y - 72);
+      ctx.strokeStyle = '#f4d88baa'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(work.node.x, work.node.y, 24, 10, 0, 0, Math.PI * 2); ctx.stroke();
+      return;
+    }
     const kind = isHero ? 'Warrior' : u.kind, color = isHero ? 'Blue' : u.color;
     const action = u.attack > 0 ? ({ Warrior: 'Attack1', Archer: 'Shoot', Lancer: 'Right_Attack', Monk: 'Heal', Pawn: 'Idle' }[kind]) : u.moving ? 'Run' : 'Idle';
     const size = kind === 'Lancer' ? (isHero ? 194 : 178) : isHero ? 136 : 113;
@@ -346,10 +380,7 @@
   function move(entity, dx, dy, dt, speed) {
     const len = Math.hypot(dx, dy); entity.moving = len > .05;
     if (!entity.moving) return;
-    const nx = entity.x + dx / len * speed * dt, ny = entity.y + dy / len * speed * dt;
-    const canStand = (x, y) => onLand(x - 11, y) && onLand(x + 11, y) && onLand(x, y + 5);
-    if (canStand(nx, entity.y)) entity.x = nx;
-    if (canStand(entity.x, ny)) entity.y = ny;
+    translateEntity(entity, dx / len * speed * dt, dy / len * speed * dt);
     if (Math.abs(dx) > .1) entity.facing = dx > 0 ? 1 : -1;
     for (const o of obstacleList) {
       const vx = entity.x - o.x, vy = entity.y - o.y, d = Math.hypot(vx, vy), min = o.radius + 10;
@@ -386,6 +417,7 @@
   function startGame() {
     if (!initialized) return;
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
+    hero.work = null;
     castle.hp = 500; castle.hitFlash = 0; gold = 80; wood = 40; food = 3; score = 0; kills = 0; recruitIndex = 0;
     enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; hitStop = 0; damageDealt = 0; damageTaken = 0;
     for (const s of sheep) s.cooldown = 0;
@@ -433,9 +465,10 @@
     const w = waves[waveIndex], kind = w.types[spawned % w.types.length];
     const lane = [-1, 0, 1, -2, 2][spawned % 5];
     const entry = { x: roadEntry.x + rand(-3, 3), y: roadEntry.y + lane * 7 };
-    const hp = ({ Warrior: 50, Archer: 34, Lancer: 60, Monk: 38, Pawn: 32 }[kind]) + waveIndex * 5;
+    const hp = ({ Warrior: 62, Archer: 43, Lancer: 82, Monk: 48, Pawn: 38 }[kind]) + waveIndex * 9;
     enemies.push({ x: entry.x, y: entry.y, kind, color: waveIndex === 4 ? ['Red', 'Purple', 'Yellow', 'Black'][spawned % 4] : w.color, hp, maxHp: hp, facing: 1, moving: false, attack: 0, cooldown: rand(.1, .6), seed: rand(0, 10), speed: kind === 'Lancer' ? 59 : kind === 'Pawn' ? 75 : 66, team: 'enemy', entering: true, lane, flankAngle: spawned * 2.399963 + waveIndex * .8, flankSign: spawned % 2 ? -1 : 1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     addEffect('Particle FX/Dust_02.png', entry.x, entry.y, 48); spawned++;
+    const enemy = enemies[enemies.length - 1]; enemy.speed += waveIndex * 5; enemy.chargeCooldown = 2; enemy.charge = 0;
   }
   function recruitUnit(free = false) {
     if (state !== 'playing') return;
@@ -472,9 +505,23 @@
     return closest;
   }
   function gather() {
-    if (state !== 'playing' || gatherCooldown > 0) return;
+    if (state !== 'playing' || gatherCooldown > 0 || hero.work || hero.attack > 0 || hero.stagger > 0) return;
     const node = nearestResource(); if (!node) return;
-    gatherCooldown = node.type === 'food' ? 1.2 : .72;
+    hero.work = { node, elapsed: 0, duration: node.type === 'food' ? .7 : .9 };
+    hero.facing = node.x < hero.x ? -1 : 1; hero.moving = false;
+  }
+  function updateWork(dt) {
+    const work = hero.work; if (!work) return;
+    if (dist(hero, work.node) > 88 || hero.stagger > 0) { hero.work = null; return; }
+    const previousTime = work.elapsed;
+    work.elapsed += dt;
+    if (previousTime < work.duration * .55 && work.elapsed >= work.duration * .55) {
+      addEffect('Particle FX/Dust_01.png', work.node.x, work.node.y - 8, 45, .4);
+      tone(work.node.type === 'gold' ? 660 : 190, .09, 'triangle', .025, work.node.type === 'gold' ? 420 : 110);
+    }
+    if (work.elapsed < work.duration) return;
+    const node = work.node; hero.work = null; gatherCooldown = .18;
+    if (node.type === 'food' && node.original.cooldown > 0) return;
     if (node.type === 'wood') { wood += 8; float('+8 kayu', node.x, node.y); }
     if (node.type === 'gold') { gold += 10; float('+10 emas', node.x, node.y); }
     if (node.type === 'food') { food++; node.original.cooldown = 12; float('+1 bekal', node.x, node.y); }
@@ -496,6 +543,7 @@
     } else if (target === castle) { shake = Math.max(shake, 2); addEffect('Particle FX/Explosion_02.png', castle.x + rand(-45, 45), castle.y - 20, 65, .35, 24); }
     else if (source === hero) { hitStop = .035; shake = Math.max(shake, 1.5); tone(280, .08, 'square', .017, 90); }
     if (target !== castle) {
+      if (target === hero) hero.work = null;
       const force = target.kind === 'Lancer' ? 140 : target === hero ? 195 : 255;
       target.knockX = Math.cos(angle) * force; target.knockY = Math.sin(angle) * force;
       target.stagger = target === hero ? .09 : .12;
@@ -511,7 +559,8 @@
   }
   function heroAttack() {
     if (hero.cooldown > 0 || hero.stagger > 0) return;
-    hero.attack = hero.attackDuration = .38; hero.cooldown = .46;
+    hero.work = null;
+    hero.attack = hero.attackDuration = .42; hero.cooldown = .58;
     const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 108);
     if (targets.length) hero.facing = targets[0].x < hero.x ? -1 : 1;
     hero.strike = { timer: .12 };
@@ -519,7 +568,7 @@
   }
   function fireArrow(u, target) {
     const d = Math.max(1, dist(u, target));
-    projectiles.push({ x: u.x, y: u.y - 5, vx: (target.x - u.x) / d * 360, vy: (target.y - u.y) / d * 360, color: u.color, team: u.team, target, source: u, damage: u.team === 'ally' ? 17 : 7, life: 1.4 });
+    projectiles.push({ x: u.x, y: u.y - 5, vx: (target.x - u.x) / d * 360, vy: (target.y - u.y) / d * 360, color: u.color, team: u.team, target, source: u, damage: u.team === 'ally' ? 17 : 10 + waveIndex * 2, life: 1.4 });
   }
   function nearest(entity, candidates, limit = Infinity) {
     let target = null;
@@ -528,6 +577,7 @@
   }
   function updateUnit(u, dt) {
     u.attack = Math.max(0, u.attack - dt); u.cooldown -= dt;
+    u.chargeCooldown = (u.chargeCooldown || 0) - dt; u.charge = Math.max(0, (u.charge || 0) - dt);
     if (u.hp <= 0) return;
     if (u.strike) {
       u.strike.timer -= dt;
@@ -559,22 +609,30 @@
     }
     const target = u.team === 'ally' ? nearest(u, enemies, 650) : nearest(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
     if (!target) { if (dist(u, { x: u.homeX, y: u.homeY }) > 35) steerMove(u, { x: u.homeX, y: u.homeY }, dt); else u.moving = false; return; }
-    const d = dist(u, target), range = u.kind === 'Archer' ? 205 : target === castle ? 88 : u.kind === 'Lancer' ? 66 : 51;
+    const d = dist(u, target), range = u.kind === 'Archer' ? 225 : target === castle ? 88 : u.kind === 'Lancer' ? 91 : 51;
+    if (u.team === 'enemy' && u.kind === 'Archer' && d < 145 && !u.strike) {
+      const retreat = { x: u.x + (u.x - target.x), y: u.y + (u.y - target.y) };
+      steerMove(u, retreat, dt, u.speed * .95); u.facing = target.x < u.x ? -1 : 1;
+      if (u.cooldown <= 0) { u.attack = u.attackDuration = .72; u.cooldown = 1.6; u.strike = { timer: .31, target, range: 225 }; }
+      return;
+    }
+    if (u.team === 'enemy' && u.kind === 'Warrior' && d > 100 && d < 250 && u.chargeCooldown <= 0) { u.charge = .65; u.chargeCooldown = 3.8; addEffect('Particle FX/Dust_01.png', u.x, u.y, 42); }
     if (d > range) {
       const radius = u.team === 'enemy' ? Math.min(100, d * .35) : 10;
       const angle = u.flankAngle || u.seed;
       const aim = { x: target.x + Math.cos(angle) * radius, y: target.y + Math.sin(angle) * radius };
-      steerMove(u, onLand(aim.x, aim.y) ? aim : target, dt);
+      steerMove(u, canStand(aim.x, aim.y) ? aim : target, dt, u.speed * (u.charge > 0 ? 1.5 : 1));
     } else {
       u.moving = false; u.facing = target.x < u.x ? -1 : 1;
       if (u.cooldown <= 0) {
-        u.attack = u.attackDuration = u.kind === 'Archer' ? .72 : .4; u.cooldown = u.kind === 'Archer' ? 1.65 : u.team === 'ally' ? .9 : 1.4;
-        u.strike = { timer: u.kind === 'Archer' ? .31 : .16, target, range, damage: u.team === 'ally' ? 18 : target === castle ? 9 : 8 };
+        u.attack = u.attackDuration = u.kind === 'Archer' ? .72 : .4; u.cooldown = u.kind === 'Archer' ? 1.6 : u.team === 'ally' ? .9 : Math.max(.85, 1.25 - waveIndex * .08);
+        u.strike = { timer: u.kind === 'Archer' ? .31 : u.kind === 'Lancer' ? .24 : .2, target, range, damage: u.team === 'ally' ? 18 : (target === castle ? 13 : u.kind === 'Lancer' ? 13 : 10) + waveIndex * 2 };
       }
     }
   }
 
   function update(dt) {
+    for (const u of [hero, ...allies, ...enemies]) keepOnLand(u);
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
     if (hitStop > 0) { hitStop -= dt; return; }
     elapsed += dt; gatherCooldown = Math.max(0, gatherCooldown - dt); hero.cooldown = Math.max(0, hero.cooldown - dt); hero.attack = Math.max(0, hero.attack - dt); hero.invuln = Math.max(0, hero.invuln - dt);
@@ -585,12 +643,15 @@
       hero.strike.timer -= dt;
       if (hero.strike.timer <= 0) {
         hero.strike = null;
-        for (const e of enemies) if (e.hp > 0 && dist(hero, e) < 108) hurt(e, 27, hero);
+        const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && (e.x - hero.x) * hero.facing >= -12).sort((a, b) => dist(hero, a) - dist(hero, b)).slice(0, 3);
+        targets.forEach((e, i) => hurt(e, i === 0 ? 27 : 18, hero));
       }
     }
     const dx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
     const dy = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup'));
-    if (hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > .19 ? .72 : 1));
+    if ((dx || dy) && hero.work) { hero.work = null; gatherCooldown = .2; }
+    if (hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > 0 ? .55 : 1));
+    updateWork(dt);
     if (keys.has(' ') || pointerAttack) heroAttack();
     if (keys.has('e')) gather();
     for (const s of sheep) s.cooldown = Math.max(0, s.cooldown - dt);
@@ -600,14 +661,14 @@
       if (spawned < waves[waveIndex].count && spawnTimer <= 0) {
         const batch = Math.min(3, waves[waveIndex].count - spawned);
         for (let i = 0; i < batch; i++) spawnEnemy();
-        spawnTimer = waves[waveIndex].interval * 2.35;
+        spawnTimer = waves[waveIndex].interval * 1.9;
       }
     }
     for (const u of [...allies, ...enemies]) updateUnit(u, dt);
     // Soft separation keeps soldiers from drawing exactly on top of one another.
     for (const group of [allies, enemies]) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
       const a = group[i], b = group[j], d = dist(a, b);
-      if (d > .1 && d < 31) { const push = (31 - d) * Math.min(.45, dt * 7), px = (a.x - b.x) / d * push, py = (a.y - b.y) / d * push; if (onLand(a.x + px, a.y + py)) { a.x += px; a.y += py; } if (onLand(b.x - px, b.y - py)) { b.x -= px; b.y -= py; } }
+      if (d > .1 && d < 31) { const push = (31 - d) * Math.min(.45, dt * 7), px = (a.x - b.x) / d * push, py = (a.y - b.y) / d * push; translateEntity(a, px, py); translateEntity(b, -px, -py); }
     }
     for (const p of projectiles) {
       p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
@@ -761,6 +822,6 @@
   }
 
   // Read-only state for meaningful smoke tests and inspecting an active match.
-  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
+  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
   resize(); preload(); requestAnimationFrame(frame);
 })();
