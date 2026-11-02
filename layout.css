@@ -75,6 +75,8 @@
   border: 2px solid #ff917a9c;
   transition: opacity 90ms ease-out;
 }
+.is-playing .health-number { font-size: 9px; }
+.is-playing .hud-label { font-size: 9px; }
 .player-hit .damage-flash { opacity: .8; }
 .announcement {
   top: 14px;
@@ -144,7 +146,8 @@
   .is-playing .resource { min-width: 39px; }
   .is-playing .resource img { width: 26px; height: 28px; }
   .is-playing .resource strong { font-size: 12px; }
-  .is-playing .resource div > span { font-size: 5px; }
+  .is-playing .resource div > span { font-size: 7px; }
+  .is-playing .health-number { font-size: 7px; }
   .is-playing .food-resource { display: flex; }
   .is-playing .pause-button { margin-left: auto; flex-shrink: 0; width: 26px; }
   .battle-status { height: 52px; gap: 16px; padding: 8px 12px; }

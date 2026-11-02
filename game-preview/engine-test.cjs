@@ -15,7 +15,7 @@ const window = { TINY_ASSETS: assets, devicePixelRatio: 1, addEventListener() {}
 const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: () => 0, setItem() {} }, requestAnimationFrame() {}, setTimeout() {} };
 const source = fs.readFileSync('game.js', 'utf8').replace('resize(); preload(); requestAnimationFrame(frame);', `
   initialized = true; state = 'ready';
-  window.test = { startGame, update, startWave, spawnEnemy, spriteFrame, canStand, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
+  window.test = { startGame, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
     get enemies() { return enemies; }, get allies() { return allies; }, get state() { return state; },
     get impacts() { return impacts; }, get projectiles() { return projectiles; },
     get phase() { return phase; }, get wave() { return waveIndex; }, get gold() { return gold; }, get wood() { return wood; }, get food() { return food; }, get score() { return score; }
@@ -48,7 +48,7 @@ const recruitGold = g.gold; g.recruitUnit(); assert.equal(g.allies.length, 2); a
 g.startWave(); g.update(.4); assert.equal(g.enemies.length, 3);
 const enemy = g.enemies[0]; enemy.x = 350; enemy.y = 401; enemy.entering = false; g.hero.x = enemy.x + 30; g.hero.y = enemy.y; const enemyHp = enemy.hp;
 g.heroAttack(); assert.equal(enemy.hp, enemyHp, 'wind-up does not damage before the strike frame');
-g.update(.13); assert.equal(enemy.hp, enemyHp - 27); assert.ok(enemy.hitFlash > 0); assert.ok(enemy.stagger > 0); assert.ok(enemy.knockX < 0); assert.ok(g.impacts.length > 0);
+g.update(.22); assert.equal(enemy.hp, enemyHp - 27); assert.ok(enemy.hitFlash > 0); assert.ok(enemy.stagger > 0); assert.ok(enemy.knockX < 0); assert.ok(g.impacts.length > 0);
 g.heroAttack(); assert.equal(enemy.hp, enemyHp - 27, 'attack cooldown prevents duplicate hits');
 const beforeHit = g.hero.hp; g.hurt(g.hero, 8, enemy); assert.equal(g.hero.hp, beforeHit - 8);
 assert.ok(g.hero.hitFlash > 0 && g.hero.stagger > 0 && g.hero.knockX > 0, 'player gets the same visible impact response');
@@ -118,7 +118,20 @@ console.log('Archer distance keeping and work cancellation: passed');
 g.startGame();g.allies.length=0;g.startWave();for(let i=0;i<5;i++)g.spawnEnemy();
 g.hero.x=600;g.hero.y=400;
 g.enemies.forEach((e,i)=>{e.x=i===4?555:630+i*12;e.y=400;e.entering=false;e.hp=e.maxHp=100;e.cooldown=10;});
-g.heroAttack();g.update(.13);
+g.heroAttack();g.update(.22);
 assert.equal(g.enemies[0].hp,73);assert.equal(g.enemies[1].hp,82);assert.equal(g.enemies[2].hp,82);
 assert.equal(g.enemies[3].hp,100,'fourth target is outside cleave limit');assert.equal(g.enemies[4].hp,100,'rear target is outside forward arc');
 console.log('Forward attack arc, three-target cleave cap, and secondary damage: passed');
+
+// Regression checks for collision sliding, navigation and frame-independent arrows.
+g.startGame();const walker={x:730,y:260,speed:100,facing:1,flankSign:1};const destination={x:940,y:260};
+assert.equal(g.clearPath(walker,destination),false,'castle blocks the direct route');
+for(let tick=0;tick<480;tick++){g.steerMove(walker,destination,1/60);assert.ok(g.positionFits(walker.x,walker.y),'navigation avoids colliders');}
+assert.ok(Math.hypot(walker.x-destination.x,walker.y-destination.y)<30,'troops route around the castle');
+const facingActor={x:500,y:400,facing:1,attack:.3};g.move(facingActor,-1,0,.05,100);assert.equal(facingActor.facing,1,'movement cannot reverse an ongoing swing');
+assert.ok(Number.isFinite(g.segmentHit({x:0,y:0},{x:100,y:0},{x:50,y:0},4)),'swept arrow detects crossed targets');
+assert.equal(g.segmentHit({x:0,y:0},{x:100,y:0},{x:50,y:20},4),Infinity,'arrow does not hit off its path');
+g.startGame();g.allies.length=0;g.startWave();g.spawnEnemy();const shooter=g.enemies[0];Object.assign(shooter,{x:400,y:400,kind:'Archer',entering:false,cooldown:999});g.hero.x=500;g.hero.y=400;g.fireArrow(shooter,g.hero);g.projectiles[0].vx=8000;g.projectiles[0].vy=0;g.update(.04);assert.equal(g.hero.hp,90,'fast arrow deals one hit when it crosses the player');
+g.startGame();g.hero.hp=20;const foodBefore=g.food;g.healHero();g.healHero();assert.equal(g.food,foodBefore-1,'rapid healing cannot consume multiple meals at once');
+g.keys.add('d');g.update(.016);g.gather();assert.equal(g.hero.work,null,'holding E while walking cannot restart work');
+console.log('Obstacle routing, locked swing direction, swept arrow hits/misses, healing cadence, and animation cancellation: passed');

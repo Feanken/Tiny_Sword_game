@@ -24,7 +24,7 @@
     { name: 'Hujan panah', color: 'Purple', count: 10, interval: 1.65, types: ['Warrior', 'Archer', 'Lancer'] },
     { name: 'Pasukan matahari', color: 'Yellow', count: 13, interval: 1.5, types: ['Lancer', 'Warrior', 'Archer', 'Monk'] },
     { name: 'Bayangan di dermaga', color: 'Black', count: 16, interval: 1.35, types: ['Warrior', 'Lancer', 'Archer', 'Monk'] },
-    { name: 'Pertahanan terakhir', color: 'Black', count: 22, interval: 1.1, types: ['Warrior', 'Lancer', 'Archer', 'Monk', 'Pawn'] },
+    { name: 'Pertahanan terakhir', color: 'Black', count: 20, interval: 1.1, types: ['Warrior', 'Lancer', 'Archer', 'Monk', 'Pawn'] },
   ];
   let state = 'loading', phase = 'prepare', waveIndex = 0, waveTimer = 22, spawned = 0, spawnTimer = 0;
   let gold = 80, wood = 40, food = 3, score = 0, kills = 0, recruitIndex = 0;
@@ -53,8 +53,8 @@
   function translateEntity(entity, dx, dy) {
     const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
     for (let i = 0; i < steps; i++) {
-      if (canStand(entity.x + dx / steps, entity.y)) entity.x += dx / steps;
-      if (canStand(entity.x, entity.y + dy / steps)) entity.y += dy / steps;
+      if (positionFits(entity.x + dx / steps, entity.y, entity)) entity.x += dx / steps;
+      if (positionFits(entity.x, entity.y + dy / steps, entity)) entity.y += dy / steps;
     }
   }
   function keepOnLand(entity) {
@@ -93,6 +93,45 @@
   const bushes = [[299, 216, 1], [372, 323, 2], [464, 191, 3], [670, 183, 4], [1044, 243, 1], [1120, 405, 2], [836, 575, 3], [550, 582, 4], [176, 423, 1]];
   const villagers = [{ x: 704, y: 414, tool: 'Axe', type: 'wood', facing: -1 }, { x: 619, y: 493, tool: 'Pickaxe', type: 'gold', facing: -1 }];
   const obstacleList = [...trees.map(t => ({ x: t.x, y: t.y - 4, radius: t.radius })), ...goldNodes, ...buildings.map(b => ({ x: b.x, y: b.cy, radius: b.radius }))];
+  function positionFits(x, y, entity) {
+    if (!canStand(x, y)) return false;
+    return obstacleList.every(o => {
+      const next = Math.hypot(x - o.x, y - o.y), radius = o.radius + 10;
+      // An overlapping spawn can slide out, but cannot go deeper into a collider.
+      return next >= radius - .01 || (entity && next > Math.hypot(entity.x - o.x, entity.y - o.y) + .001);
+    });
+  }
+  function clearPath(a, b) {
+    const steps = Math.max(1, Math.ceil(dist(a, b) / 12));
+    for (let i = 1; i <= steps; i++) if (!positionFits(a.x + (b.x - a.x) * i / steps, a.y + (b.y - a.y) * i / steps)) return false;
+    return true;
+  }
+  const navCols = 40, navRows = 22;
+  const navNodes = Array.from({ length: navCols * navRows }, (_, i) => ({ x: i % navCols * 32 + 16, y: Math.floor(i / navCols) * 32 + 16 }));
+  const navOpen = navNodes.map(p => positionFits(p.x, p.y));
+  function routeTo(a, b) {
+    const closest = p => {
+      let index = -1, best = Infinity;
+      navNodes.forEach((n, i) => { if (navOpen[i]) { const d = dist(p, n); if (d < best && clearPath(p, n)) { index = i; best = d; } } });
+      return index;
+    };
+    const start = closest(a);
+    // Targets may stand against a collider; use the nearest reachable cell.
+    let goal = -1, best = Infinity;
+    navNodes.forEach((n, i) => { const d = dist(n, b); if (navOpen[i] && d < best) { goal = i; best = d; } });
+    if (start < 0 || goal < 0) return [];
+    const queue = [start], previous = new Int32Array(navNodes.length).fill(-1); previous[start] = start;
+    for (let head = 0; head < queue.length && previous[goal] < 0; head++) {
+      const i = queue[head];
+      for (const j of [i - navCols, i + navCols, i % navCols ? i - 1 : -1, i % navCols < navCols - 1 ? i + 1 : -1]) {
+        if (j < 0 || j >= navNodes.length || !navOpen[j] || previous[j] >= 0 || !clearPath(navNodes[i], navNodes[j])) continue;
+        previous[j] = i; queue.push(j);
+      }
+    }
+    if (previous[goal] < 0) return [];
+    const path = []; for (let i = goal; i !== start; i = previous[i]) path.unshift(navNodes[i]);
+    return path;
+  }
 
   function loadImage(path) {
     if (images.has(path)) return images.get(path).promise;
@@ -263,15 +302,16 @@
       ctx.strokeStyle = '#f5df9a99'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(u.x, u.y - 4, 21, 9, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    const path = unitPath(color, kind, action), age = u.attack > 0 ? (u.attackDuration || .4) - u.attack : animTime + (u.seed || 0);
-    drawSprite(path, u.x, u.y, size, age, u.attack > 0 ? 11 : 9, u.facing, alpha, u.attack > 0);
-    if (u.hitFlash > 0) drawSprite(path, u.x, u.y, size, age, u.attack > 0 ? 11 : 9, u.facing, Math.min(.92, u.hitFlash / .15), u.attack > 0, true);
+    const path = unitPath(color, kind, action), age = u.attack > 0 ? (u.attackDuration || .4) - u.attack : (u.animTime || 0);
+    const fps = u.attack > 0 ? spriteFrame(path).count / (u.attackDuration || .4) : 9;
+    drawSprite(path, u.x, u.y, size, age, fps, u.facing, alpha, u.attack > 0);
+    if (u.hitFlash > 0) drawSprite(path, u.x, u.y, size, age, fps, u.facing, Math.min(.92, u.hitFlash / .15), u.attack > 0, true);
     if (u.attack > 0 && age > .07 && age < .29 && !['Archer', 'Monk'].includes(kind)) {
       ctx.save(); ctx.translate(u.x, u.y - 23); ctx.scale(u.facing, 1);
       ctx.strokeStyle = isHero ? '#fff1c7cc' : u.team === 'enemy' ? '#ffc49ba8' : '#d4f5ddb0';
       ctx.lineWidth = isHero ? 4 : 3; ctx.lineCap = 'round';
       const progress = (age - .07) / .22;
-      ctx.beginPath(); ctx.arc(0, 0, isHero ? 66 : 43, -.95 + progress * .8, -.25 + progress * 1.45); ctx.stroke(); ctx.restore();
+      ctx.beginPath(); ctx.arc(0, 0, isHero ? 76 : kind === 'Lancer' ? 77 : 43, -1.45, 1.45 * progress); ctx.stroke(); ctx.restore();
     }
     if ((!isHero && u.hp < u.maxHp) || (isHero && u.hitFlash > 0)) healthBar(u.x, u.y - 55, u.hp, u.maxHp, u.team === 'enemy' ? '#ef9a7a' : '#a9dda9', isHero ? 43 : 35);
     if (isHero) { ctx.fillStyle = '#e9dda7'; ctx.font = 'bold 9px Segoe UI'; ctx.textAlign = 'center'; ctx.fillText('KAMU', u.x, u.y - 70); }
@@ -345,7 +385,7 @@
       }
       ctx.restore();
     }
-    for (const f of floaters) { ctx.globalAlpha = Math.min(1, f.life * 2); ctx.font = `bold ${f.large ? 16 : 12}px Segoe UI`; ctx.textAlign = 'center'; ctx.strokeStyle = '#183d2c'; ctx.lineWidth = 3; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y); }
+    for (const f of floaters) { ctx.globalAlpha = Math.min(1, f.life * 2); ctx.font = `bold ${f.large ? 17 : 12}px Segoe UI`; ctx.textAlign = 'center'; ctx.strokeStyle = '#142c23'; ctx.lineWidth = 4; ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y); }
     ctx.globalAlpha = 1;
     if (state === 'playing' && phase === 'battle') {
       ctx.fillStyle = '#233d31dc'; ctx.fillRect(76, 446, 100, 23);
@@ -363,7 +403,15 @@
 
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   function addEffect(path, x, y, size = 90, life = .55, fps = 14) { effects.push({ path, x, y, size, life, time: 0, fps }); }
-  function float(text, x, y, color = '#f4d790', large = false) { floaters.push({ text, x, y: y - 30, life: 1.05, color, large }); }
+  function float(text, x, y, color = '#f4d790', large = false) {
+    let fy = y - 30;
+    for (let attempts = 0; attempts < 5; attempts++) {
+      if (!floaters.some(f => Math.abs(f.x - x) < 40 && Math.abs(f.y - fy) < 18)) break;
+      fy -= 18;
+    }
+    floaters.push({ text, x, y: fy, life: large ? .8 : .9, color, large });
+    if (floaters.length > 35) floaters.shift();
+  }
   function notify(text) { $('toast').textContent = text; $('toast').classList.add('show'); toastTimer = 3; }
   function announce(title, subtitle) {
     $('announcement').replaceChildren(document.createTextNode(title));
@@ -381,16 +429,26 @@
     const len = Math.hypot(dx, dy); entity.moving = len > .05;
     if (!entity.moving) return;
     translateEntity(entity, dx / len * speed * dt, dy / len * speed * dt);
-    if (Math.abs(dx) > .1) entity.facing = dx > 0 ? 1 : -1;
+    if (Math.abs(dx) > .1 && !(entity.attack > 0) && !(entity.stagger > 0)) entity.facing = dx > 0 ? 1 : -1;
     for (const o of obstacleList) {
       const vx = entity.x - o.x, vy = entity.y - o.y, d = Math.hypot(vx, vy), min = o.radius + 10;
       if (d < min && d > .01) {
         const px = o.x + vx / d * min, py = o.y + vy / d * min;
-        if (canStand(px, py)) { entity.x = px; entity.y = py; }
+        translateEntity(entity, px - entity.x, py - entity.y);
       }
     }
   }
   function steerMove(entity, target, dt, speed = entity.speed) {
+    entity.routeTimer = (entity.routeTimer || 0) - dt;
+    if (!clearPath(entity, target)) {
+      if (entity.routeTimer <= 0 || !entity.routeTarget || dist(entity.routeTarget, target) > 64) {
+        entity.route = routeTo(entity, target); entity.routeTimer = .9; entity.routeTarget = { ...target };
+      }
+      const path = entity.route || [];
+      while (path.length && dist(entity, path[0]) < 12) path.shift();
+      while (path.length > 1 && clearPath(entity, path[1])) path.shift();
+      if (path.length) { move(entity, path[0].x - entity.x, path[0].y - entity.y, dt, speed); return; }
+    } else entity.route = [];
     let dx = target.x - entity.x, dy = target.y - entity.y;
     const distance = Math.hypot(dx, dy); if (distance < 3) { entity.moving = false; return; }
     dx /= distance; dy /= distance;
@@ -409,7 +467,9 @@
     entity.stagger = Math.max(0, (entity.stagger || 0) - dt);
     if (Math.hypot(entity.knockX || 0, entity.knockY || 0) > 5) {
       const speed = Math.hypot(entity.knockX, entity.knockY);
+      const facing = entity.facing;
       move(entity, entity.knockX, entity.knockY, dt, speed);
+      entity.facing = facing;
       const decay = Math.exp(-19 * dt); entity.knockX *= decay; entity.knockY *= decay;
     }
   }
@@ -417,7 +477,7 @@
   function startGame() {
     if (!initialized) return;
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
-    hero.work = null;
+    hero.work = null; hero.healCooldown = 0; hero.animTime = 0; hero.animState = 'Idle';
     castle.hp = 500; castle.hitFlash = 0; gold = 80; wood = 40; food = 3; score = 0; kills = 0; recruitIndex = 0;
     enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; hitStop = 0; damageDealt = 0; damageTaken = 0;
     for (const s of sheep) s.cooldown = 0;
@@ -492,9 +552,11 @@
   }
   function healHero() {
     if (state !== 'playing') return;
+    if (hero.healCooldown > 0) return;
     if (hero.hp >= 100) { notify('Tenagamu masih penuh.'); return; }
     if (food < 1) { notify('Bekal habis. Dekati domba lalu tekan E.'); return; }
-    food--; hero.hp = Math.min(100, hero.hp + 45); float('+45', hero.x, hero.y, '#c6eea1', true);
+    const restored = Math.min(45, 100 - hero.hp);
+    food--; hero.healCooldown = 1.8; hero.hp += restored; float(`+${Math.ceil(restored)}`, hero.x, hero.y, '#c6eea1', true);
     addEffect(blue('Monk', 'Heal_Effect'), hero.x, hero.y, 140, .8); tone(587, .25); updateUI();
   }
   function nearestResource() {
@@ -505,7 +567,7 @@
     return closest;
   }
   function gather() {
-    if (state !== 'playing' || gatherCooldown > 0 || hero.work || hero.attack > 0 || hero.stagger > 0) return;
+    if (state !== 'playing' || gatherCooldown > 0 || hero.work || hero.attack > 0 || hero.stagger > 0 || hero.moving) return;
     const node = nearestResource(); if (!node) return;
     hero.work = { node, elapsed: 0, duration: node.type === 'food' ? .7 : .9 };
     hero.facing = node.x < hero.x ? -1 : 1; hero.moving = false;
@@ -537,7 +599,7 @@
     target.hitFlash = .18;
     const angle = source ? Math.atan2(target.y - source.y, target.x - source.x) : rand(0, Math.PI * 2);
     impacts.push({ x: target.x, y: target.y - (target === castle ? 40 : 27), angle, color: target === hero || target.team === 'ally' ? '#ff977d' : '#ffdb86', life: .3, duration: .3 });
-    float(`−${amount}`, target.x + rand(-7, 7), target.y - (target === castle ? 45 : 10), target === hero ? '#ffbaa1' : '#fff1c5', true);
+    float(`−${Math.ceil(appliedDamage)}`, target.x, target.y - (target === castle ? 45 : 10), target === hero ? '#ffbaa1' : '#fff1c5', true);
     if (target === hero) {
       hero.invuln = .45; shake = Math.max(shake, 3); $('gameShell').classList.add('player-hit'); tone(150, .12, 'triangle', .035, 75);
     } else if (target === castle) { shake = Math.max(shake, 2); addEffect('Particle FX/Explosion_02.png', castle.x + rand(-45, 45), castle.y - 20, 65, .35, 24); }
@@ -548,6 +610,7 @@
       target.knockX = Math.cos(angle) * force; target.knockY = Math.sin(angle) * force;
       target.stagger = target === hero ? .09 : .12;
       target.strike = null;
+      target.attack = 0;
     }
     if (target.hp <= 0 && target.team === 'enemy' && !target.dead) {
       target.dead = true; kills++; score += 25 + waveIndex * 5; gold += 6;
@@ -561,9 +624,9 @@
     if (hero.cooldown > 0 || hero.stagger > 0) return;
     hero.work = null;
     hero.attack = hero.attackDuration = .42; hero.cooldown = .58;
-    const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 108);
+    const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94).sort((a, b) => dist(hero, a) - dist(hero, b));
     if (targets.length) hero.facing = targets[0].x < hero.x ? -1 : 1;
-    hero.strike = { timer: .12 };
+    hero.strike = { timer: .21 };
     tone(380, .1, 'triangle', .018, 110);
   }
   function fireArrow(u, target) {
@@ -575,6 +638,11 @@
     for (const other of candidates) { if (other.hp <= 0) continue; const d = dist(entity, other); if (d < limit) { limit = d; target = other; } }
     return target;
   }
+  function segmentHit(a, b, target, radius) {
+    const dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy;
+    const t = length ? clamp(((target.x - a.x) * dx + (target.y - a.y) * dy) / length, 0, 1) : 0;
+    return Math.hypot(a.x + dx * t - target.x, a.y + dy * t - target.y) <= radius ? t : Infinity;
+  }
   function updateUnit(u, dt) {
     u.attack = Math.max(0, u.attack - dt); u.cooldown -= dt;
     u.chargeCooldown = (u.chargeCooldown || 0) - dt; u.charge = Math.max(0, (u.charge || 0) - dt);
@@ -583,13 +651,14 @@
       u.strike.timer -= dt;
       if (u.strike.timer <= 0) {
         const strike = u.strike; u.strike = null;
-        if (strike.target.hp > 0 && dist(u, strike.target) <= strike.range + 22) {
+        if (strike.target.hp > 0 && dist(u, strike.target) <= strike.range && (u.kind === 'Archer' || ((strike.target.x - u.x) * u.facing >= -12 && clearPath(u, strike.target)))) {
           if (u.kind === 'Archer') fireArrow(u, strike.target);
           else hurt(strike.target, strike.damage, u);
         }
       }
     }
     if (u.stagger > 0) { u.moving = false; return; }
+    if (u.strike) { u.moving = false; return; }
     if (u.entering) {
       const exit = { x: 231, y: 402 + u.lane * 13 };
       if (dist(u, exit) < 22) u.entering = false;
@@ -600,9 +669,10 @@
       const wounded = nearest(u, friends.filter(f => f !== u && f.hp < f.maxHp), 220);
       const home = u.team === 'ally' ? { x: hero.x + 55, y: hero.y + 45 } : { x: hero.x - 130, y: hero.y + Math.sin(u.flankAngle) * 90 };
       if (wounded && dist(u, wounded) < 140 && u.cooldown <= 0) {
-        wounded.hp = Math.min(wounded.maxHp, wounded.hp + (u.team === 'ally' ? 20 : 12));
+        const healed = Math.min(wounded.maxHp - wounded.hp, u.team === 'ally' ? 16 : 12);
+        wounded.hp += healed;
         u.attack = u.attackDuration = .45; u.cooldown = u.team === 'ally' ? 3 : 4.5;
-        addEffect(blue('Monk', 'Heal_Effect'), wounded.x, wounded.y, 110, .7); float(u.team === 'ally' ? '+20' : '+12', wounded.x, wounded.y, '#ceefa0'); u.moving = false;
+        addEffect(blue('Monk', 'Heal_Effect'), wounded.x, wounded.y, 110, .7); float(`+${Math.ceil(healed)}`, wounded.x, wounded.y, '#ceefa0'); u.moving = false;
       } else if (dist(u, wounded || home) > 100) steerMove(u, wounded || home, dt);
       else u.moving = false;
       return;
@@ -623,7 +693,7 @@
       const aim = { x: target.x + Math.cos(angle) * radius, y: target.y + Math.sin(angle) * radius };
       steerMove(u, canStand(aim.x, aim.y) ? aim : target, dt, u.speed * (u.charge > 0 ? 1.5 : 1));
     } else {
-      u.moving = false; u.facing = target.x < u.x ? -1 : 1;
+      u.moving = false; if (u.attack <= 0) u.facing = target.x < u.x ? -1 : 1;
       if (u.cooldown <= 0) {
         u.attack = u.attackDuration = u.kind === 'Archer' ? .72 : .4; u.cooldown = u.kind === 'Archer' ? 1.6 : u.team === 'ally' ? .9 : Math.max(.85, 1.25 - waveIndex * .08);
         u.strike = { timer: u.kind === 'Archer' ? .31 : u.kind === 'Lancer' ? .24 : .2, target, range, damage: u.team === 'ally' ? 18 : (target === castle ? 13 : u.kind === 'Lancer' ? 13 : 10) + waveIndex * 2 };
@@ -636,6 +706,7 @@
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
     if (hitStop > 0) { hitStop -= dt; return; }
     elapsed += dt; gatherCooldown = Math.max(0, gatherCooldown - dt); hero.cooldown = Math.max(0, hero.cooldown - dt); hero.attack = Math.max(0, hero.attack - dt); hero.invuln = Math.max(0, hero.invuln - dt);
+    hero.healCooldown = Math.max(0, hero.healCooldown - dt);
     for (const u of [hero, ...allies, ...enemies]) updateReaction(u, dt);
     castle.hitFlash = Math.max(0, (castle.hitFlash || 0) - dt);
     $('gameShell').classList.toggle('player-hit', hero.hitFlash > 0);
@@ -643,7 +714,7 @@
       hero.strike.timer -= dt;
       if (hero.strike.timer <= 0) {
         hero.strike = null;
-        const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && (e.x - hero.x) * hero.facing >= -12).sort((a, b) => dist(hero, a) - dist(hero, b)).slice(0, 3);
+        const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && (e.x - hero.x) * hero.facing >= -12 && clearPath(hero, e)).sort((a, b) => dist(hero, a) - dist(hero, b)).slice(0, 3);
         targets.forEach((e, i) => hurt(e, i === 0 ? 27 : 18, hero));
       }
     }
@@ -668,12 +739,17 @@
     // Soft separation keeps soldiers from drawing exactly on top of one another.
     for (const group of [allies, enemies]) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
       const a = group[i], b = group[j], d = dist(a, b);
-      if (d > .1 && d < 31) { const push = (31 - d) * Math.min(.45, dt * 7), px = (a.x - b.x) / d * push, py = (a.y - b.y) / d * push; translateEntity(a, px, py); translateEntity(b, -px, -py); }
+      if (d < 31) { const push = (31 - d) * Math.min(.25, dt * 5), angle = (i + j * 3) * 2.399963, px = (d > .01 ? (a.x - b.x) / d : Math.cos(angle)) * push, py = (d > .01 ? (a.y - b.y) / d : Math.sin(angle)) * push; translateEntity(a, px, py); translateEntity(b, -px, -py); }
     }
     for (const p of projectiles) {
+      const previous = { x: p.x, y: p.y };
       p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
       const candidates = p.team === 'ally' ? enemies : [hero, ...allies, castle];
-      for (const target of candidates) if (target.hp > 0 && dist(p, target) < (target === castle ? 57 : 22)) { hurt(target, p.damage, p.source); p.life = 0; addEffect('Particle FX/Dust_01.png', p.x, p.y, 32, .25); break; }
+      const hits = candidates.filter(target => target.hp > 0).map(target => ({ target, t: segmentHit(previous, p, target, target === castle ? 57 : 20) })).filter(hit => Number.isFinite(hit.t)).sort((a, b) => a.t - b.t);
+      if (hits.length) {
+        const hit = hits[0]; p.x = previous.x + (p.x - previous.x) * hit.t; p.y = previous.y + (p.y - previous.y) * hit.t;
+        hurt(hit.target, p.damage, p.source); p.life = 0; addEffect('Particle FX/Dust_01.png', p.x, p.y, 32, .25);
+      }
     }
     projectiles = projectiles.filter(p => p.life > 0); enemies = enemies.filter(u => u.hp > 0); allies = allies.filter(u => u.hp > 0);
     for (const d of drops) {
@@ -683,6 +759,11 @@
       if (distance < 30) { if (d.type === 'wood') wood += d.value; else gold += d.value; float(`+${d.value}`, hero.x, hero.y - 12); d.life = 0; }
     }
     drops = drops.filter(d => d.life > 0);
+    for (const u of [hero, ...allies, ...enemies]) {
+      const animState = u.work ? 'Work' : u.stagger > 0 ? 'Hurt' : u.attack > 0 ? 'Attack' : u.moving ? 'Run' : 'Idle';
+      if (u.animState !== animState) { u.animState = animState; u.animTime = 0; }
+      else u.animTime = (u.animTime || 0) + dt;
+    }
     passiveTimer += dt;
     if (passiveTimer >= 6) { passiveTimer = 0; wood += 3; gold += 4; float('+3 kayu', villagers[0].x, villagers[0].y, '#dbdca0'); float('+4 emas', villagers[1].x, villagers[1].y); }
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
