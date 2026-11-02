@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#14231f">
+  <meta name="description" content="Penjaga Pulau — game pertahanan 2D kecil dengan dunia pixel art Tiny Swords. Lindungi kastelmu dalam lima gelombang.">
+  <title>Penjaga Pulau · Tiny Swords</title>
+  <link rel="icon" href="Terrain/Resources/Gold/Gold%20Resource/Gold_Resource.png">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="layout.css">
+  <script src="asset-manifest.js" defer></script>
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="Penjaga Pulau, beranda">
+        <span class="brand-mark" aria-hidden="true">♜</span><span>PENJAGA PULAU<small>A TINY SWORDS ADVENTURE</small></span>
+      </a>
+      <nav aria-label="Menu game">
+        <button id="helpButton" class="nav-button"><span aria-hidden="true">?</span> Cara main</button>
+        <button id="galleryButton" class="nav-button"><span aria-hidden="true">▦</span> Galeri aset</button>
+        <button id="soundButton" class="icon-button" aria-label="Nyalakan suara" aria-pressed="false" title="Suara">♪<span class="sound-off">/</span></button>
+        <button id="fullscreenButton" class="icon-button" aria-label="Layar penuh" title="Layar penuh">⛶</button>
+      </nav>
+    </header>
+
+    <section class="page-title">
+      <div><p class="eyebrow"><span class="status-dot"></span> PETUALANGAN KECIL, KEBERANIAN BESAR</p><h1>Penjaga Pulau<span>.</span></h1></div>
+      <div class="title-side"><p>Sebuah rumah untuk dilindungi.<br>Sebuah kisah untuk dimenangkan.</p><div class="record"><span>REKOR TERBAIK</span><strong id="bestScore">0000</strong></div></div>
+    </section>
+
+    <main id="gameShell" class="game-shell">
+      <div class="hud">
+        <div class="hero-status"><span class="portrait" aria-hidden="true"></span><div><span class="hud-label">SANG PENJAGA</span><div class="health-track"><i id="heroHealthBar"></i></div><span class="health-number" id="heroHealth">100 / 100</span></div></div>
+        <div class="castle-status"><span class="castle-symbol" aria-hidden="true">♜</span><div><span class="hud-label">KASTEL BIRU</span><div class="health-track castle-track"><i id="castleHealthBar"></i></div><span class="health-number" id="castleHealth">500 / 500</span></div></div>
+        <div class="resource" title="Emas untuk merekrut pasukan"><img src="Terrain/Resources/Gold/Gold%20Resource/Gold_Resource.png" alt=""><div><span>EMAS</span><strong id="goldCount">80</strong></div></div>
+        <div class="resource" title="Kayu untuk memperbaiki kastel"><img src="Terrain/Resources/Wood/Wood%20Resource/Wood%20Resource.png" alt=""><div><span>KAYU</span><strong id="woodCount">40</strong></div></div>
+        <div class="resource food-resource" title="Bekal untuk memulihkan nyawa"><img src="Terrain/Resources/Meat/Meat%20Resource/Meat%20Resource.png" alt=""><div><span>BEKAL</span><strong id="foodCount">3</strong></div></div>
+        <button id="pauseButton" class="pause-button" aria-label="Jeda permainan" title="Jeda (P)">Ⅱ</button>
+      </div>
+
+      <div class="battle-status" id="battleStatus" hidden>
+        <div class="wave-panel" id="wavePanel" hidden><div><span class="tiny-label">PERTAHANKAN RUMAHMU</span><strong id="waveTitle">Persiapan</strong></div><span class="wave-badge" id="waveCount">0 / 5</span><div class="wave-track"><i id="waveProgress"></i></div><p id="waveDetail">Kumpulkan sumber daya sebelum musuh datang.</p></div>
+        <div class="entry-note"><span aria-hidden="true">↗</span><div><strong>AWASI JALAN BARAT</strong><small>Musuh mendarat, lalu menyebar mengejarmu.</small></div></div>
+        <div class="score-panel" id="scorePanel" hidden><span class="tiny-label">SKOR</span><strong id="scoreCount">0000</strong><span id="enemyCount">Pulau masih tenang</span></div>
+      </div>
+
+      <div class="arena" id="arena">
+        <canvas id="gameCanvas" width="1280" height="704" tabindex="0" aria-label="Arena Penjaga Pulau. WASD atau tombol panah untuk bergerak, Spasi untuk menyerang, E mengumpulkan sumber daya."></canvas>
+        <div class="arena-vignette" aria-hidden="true"></div>
+        <div class="damage-flash" aria-hidden="true"></div>
+        <div class="world-caption" id="worldCaption"><span class="status-dot"></span> PULAU EMBUN <span>·</span> KERAJAAN BIRU</div>
+
+        <section id="startScreen" class="start-screen">
+          <div class="intro-content"><p class="eyebrow light">SEBUAH PETUALANGAN PIXEL</p><h2>Rumah kecil.<br>Keberanian <em>besar.</em></h2><p class="intro-description">Musuh datang dari seberang lautan.<br>Angkat pedang, kumpulkan pasukan,<br>dan jaga kastelmu tetap berdiri.</p><button id="startButton" class="primary-button" disabled><span id="startLabel">Memuat pulau…</span><span aria-hidden="true">→</span></button><div class="intro-meta"><span>5 gelombang</span><i></i><span>± 5 menit</span><i></i><span>Tanpa instalasi</span></div><div class="loading-track" id="loadingTrack"><i id="loadingProgress"></i></div><p id="loadError" class="load-error" hidden></p></div>
+          <div class="island-label"><span>01 / PULAU EMBUN</span><small>Setiap kerajaan dimulai dari rumah.</small></div>
+        </section>
+
+        <section id="pauseScreen" class="center-overlay" hidden><div class="parchment"><p class="eyebrow">TARIK NAPAS SEJENAK</p><h2>Petualangan dijeda.</h2><p>Pulau ini menunggumu.</p><button id="resumeButton" class="primary-button">Lanjutkan <span>→</span></button><button id="restartPauseButton" class="text-button">Mulai dari awal</button></div></section>
+        <section id="endScreen" class="center-overlay" hidden><div class="parchment result-panel"><p class="eyebrow" id="resultEyebrow">KERAJAAN TETAP BERDIRI</p><span id="resultIcon" class="result-icon" aria-hidden="true">♜</span><h2 id="resultTitle">Pulau terselamatkan!</h2><p id="resultDescription"></p><div class="result-stats"><div><span>SKOR AKHIR</span><strong id="finalScore">0</strong></div><div><span>MUSUH DIKALAHKAN</span><strong id="finalKills">0</strong></div><div><span>GELOMBANG</span><strong id="finalWave">0 / 5</strong></div></div><button id="restartButton" class="primary-button">Main lagi <span>↻</span></button></div></section>
+
+        <div id="announcement" class="announcement" aria-live="polite"></div>
+        <div id="interactionHint" class="interaction-hint" hidden><kbd>E</kbd> <span></span></div>
+        <div id="toast" class="toast" role="status"></div>
+        <div id="mobileControls" class="mobile-controls" hidden><div class="dpad"><button data-move="up" aria-label="Gerak atas">▲</button><button data-move="left" aria-label="Gerak kiri">◀</button><button data-move="down" aria-label="Gerak bawah">▼</button><button data-move="right" aria-label="Gerak kanan">▶</button></div><div class="touch-actions"><button id="touchGather">E</button><button id="touchAttack">⚔</button></div></div>
+      </div>
+
+      <div class="command-bar">
+        <div class="mission-copy"><span class="tiny-label">MISIMU SEDERHANA</span><strong>Lindungi kastel. Jaga harapan.</strong><span id="phaseHint">Bertahan selama 5 gelombang serangan.</span></div>
+        <div class="commands">
+          <button class="command" id="recruitButton" title="Rekrut pasukan bergantian: pemanah, penombak, biarawan, ksatria. Tombol 1."><span class="command-art archer-art"></span><span><strong>Rekrut pasukan</strong><small id="recruitCost">40 emas</small></span><kbd>1</kbd></button>
+          <button class="command" id="repairButton" title="Pulihkan 140 nyawa kastel. Tombol 2."><img src="Terrain/Resources/Tools/Tool_01.png" alt=""><span><strong>Perbaiki kastel</strong><small>30 kayu</small></span><kbd>2</kbd></button>
+          <button class="command" id="healButton" title="Pulihkan 45 nyawa penjaga. Tombol Q."><img src="Terrain/Resources/Meat/Meat%20Resource/Meat%20Resource.png" alt=""><span><strong>Isi tenaga</strong><small>1 bekal</small></span><kbd>Q</kbd></button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="game-footer"><div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Bergerak</span><span><kbd>SPASI</kbd> Serang</span><span><kbd>E</kbd> Kumpulkan</span><span><kbd>P</kbd> Jeda</span></div><span class="asset-credit">Dibuat dengan aset <strong>Tiny Swords</strong> <span>✦</span></span></footer>
+  </div>
+
+  <dialog id="helpDialog" class="modal"><button class="close-button" data-close="helpDialog" aria-label="Tutup panduan">×</button><p class="eyebrow">BUKU SAKU SANG PENJAGA</p><h2>Pulau ini membutuhkanmu.</h2><p>Lindungi Kastel Biru dari <strong>5 gelombang</strong>. Kamu menang jika gelombang terakhir habis. Permainan berakhir jika nyawamu atau kastel habis.</p><div class="guide-grid"><div><kbd>W A S D</kbd><strong>Jelajahi pulau</strong><p>Atau gunakan tombol panah. Dekati pohon, tambang emas, dan domba.</p></div><div><kbd>SPASI / KLIK</kbd><strong>Ayunkan pedang</strong><p>Tahan untuk menyerang berulang. Kilatan, percikan, dan angka menandai pukulan yang mengenai sasaran.</p></div><div><kbd>E</kbd><strong>Kumpulkan bekal</strong><p>Tahan dekat sumber daya: pohon memberi kayu, tambang memberi emas, domba memberi bekal.</p></div><div><kbd>1 · 2 · Q</kbd><strong>Siapkan pertahanan</strong><p>Rekrut bantuan, perbaiki kastel, atau makan bekal. Biarawan sekutu juga menyembuhkanmu.</p></div></div><p class="guide-tip">Awasi dermaga dan jalan di barat: musuh masuk berkelompok, lalu menyebar mengejarmu. Bergeraklah saat musuh mengangkat senjata untuk menghindari pukulannya. Singgah di kastel saat jeda untuk memulihkan nyawa.</p><button class="primary-button" data-close="helpDialog">Mengerti, siap menjaga <span>→</span></button></dialog>
+
+  <dialog id="galleryDialog" class="modal gallery-modal"><button class="close-button" data-close="galleryDialog" aria-label="Tutup galeri">×</button><p class="eyebrow">DUNIA DI BALIK PETUALANGAN</p><h2>Satu paket, banyak cerita.</h2><p id="gallerySummary">Seluruh aset asli dari folder Tiny Swords.</p><div class="gallery-filters"><label class="sr-only" for="gallerySearch">Cari nama aset atau folder</label><input id="gallerySearch" placeholder="Cari aset atau folder…" type="search"><label class="sr-only" for="galleryCategory">Kategori aset</label><select id="galleryCategory"><option value="">Semua folder</option><option>Buildings</option><option>Units</option><option>Terrain</option><option>Particle FX</option><option>UI Elements</option></select></div><div id="galleryGrid" class="gallery-grid"></div><p class="gallery-note">Animasi memakai frame dari sprite sheet asli. Semua gambar tetap berada di folder asal.</p></dialog>
+</body>
+</html>
