@@ -6,6 +6,7 @@
   const ctx = canvas.getContext('2d');
   const W = 1280, H = 704, TILE = 64;
   const images = new Map();
+  const flashFrames = new Map();
   const manifest = new Map(window.TINY_ASSETS.map(a => [a.path, a]));
   const keys = new Set();
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -31,6 +32,8 @@
   let elapsed = 0, animTime = 0, gatherCooldown = 0, passiveTimer = 0, uiTimer = 0, announcementTimer = 0, toastTimer = 0, shake = 0;
   let enemies = [], allies = [], effects = [], floaters = [], drops = [], projectiles = [], impacts = [];
   let hitStop = 0;
+  const FIXED_STEP = 1 / 60;
+  let simulationAccumulator = 0;
   let damageDealt = 0, damageTaken = 0;
   let best = 0, terrainCanvas, lastTime = 0, pausedForDialog = false, initialized = false;
   let scale = 1, cameraX = 0, cameraY = 0, viewW = W, viewH = H, pointerAttack = false;
@@ -42,12 +45,10 @@
   const rows = { 1: [6, 14], 2: [3, 17], 3: [2, 18], 4: [2, 18], 5: [1, 18], 6: [1, 18], 7: [2, 18], 8: [2, 17], 9: [4, 16] };
   const land = (c, r) => !!rows[r] && c >= rows[r][0] && c <= rows[r][1];
   const onLand = (x, y) => land(Math.floor(x / TILE), Math.floor(y / TILE)) && x > 80 && x < 1195 && y > 80 && y < 630;
+  const footOffsets = Array.from({length:8},(_,i)=>[Math.cos(i*Math.PI/4)*23,Math.sin(i*Math.PI/4)*23]);
   function canStand(x, y) {
     // Stay inside the visible grass edge, including diagonal shore corners.
-    for (let i = 0; i < 8; i++) {
-      const angle = i * Math.PI / 4;
-      if (!onLand(x + Math.cos(angle) * 23, y + Math.sin(angle) * 23)) return false;
-    }
+    for (const [dx,dy] of footOffsets) if (!onLand(x+dx,y+dy)) return false;
     return onLand(x, y);
   }
   function translateEntity(entity, dx, dy) {
@@ -109,27 +110,40 @@
   const navCols = 40, navRows = 22;
   const navNodes = Array.from({ length: navCols * navRows }, (_, i) => ({ x: i % navCols * 32 + 16, y: Math.floor(i / navCols) * 32 + 16 }));
   const navOpen = navNodes.map(p => positionFits(p.x, p.y));
+  // Static topology is built once; units share bounded reverse-distance fields.
+  const navEdges = navNodes.map((n, i) => navOpen[i] ? [i-navCols,i+navCols,i%navCols?i-1:-1,i%navCols<navCols-1?i+1:-1].filter(j => j>=0 && j<navNodes.length && navOpen[j] && clearPath(n,navNodes[j])) : []);
+  const navComponent = new Int16Array(navNodes.length).fill(-1);
+  let componentCount = 0;
+  for(let i=0;i<navNodes.length;i++) if(navOpen[i] && navComponent[i]<0) {
+    const queue=[i];navComponent[i]=componentCount;
+    for(let head=0;head<queue.length;head++) for(const next of navEdges[queue[head]]) if(navComponent[next]<0){navComponent[next]=componentCount;queue.push(next);}
+    componentCount++;
+  }
+  const routeFields = new Map();
+  const navigationStats = { builds:0, hits:0 };
   function routeTo(a, b) {
-    const closest = p => {
-      let index = -1, best = Infinity;
-      navNodes.forEach((n, i) => { if (navOpen[i]) { const d = dist(p, n); if (d < best && clearPath(p, n)) { index = i; best = d; } } });
-      return index;
-    };
-    const start = closest(a);
-    // Targets may stand against a collider; use the nearest reachable cell.
-    let goal = -1, best = Infinity;
-    navNodes.forEach((n, i) => { const d = dist(n, b); if (navOpen[i] && d < best) { goal = i; best = d; } });
-    if (start < 0 || goal < 0) return [];
-    const queue = [start], previous = new Int32Array(navNodes.length).fill(-1); previous[start] = start;
-    for (let head = 0; head < queue.length && previous[goal] < 0; head++) {
-      const i = queue[head];
-      for (const j of [i - navCols, i + navCols, i % navCols ? i - 1 : -1, i % navCols < navCols - 1 ? i + 1 : -1]) {
-        if (j < 0 || j >= navNodes.length || !navOpen[j] || previous[j] >= 0 || !clearPath(navNodes[i], navNodes[j])) continue;
-        previous[j] = i; queue.push(j);
-      }
+    let start=-1,best=Infinity;
+    const col=Math.floor(a.x/32),row=Math.floor(a.y/32);
+    for(let r=Math.max(0,row-3);r<=Math.min(navRows-1,row+3);r++) for(let c=Math.max(0,col-3);c<=Math.min(navCols-1,col+3);c++) {
+      const i=r*navCols+c,n=navNodes[i],d=(n.x-a.x)**2+(n.y-a.y)**2;
+      if(navOpen[i] && d<best && clearPath(a,n)){start=i;best=d;}
     }
-    if (previous[goal] < 0) return [];
-    const path = []; for (let i = goal; i !== start; i = previous[i]) path.unshift(navNodes[i]);
+    if(start<0)return [];
+    let goal=-1;best=Infinity;
+    for(let i=0;i<navNodes.length;i++) if(navComponent[i]===navComponent[start]) {
+      const n=navNodes[i],d=(n.x-b.x)**2+(n.y-b.y)**2;
+      if(d<best){goal=i;best=d;}
+    }
+    if(goal<0)return [];
+    let field=routeFields.get(goal);
+    if(!field){
+      field=new Int16Array(navNodes.length).fill(-1);field[goal]=0;const queue=[goal];
+      for(let head=0;head<queue.length;head++)for(const next of navEdges[queue[head]])if(field[next]<0){field[next]=field[queue[head]]+1;queue.push(next);}
+      if(routeFields.size>=32)routeFields.delete(routeFields.keys().next().value);
+      routeFields.set(goal,field);navigationStats.builds++;
+    }else navigationStats.hits++;
+    const path=[];let current=start;
+    while(current!==goal){const next=navEdges[current].find(i=>field[i]>=0&&field[i]<field[current]);if(next===undefined)return [];path.push(navNodes[next]);current=next;}
     return path;
   }
 
@@ -267,11 +281,21 @@
     return { x: index * width, width, height, count, anchorY: isTree ? (height === 256 ? .95 : .87) : .79 };
   }
   function drawSprite(path, x, y, size, time = animTime, fps = 9, facing = 1, alpha = 1, once = false, flash = false) {
+    if(x+size<cameraX||x-size>cameraX+viewW||y+size<cameraY||y-size>cameraY+viewH)return;
     const im = img(path); if (!im) return;
     const frame = spriteFrame(path, time, fps, once), width = size * frame.width / frame.height;
     ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(facing, 1); ctx.globalAlpha = alpha;
-    if (flash) ctx.filter = 'brightness(0) invert(1)';
-    ctx.drawImage(im, frame.x, 0, frame.width, frame.height, -width / 2, -size * frame.anchorY, width, size);
+    if (flash) {
+      const key=path+':'+frame.x;let white=flashFrames.get(key);
+      if(!white){
+        white=document.createElement('canvas');white.width=frame.width;white.height=frame.height;
+        const g=white.getContext('2d');g.drawImage(im,frame.x,0,frame.width,frame.height,0,0,frame.width,frame.height);
+        g.globalCompositeOperation='source-in';g.fillStyle='#fff';g.fillRect(0,0,frame.width,frame.height);
+        if(flashFrames.size>=32)flashFrames.delete(flashFrames.keys().next().value);
+        flashFrames.set(key,white);
+      }
+      ctx.drawImage(white,-width/2,-size*frame.anchorY,width,size);
+    } else ctx.drawImage(im, frame.x, 0, frame.width, frame.height, -width / 2, -size * frame.anchorY, width, size);
     ctx.restore();
   }
   function drawImageAt(path, x, y, width, alpha = 1) {
@@ -402,7 +426,7 @@
   }
 
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function addEffect(path, x, y, size = 90, life = .55, fps = 14) { effects.push({ path, x, y, size, life, time: 0, fps }); }
+  function addEffect(path, x, y, size = 90, life = .55, fps = 14) { if(effects.length>=80)effects.shift(); effects.push({ path, x, y, size, life, time: 0, fps }); }
   function float(text, x, y, color = '#f4d790', large = false) {
     let fy = y - 30;
     for (let attempts = 0; attempts < 5; attempts++) {
@@ -439,6 +463,12 @@
     }
   }
   function steerMove(entity, target, dt, speed = entity.speed) {
+    entity.progressTimer = (entity.progressTimer || 0) - dt;
+    if(entity.progressTimer<=0){
+      entity.stallSeconds = entity.progressPosition && dist(entity,entity.progressPosition)<6 && dist(entity,target)>40 ? (entity.stallSeconds||0)+1 : 0;
+      entity.progressPosition = {x:entity.x,y:entity.y};entity.progressTimer=1;
+      if(entity.stallSeconds>0)entity.routeTimer=0;
+    }
     entity.routeTimer = (entity.routeTimer || 0) - dt;
     if (!clearPath(entity, target)) {
       if (entity.routeTimer <= 0 || !entity.routeTarget || dist(entity.routeTarget, target) > 64) {
@@ -447,8 +477,9 @@
       const path = entity.route || [];
       while (path.length && dist(entity, path[0]) < 12) path.shift();
       while (path.length > 1 && clearPath(entity, path[1])) path.shift();
-      if (path.length) { move(entity, path[0].x - entity.x, path[0].y - entity.y, dt, speed); return; }
-    } else entity.route = [];
+      if (path.length) { move(entity, path[0].x - entity.x, path[0].y - entity.y, dt, speed); entity.blockedSeconds = 0; return; }
+      entity.blockedSeconds = (entity.blockedSeconds || 0) + dt; entity.moving = false; return;
+    } else { entity.route = []; entity.blockedSeconds = 0; }
     let dx = target.x - entity.x, dy = target.y - entity.y;
     const distance = Math.hypot(dx, dy); if (distance < 3) { entity.moving = false; return; }
     dx /= distance; dy /= distance;
@@ -477,6 +508,7 @@
   function startGame() {
     if (!initialized) return;
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
+    simulationAccumulator = 0; pausedForDialog = false;
     hero.work = null; hero.healCooldown = 0; hero.animTime = 0; hero.animState = 'Idle';
     castle.hp = 500; castle.hitFlash = 0; gold = 80; wood = 40; food = 3; score = 0; kills = 0; recruitIndex = 0;
     enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; hitStop = 0; damageDealt = 0; damageTaken = 0;
@@ -556,6 +588,7 @@
     if (hero.hp >= 100) { notify('Tenagamu masih penuh.'); return; }
     if (food < 1) { notify('Bekal habis. Dekati domba lalu tekan E.'); return; }
     const restored = Math.min(45, 100 - hero.hp);
+    hero.work = null;
     food--; hero.healCooldown = 1.8; hero.hp += restored; float(`+${Math.ceil(restored)}`, hero.x, hero.y, '#c6eea1', true);
     addEffect(blue('Monk', 'Heal_Effect'), hero.x, hero.y, 140, .8); tone(587, .25); updateUI();
   }
@@ -598,6 +631,7 @@
     target.hp -= amount;
     target.hitFlash = .18;
     const angle = source ? Math.atan2(target.y - source.y, target.x - source.x) : rand(0, Math.PI * 2);
+    if(impacts.length>=60)impacts.shift();
     impacts.push({ x: target.x, y: target.y - (target === castle ? 40 : 27), angle, color: target === hero || target.team === 'ally' ? '#ff977d' : '#ffdb86', life: .3, duration: .3 });
     float(`−${Math.ceil(appliedDamage)}`, target.x, target.y - (target === castle ? 45 : 10), target === hero ? '#ffbaa1' : '#fff1c5', true);
     if (target === hero) {
@@ -639,9 +673,14 @@
     return target;
   }
   function segmentHit(a, b, target, radius) {
-    const dx = b.x - a.x, dy = b.y - a.y, length = dx * dx + dy * dy;
-    const t = length ? clamp(((target.x - a.x) * dx + (target.y - a.y) * dy) / length, 0, 1) : 0;
-    return Math.hypot(a.x + dx * t - target.x, a.y + dy * t - target.y) <= radius ? t : Infinity;
+    const dx=b.x-a.x,dy=b.y-a.y,ox=a.x-target.x,oy=a.y-target.y;
+    const c=ox*ox+oy*oy-radius*radius;
+    if(c<=0)return 0;
+    const length=dx*dx+dy*dy;if(length===0)return Infinity;
+    const projection=ox*dx+oy*dy,disc=projection*projection-length*c;
+    if(disc<0)return Infinity;
+    const t=(-projection-Math.sqrt(disc))/length;
+    return t>=0&&t<=1?t:Infinity;
   }
   function updateUnit(u, dt) {
     u.attack = Math.max(0, u.attack - dt); u.cooldown -= dt;
@@ -651,7 +690,7 @@
       u.strike.timer -= dt;
       if (u.strike.timer <= 0) {
         const strike = u.strike; u.strike = null;
-        if (strike.target.hp > 0 && dist(u, strike.target) <= strike.range && (u.kind === 'Archer' || ((strike.target.x - u.x) * u.facing >= -12 && clearPath(u, strike.target)))) {
+        if (strike.target.hp > 0 && dist(u, strike.target) <= strike.range && (u.kind === 'Archer' || ((strike.target.x - u.x) * u.facing >= -12 && (strike.target === castle || clearPath(u, strike.target))))) {
           if (u.kind === 'Archer') fireArrow(u, strike.target);
           else hurt(strike.target, strike.damage, u);
         }
@@ -677,7 +716,7 @@
       else u.moving = false;
       return;
     }
-    const target = u.team === 'ally' ? nearest(u, enemies, 650) : nearest(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
+    const target = u.team === 'enemy' && (u.blockedSeconds > 2 || u.stallSeconds > 3) ? castle : u.team === 'ally' ? nearest(u, enemies, 650) : nearest(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
     if (!target) { if (dist(u, { x: u.homeX, y: u.homeY }) > 35) steerMove(u, { x: u.homeX, y: u.homeY }, dt); else u.moving = false; return; }
     const d = dist(u, target), range = u.kind === 'Archer' ? 225 : target === castle ? 88 : u.kind === 'Lancer' ? 91 : 51;
     if (u.team === 'enemy' && u.kind === 'Archer' && d < 145 && !u.strike) {
@@ -702,6 +741,7 @@
   }
 
   function update(dt) {
+    if (state !== 'playing') return;
     for (const u of [hero, ...allies, ...enemies]) keepOnLand(u);
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
     if (hitStop > 0) { hitStop -= dt; return; }
@@ -722,6 +762,7 @@
     const dy = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup'));
     if ((dx || dy) && hero.work) { hero.work = null; gatherCooldown = .2; }
     if (hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > 0 ? .55 : 1));
+    if ((keys.has(' ') || pointerAttack) && hero.work) { hero.work = null; gatherCooldown = .18; }
     updateWork(dt);
     if (keys.has(' ') || pointerAttack) heroAttack();
     if (keys.has('e')) gather();
@@ -744,13 +785,25 @@
     for (const p of projectiles) {
       const previous = { x: p.x, y: p.y };
       p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
-      const candidates = p.team === 'ally' ? enemies : [hero, ...allies, castle];
-      const hits = candidates.filter(target => target.hp > 0).map(target => ({ target, t: segmentHit(previous, p, target, target === castle ? 57 : 20) })).filter(hit => Number.isFinite(hit.t)).sort((a, b) => a.t - b.t);
-      if (hits.length) {
-        const hit = hits[0]; p.x = previous.x + (p.x - previous.x) * hit.t; p.y = previous.y + (p.y - previous.y) * hit.t;
-        hurt(hit.target, p.damage, p.source); p.life = 0; addEffect('Particle FX/Dust_01.png', p.x, p.y, 32, .25);
+      let first=null,firstT=Infinity;
+      for(const obstacle of obstacleList) {
+        // Ignore only a collider containing the shooter, never downstream cover.
+        if(dist(p.source,obstacle)<obstacle.radius+10)continue;
+        const t=segmentHit(previous,p,obstacle,obstacle.radius+2);
+        if(t<firstT){firstT=t;first={obstacle};}
+      }
+      const candidates=p.team==='ally'?enemies:[hero,...allies,castle];
+      for(const target of candidates)if(target.hp>0){
+        const t=segmentHit(previous,p,target,target===castle?57:20);
+        if(t<firstT){firstT=t;first={target};}
+      }
+      if(first){
+        p.x=previous.x+(p.x-previous.x)*firstT;p.y=previous.y+(p.y-previous.y)*firstT;
+        if(first.target)hurt(first.target,p.damage,p.source);
+        p.life=0;addEffect('Particle FX/Dust_01.png',p.x,p.y,32,.25);
       }
     }
+
     projectiles = projectiles.filter(p => p.life > 0); enemies = enemies.filter(u => u.hp > 0); allies = allies.filter(u => u.hp > 0);
     for (const d of drops) {
       d.life -= dt;
@@ -765,7 +818,7 @@
       else u.animTime = (u.animTime || 0) + dt;
     }
     passiveTimer += dt;
-    if (passiveTimer >= 6) { passiveTimer = 0; wood += 3; gold += 4; float('+3 kayu', villagers[0].x, villagers[0].y, '#dbdca0'); float('+4 emas', villagers[1].x, villagers[1].y); }
+    if (passiveTimer >= 6) { passiveTimer -= 6; wood += 3; gold += 4; float('+3 kayu', villagers[0].x, villagers[0].y, '#dbdca0'); float('+4 emas', villagers[1].x, villagers[1].y); }
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
     if (phase === 'battle' && spawned >= waves[waveIndex].count && enemies.length === 0) finishWave();
     uiTimer += dt;
@@ -796,16 +849,24 @@
   function togglePause(force) {
     if (state !== 'playing' && state !== 'paused') return;
     const pause = typeof force === 'boolean' ? force : state === 'playing';
+    simulationAccumulator = 0;
     state = pause ? 'paused' : 'playing'; keys.clear(); pointerAttack = false;
     $('pauseScreen').hidden = !pause; $('pauseButton').textContent = pause ? '▶' : 'Ⅱ';
     $('pauseButton').setAttribute('aria-label', pause ? 'Lanjutkan permainan' : 'Jeda permainan');
     $('interactionHint').hidden = true;
     if (pause) $('resumeButton').focus({ preventScroll: true }); else canvas.focus({ preventScroll: true });
   }
+  function advance(dt) {
+    if(state!=='playing'){simulationAccumulator=0;return;}
+    simulationAccumulator += Math.min(.1,Math.max(0,dt));
+    for(let steps=0;simulationAccumulator+1e-9>=FIXED_STEP&&steps<6&&state==='playing';steps++){
+      simulationAccumulator=Math.max(0,simulationAccumulator-FIXED_STEP);update(FIXED_STEP);
+    }
+  }
   function frame(time) {
-    const dt = Math.min((time - lastTime) / 1000, .04) || .016; lastTime = time;
+    const dt = Math.min((time - lastTime) / 1000, .1) || .016; lastTime = time;
     if (state !== 'paused' && !document.querySelector('dialog[open]') && state !== 'won' && state !== 'lost') animTime += dt;
-    if (state === 'playing') update(dt);
+    advance(dt);
     if (state !== 'paused') {
       for (const e of effects) { e.life -= dt; e.time += dt; }
       effects = effects.filter(e => e.life > 0);
@@ -822,6 +883,7 @@
   // Dialogs stop the battle and resume only if it was running beforehand.
   function openDialog(id) {
     if (document.querySelector('dialog[open]')) return;
+    simulationAccumulator = 0;
     pausedForDialog = state === 'playing'; if (pausedForDialog) { state = 'paused'; keys.clear(); pointerAttack = false; }
     if (id === 'galleryDialog' && !$('galleryGrid').children.length) renderGallery();
     $(id).showModal();

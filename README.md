@@ -85,3 +85,14 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Pemanah berhenti sejenak saat membidik. Animasi menyelesaikan seluruh frame serangan, dan animasi berjalan/diam dimulai dari transisi yang sesuai. Pekerjaan tidak dimulai kembali selama pemain bergerak.
 - Bekal memiliki jeda pemakaian 1,8 detik; biarawan sekutu memulihkan 16 HP. Gelombang terakhir berisi 20 musuh agar kenaikan tekanan lebih bertahap.
 - Angka damage menampilkan HP yang benar-benar berkurang, diberi jarak vertikal, dan dibatasi jumlahnya. Teks status diperjelas pada layar kecil.
+
+## Ketahanan simulasi
+
+- Panah berhenti pada penghalang atau sasaran pertama sepanjang lintasannya. Pohon dan bangunan tidak lagi dapat ditembus panah.
+- Graf navigasi dan komponen daratan dihitung sekali. Pasukan berbagi cache maksimal 32 medan jarak; tujuan di luar jangkauan diproyeksikan ke daratan yang terhubung. Pasukan yang tidak mendapat jalur berhenti aman, mencoba ulang, dan penyerang yang terus terhambat mengalihkan tekanan ke kastel.
+- Simulasi menggunakan langkah tetap 60 Hz dengan maksimal enam langkah pengejaran per frame. Jeda menghapus sisa waktu tertunda, sehingga melanjutkan permainan tidak memicu lonjakan gerakan.
+- Serangan membatalkan pekerjaan sebelum hadiah diberikan. Terkena pukulan membatalkan ayunan tertunda. Gerakan, serangan, dan interaksi diperiksa dalam uji ulang yang sama pada render 30, 60, dan 120 FPS.
+- Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
+- Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 28 unit. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
+
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` juga mengukur interval frame selama sekitar empat detik dengan 28 unit tetap aktif. Pada pengujian Chrome headless 1366×768 dengan GPU dinonaktifkan, cache frame kilatan menurunkan persentil ke-95 interval frame yang teramati dari 50 ms menjadi 16,7 ms; frame terlama dari 83,4 ms menjadi 33,4 ms. CPU simulasi rata-rata sekitar 0,36 ms per langkah. Hasil pengukuran sebelum dan sesudah tersimpan di folder `game-preview`; angka dapat berubah menurut perangkat dan beban komputer. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.

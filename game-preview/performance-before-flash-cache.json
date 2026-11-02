@@ -1,0 +1,14 @@
+{
+  "units": 28,
+  "steps": 360,
+  "meanMs": 0.35083333333540295,
+  "p95Ms": 0.9000000022351742,
+  "maxMs": 4.199999999254942,
+  "render": {
+    "frames": 174,
+    "medianMs": 16.7,
+    "p95Ms": 50,
+    "maxMs": 83.4
+  },
+  "note": "Observed before caching white hit sprites; same 28-unit Chrome headless scenario, 1366x768, GPU disabled."
+}

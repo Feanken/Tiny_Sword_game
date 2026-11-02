@@ -15,8 +15,9 @@ const window = { TINY_ASSETS: assets, devicePixelRatio: 1, addEventListener() {}
 const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: () => 0, setItem() {} }, requestAnimationFrame() {}, setTimeout() {} };
 const source = fs.readFileSync('game.js', 'utf8').replace('resize(); preload(); requestAnimationFrame(frame);', `
   initialized = true; state = 'ready';
-  window.test = { startGame, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
+  window.test = { startGame, advance, togglePause, routeTo, routeFields, navNodes, navComponent, navigationStats, obstacleList, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
     get enemies() { return enemies; }, get allies() { return allies; }, get state() { return state; },
+    get effects() { return effects; }, get floaters() { return floaters; },
     get impacts() { return impacts; }, get projectiles() { return projectiles; },
     get phase() { return phase; }, get wave() { return waveIndex; }, get gold() { return gold; }, get wood() { return wood; }, get food() { return food; }, get score() { return score; }
   };
@@ -135,3 +136,36 @@ g.startGame();g.allies.length=0;g.startWave();g.spawnEnemy();const shooter=g.ene
 g.startGame();g.hero.hp=20;const foodBefore=g.food;g.healHero();g.healHero();assert.equal(g.food,foodBefore-1,'rapid healing cannot consume multiple meals at once');
 g.keys.add('d');g.update(.016);g.gather();assert.equal(g.hero.work,null,'holding E while walking cannot restart work');
 console.log('Obstacle routing, locked swing direction, swept arrow hits/misses, healing cadence, and animation cancellation: passed');
+
+// Cover must intercept arrows before a target, including fast sweeps.
+function arrowScenario(start,target,velocity){
+ g.startGame();g.allies.length=0;g.startWave();g.spawnEnemy();
+ const shooter=g.enemies[0];Object.assign(shooter,{x:start.x,y:start.y,entering:false,kind:'Archer',cooldown:999});
+ Object.assign(g.hero,{x:target.x,y:target.y});g.fireArrow(shooter,g.hero);
+ g.projectiles[0].vx=velocity.x;g.projectiles[0].vy=velocity.y;g.update(.04);return g.hero.hp;
+}
+assert.equal(arrowScenario({x:130,y:326},{x:260,y:326},{x:5000,y:0}),100,'tree trunk blocks arrow');
+assert.equal(arrowScenario({x:730,y:250},{x:945,y:250},{x:8000,y:0}),100,'castle blocks arrow');
+assert.equal(arrowScenario({x:400,y:400},{x:500,y:400},{x:8000,y:0}),90,'open line still hits');
+g.startGame();const invalid={x:-200,y:-200,speed:90};g.steerMove(invalid,{x:500,y:400},1/60);assert.equal(invalid.moving,false,'no path stops safely');
+const projected=g.routeTo({x:500,y:400},{x:-500,y:-500});assert.ok(projected.length>0,'inaccessible target projects onto reachable component');assert.ok(projected.every(p=>g.positionFits(p.x,p.y)));
+const initialBuilds=g.navigationStats.builds;for(let i=0;i<100;i++)g.routeTo({x:730,y:260},{x:940,y:260});assert.ok(g.navigationStats.builds-initialBuilds<=1,'identical goals reuse a shared field');assert.ok(g.routeFields.size<=32);
+
+// Feed the same input timeline through the actual fixed-step frame entry point.
+function timeline(fps){
+ g.startGame();g.allies.length=0;g.hero.x=470;g.hero.y=400;g.keys.add('d');
+ for(let i=0;i<fps;i++)g.advance(1/fps);g.keys.clear();
+ g.hero.knockX=195;g.hero.knockY=0;for(let i=0;i<fps;i++)g.advance(1/fps);
+ const x=g.hero.x;g.hero.x=610;g.hero.y=510;g.hero.moving=false;g.gather();
+ for(let i=0;i<fps;i++)g.advance(1/fps);
+ g.hero.x=600;g.hero.y=400;g.hero.knockX=0;g.hero.knockY=0;g.startWave();g.spawnEnemy();
+ Object.assign(g.enemies[0],{x:650,y:400,entering:false,speed:0,cooldown:999,hp:100,maxHp:100});
+ g.keys.add(' ');for(let i=0;i<fps*2;i++)g.advance(1/fps);g.keys.clear();
+ return {x,gold:g.gold,work:g.hero.work,phase:g.phase,health:g.hero.hp,score:g.score,enemyHp:g.enemies[0]?.hp};
+}
+const fps30=timeline(30),fps60=timeline(60),fps120=timeline(120);
+assert.deepEqual(fps30,fps60);assert.deepEqual(fps60,fps120);
+g.startGame();g.hero.x=610;g.hero.y=510;g.hero.moving=false;g.gather();g.keys.add(' ');g.advance(1/60);assert.equal(g.hero.work,null,'attack cancels work before its reward');
+const hpBefore=g.hero.hp;g.hurt(g.hero,8,{x:500,y:400});assert.equal(g.hero.strike,null);assert.equal(g.hero.attack,0);
+g.togglePause(true);const frozen={x:g.hero.x,hp:g.hero.hp,stagger:g.hero.stagger};g.advance(.1);g.update(.1);assert.deepEqual({x:g.hero.x,hp:g.hero.hp,stagger:g.hero.stagger},frozen,'paused transition freezes simulation');g.togglePause(false);g.advance(1/60);assert.ok(g.hero.hp<hpBefore);
+console.log('Cover collision, unreachable routing, shared cache, exact 30/60/120 FPS replay, and rapid action/pause transitions: passed');

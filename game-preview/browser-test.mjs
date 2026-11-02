@@ -20,6 +20,24 @@ try {
   socket.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.id) { const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result); } }
+    if(m.method==='Fetch.requestPaused') {
+      const source=fs.readFileSync('game.js','utf8').replace('  // Read-only state for meaningful smoke tests', `
+  window.__stress = (runSteps=360) => {
+    startGame();phase='prepare';waveTimer=999;gold=10000;
+    for(let i=0;i<7;i++)recruitUnit();waveIndex=4;
+    for(let i=0;i<20;i++)spawnEnemy();
+    hero.hp=hero.maxHp=100000;castle.hp=100000;allies.forEach(u=>{u.hp=u.maxHp=100000;});
+    enemies.forEach((u,i)=>{u.x=420+i%5*35;u.y=345+Math.floor(i/5)*35;u.entering=false;u.hp=u.maxHp=100000;});
+    for(let i=0;i<140;i++)addEffect('Particle FX/Dust_01.png',500,400,40);
+    const effectCap=effects.length, samples=[];keys.add(' ');
+    for(let i=0;i<runSteps;i++){const before=performance.now();update(1/60);samples.push(performance.now()-before);}
+    keys.clear();samples.sort((a,b)=>a-b);
+    const result={units:enemies.length+allies.length,steps:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1),effectCap,effects:effects.length,impacts:impacts.length,fields:routeFields.size};
+    if(runSteps>0)startGame();return result;
+  };
+  // Read-only state for meaningful smoke tests`);
+      page('Fetch.fulfillRequest',{requestId:m.params.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/javascript; charset=utf-8'}],body:Buffer.from(source).toString('base64')}).catch(error=>errors.push(error.message));
+    }
     if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.text + ' ' + (m.params.exceptionDetails.exception?.description || ''));
     if (m.method === 'Network.responseReceived' && m.params.response.status >= 400) missing.push(m.params.response.url);
   };
@@ -30,13 +48,15 @@ try {
   const evaluate = async expression => { const r = await page('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true, userGesture: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
   await Promise.all([page('Page.enable'), page('Runtime.enable'), page('Network.enable')]);
   await page('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+  if(process.argv.includes('--stress'))await page('Fetch.enable',{patterns:[{urlPattern:'http://127.0.0.1:4175/game.js',requestStage:'Request'}]});
   await page('Page.navigate', { url: 'http://127.0.0.1:4175' });
   for (let i = 0; i < 200; i++) { if (await evaluate('window.PenjagaPulau?.snapshot().state === "ready"')) break; await delay(100); }
   if (!(await evaluate('Boolean(window.PenjagaPulau)'))) throw new Error('Game failed to initialize: ' + JSON.stringify({ errors, missing }));
   const snapshot = () => evaluate('PenjagaPulau.snapshot()');
   assert.equal((await snapshot()).state, 'ready');
   assert.equal((await snapshot()).assetCount, 410);
-  async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); }
+  async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); try { fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); } catch { fs.writeFileSync(path.join(root,'game-preview',name.replace('.png','-run'+process.pid+'.png')),Buffer.from(r.data,'base64')); } }
+  if(!process.argv.includes('--benchmark-only')) {
   await screenshot('desktop-start.png');
   assert.ok(await evaluate('document.querySelector(".command-bar").getBoundingClientRect().bottom <= innerHeight'), 'commands fit on a laptop screen');
   await evaluate('document.getElementById("startButton").click()');
@@ -116,6 +136,13 @@ try {
   await evaluate('document.getElementById("gameShell").requestFullscreen()'); await delay(100);
   assert.ok(await evaluate('document.querySelector(".command-bar").getBoundingClientRect().bottom <= innerHeight'), 'fullscreen keeps action controls visible');
   await screenshot('fullscreen-battle.png'); await evaluate('document.exitFullscreen()');
+  if(process.argv.includes('--stress')) {
+    const stress=await evaluate('window.__stress()');
+    assert.equal(stress.units,28);assert.equal(stress.effectCap,80);assert.ok(stress.effects<=80&&stress.impacts<=60&&stress.fields<=32);
+    assert.ok(stress.meanMs<10&&stress.p95Ms<20,'crowded simulation stays within test CPU budget');
+    fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
+    console.log('28-unit stress benchmark:',JSON.stringify(stress));
+  }
   await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await page('Emulation.setTouchEmulationEnabled', { enabled: true });
   await evaluate('document.getElementById("restartPauseButton").click()'); await delay(200);
@@ -135,6 +162,22 @@ try {
   assert.equal((await snapshot()).state, 'ready', 'double-click/file mode loads all game assets');
   assert.deepEqual(errors, [], 'browser has no runtime exceptions'); assert.deepEqual(missing, [], 'no missing assets');
   console.log('Mobile layout + touch controls, direct file launch, zero missing assets/runtime exceptions: passed');
+  } else {
+    const stress=await evaluate('window.__stress()');
+    assert.equal(stress.units,28);assert.ok(stress.meanMs<10&&stress.p95Ms<20);
+    await evaluate('window.__stress(0)');
+    stress.render=await evaluate(`new Promise(resolve=>{
+      const samples=[];let start=performance.now(),last=start;
+      function sample(now){if(now-start>250)samples.push(now-last);last=now;
+        if(now-start<4250)requestAnimationFrame(sample);
+        else {samples.sort((a,b)=>a-b);resolve({frames:samples.length,medianMs:samples[Math.floor(samples.length*.5)],p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)});}
+      }requestAnimationFrame(sample);
+    })`);
+    stress.activeUnits=(await snapshot()).enemies.length+(await snapshot()).allies.length;
+    assert.equal(stress.activeUnits,28);assert.deepEqual(errors,[]);
+    fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
+    console.log('CPU + rendered-frame benchmark:',JSON.stringify(stress));
+  }
   await call('Browser.close');
 } finally {
   socket?.close(); chrome.kill(); server.close();
