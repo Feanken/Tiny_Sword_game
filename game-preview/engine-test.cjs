@@ -4,7 +4,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 const elements = new Map();
 function element() {
-  return { style: {}, classList: { add() {}, remove() {}, toggle() {} }, hidden: false, textContent: '', children: [],
+  return { dataset: {}, style: {}, classList: { add() {}, remove() {}, toggle() {} }, hidden: false, textContent: '', children: [],
     addEventListener() {}, setAttribute() {}, focus() {}, append() {}, replaceChildren() {},
     querySelector: () => element(), getBoundingClientRect: () => ({ width: 1280, height: 704 }), getContext: () => ({ imageSmoothingEnabled: false }) };
 }
@@ -15,7 +15,7 @@ const window = { TINY_ASSETS: assets, devicePixelRatio: 1, addEventListener() {}
 const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: () => 0, setItem() {} }, requestAnimationFrame() {}, setTimeout() {} };
 const source = fs.readFileSync('game.js', 'utf8').replace('resize(); preload(); requestAnimationFrame(frame);', `
   initialized = true; state = 'ready';
-  window.test = { startGame, advance, togglePause, routeTo, routeFields, navNodes, navComponent, navigationStats, obstacleList, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
+  window.test = { startGame, startDash, buyUpgrade, ranks, finishWave, setGold(n){gold=n;}, advance, togglePause, routeTo, routeFields, navNodes, navComponent, navigationStats, obstacleList, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
     get enemies() { return enemies; }, get allies() { return allies; }, get state() { return state; },
     get effects() { return effects; }, get floaters() { return floaters; },
     get impacts() { return impacts; }, get projectiles() { return projectiles; },
@@ -169,3 +169,28 @@ g.startGame();g.hero.x=610;g.hero.y=510;g.hero.moving=false;g.gather();g.keys.ad
 const hpBefore=g.hero.hp;g.hurt(g.hero,8,{x:500,y:400});assert.equal(g.hero.strike,null);assert.equal(g.hero.attack,0);
 g.togglePause(true);const frozen={x:g.hero.x,hp:g.hero.hp,stagger:g.hero.stagger};g.advance(.1);g.update(.1);assert.deepEqual({x:g.hero.x,hp:g.hero.hp,stagger:g.hero.stagger},frozen,'paused transition freezes simulation');g.togglePause(false);g.advance(1/60);assert.ok(g.hero.hp<hpBefore);
 console.log('Cover collision, unreachable routing, shared cache, exact 30/60/120 FPS replay, and rapid action/pause transitions: passed');
+
+// Langkah Embun: bounded movement, dodge frames, cooldown, riposte, and reset.
+g.startGame();g.hero.x=500;g.hero.y=400;g.keys.add('d');assert.equal(g.startDash(),true);g.keys.clear();const dashStart=g.hero.x;
+g.hurt(g.hero,10,{x:400,y:400});assert.equal(g.hero.hp,100);assert.ok(g.hero.riposte>0,'successful dodge grants counter window');
+assert.equal(g.startDash(),false,'cooldown prevents repeated dashes');for(let i=0;i<13;i++)g.advance(1/60);
+assert.ok(g.hero.x-dashStart>120&&g.hero.x-dashStart<160);assert.equal(g.hero.dash,0);assert.ok(g.positionFits(g.hero.x,g.hero.y));
+g.hero.invuln=0;g.hurt(g.hero,8,{x:400,y:400});assert.equal(g.hero.hp,92,'dash immunity ends after dash');
+g.startGame();g.hero.x=104;g.hero.y=405;g.keys.add('a');g.startDash();g.keys.clear();for(let i=0;i<13;i++)g.advance(1/60);assert.ok(g.canStand(g.hero.x,g.hero.y),'dash cannot enter water');
+g.startGame();g.hero.x=730;g.hero.y=250;g.keys.add('d');g.startDash();g.keys.clear();for(let i=0;i<13;i++)g.advance(1/60);assert.ok(g.positionFits(g.hero.x,g.hero.y),'dash cannot cross castle');
+g.startGame();g.hero.x=600;g.hero.y=400;g.allies.length=0;g.startWave();g.spawnEnemy();Object.assign(g.enemies[0],{x:650,y:400,entering:false,cooldown:999,speed:0,hp:100,maxHp:100});g.hero.riposte=2;g.heroAttack();g.update(.22);assert.equal(g.enemies[0].hp,61,'counterattack adds 12 damage');assert.equal(g.hero.riposte,0);
+
+// Upgrade transactions and dynamic health caps.
+g.startGame();g.setGold(1000);assert.equal(g.buyUpgrade('wind'),true);assert.equal(g.gold,965);assert.equal(g.ranks.wind,1);assert.equal(g.buyUpgrade('blade'),false,'one purchase per intermission');
+g.finishWave();assert.equal(g.buyUpgrade('wind'),true);g.finishWave();assert.equal(g.buyUpgrade('wind'),true);g.finishWave();const goldAtCap=g.gold;assert.equal(g.buyUpgrade('wind'),false);assert.equal(g.gold,goldAtCap);
+assert.equal(g.buyUpgrade('bastion'),true);assert.equal(g.castle.maxHp,580);assert.equal(g.castle.hp,580);g.finishWave();assert.equal(g.buyUpgrade('oath'),true);assert.equal(g.hero.maxHp,115);assert.equal(g.hero.hp,115);
+g.startGame();g.setGold(0);assert.equal(g.buyUpgrade('blade'),false,'cannot spend unavailable gold');g.setGold(1000);g.startWave();assert.equal(g.buyUpgrade('blade'),false,'cannot upgrade in battle');
+g.startGame();for(const id in g.ranks)assert.equal(g.ranks[id],0);assert.equal(g.hero.maxHp,100);assert.equal(g.castle.maxHp,500);assert.equal(g.hero.dashCooldown,0);
+console.log('Dash distance, shore/obstacle collisions, dodge immunity, counterattack, upgrades/costs/caps, phase restrictions and match reset: passed');
+
+g.startGame();g.keys.add('w');g.update(1/60);g.keys.clear();g.startDash();assert.equal(g.hero.dashX,0);assert.equal(g.hero.dashY,-1,'stationary dash remembers a vertical direction');
+const dashCd=g.hero.dashCooldown;g.togglePause(true);g.advance(.1);assert.equal(g.hero.dashCooldown,dashCd);g.togglePause(false);
+g.startGame();g.buyUpgrade('blade');assert.equal(g.ranks.blade,1);g.allies.length=0;g.startWave();g.spawnEnemy();Object.assign(g.enemies[0],{x:650,y:400,entering:false,cooldown:999,speed:0,hp:100,maxHp:100});g.hero.x=600;g.hero.y=400;g.heroAttack();g.update(.22);assert.equal(g.enemies[0].hp,68,'blade upgrade adds actual damage');
+g.startGame();g.buyUpgrade('rhythm');g.heroAttack();assert.ok(g.hero.cooldown<.58,'rhythm reduces attack cooldown');
+g.startGame();g.buyUpgrade('counter');g.hero.x=600;g.hero.y=400;g.allies.length=0;g.startWave();g.spawnEnemy();Object.assign(g.enemies[0],{x:650,y:400,entering:false,cooldown:999,speed:0,hp:100,maxHp:100});g.hero.riposte=2;g.heroAttack();g.update(.22);assert.equal(g.enemies[0].hp,55,'counter perk increases riposte damage');
+console.log('Vertical dash memory, paused cooldown, blade, rhythm and counter perk effects: passed');

@@ -96,3 +96,22 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 28 unit. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
 Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` juga mengukur interval frame selama sekitar empat detik dengan 28 unit tetap aktif. Pada pengujian Chrome headless 1366×768 dengan GPU dinonaktifkan, cache frame kilatan menurunkan persentil ke-95 interval frame yang teramati dari 50 ms menjadi 16,7 ms; frame terlama dari 83,4 ms menjadi 33,4 ms. CPU simulasi rata-rata sekitar 0,36 ms per langkah. Hasil pengukuran sebelum dan sesudah tersimpan di folder `game-preview`; angka dapat berubah menurut perangkat dan beban komputer. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
+
+## Langkah Embun dan Perkemahan
+
+**Shift** (atau tombol panah dash di ponsel) melesat sekitar 144 piksel dalam 0,2 detik mengikuti arah gerak. Tanpa arah yang ditekan, arah gerak terakhir dipakai. Cooldown dasar 2,4 detik. Dash membatalkan kerja dan ayunan tertunda, dapat melepas stagger, dan tetap bertabrakan dengan pohon, bangunan, serta pantai.
+
+Selama 0,16 detik awal dash, pukulan yang masuk dielakkan. Menghindari pukulan saat tidak sedang kebal dari serangan sebelumnya memicu **Elak Sempurna**: selama dua detik, serangan berikutnya yang mengenai musuh mendapat +12 damage pada sasaran utama. Bonus habis setelah satu pukulan berhasil. Jejak bayangan dan bar cooldown membantu membaca posisi serta kesiapan dash.
+
+**U** atau tombol **Pilih upgrade** membuka Perkemahan saat persiapan awal dan setiap jeda. Waktu berhenti selama memilih. Maksimal satu pembelian per jeda, tiga tingkat untuk setiap upgrade, dan seluruh peningkatan direset saat memulai pertandingan baru. Harga naik 20 emas tiap tingkat. Emas tetap dibutuhkan untuk merekrut pasukan, sehingga pilihan penempaan memiliki biaya strategi.
+
+| Upgrade | Harga tingkat pertama | Efek per tingkat |
+| --- | --- | --- |
+| Bilah Bara | 45 emas | +5 damage utama, +3 damage sasaran tambahan |
+| Ritme Tempur | 40 emas | Cooldown serangan -6% dari nilai dasar |
+| Jejak Angin | 35 emas | Cooldown dash -0,25 detik |
+| Balasan Embun | 35 emas | Bonus balasan +6 damage, jendela balasan +0,5 detik |
+| Benteng Hidup | 40 emas | Kapasitas kastel +80 HP, langsung pulih 80 |
+| Sumpah Penjaga | 40 emas | Kapasitas penjaga +15 HP, langsung pulih 15 |
+
+Tombol **Siap bertempur** menutup Perkemahan dan memperpendek sisa persiapan menjadi maksimal tiga detik. **Kembali ke pulau** mempertahankan sisa waktu. Memilih upgrade tidak wajib.

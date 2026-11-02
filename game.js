@@ -35,6 +35,58 @@
   const FIXED_STEP = 1 / 60;
   let simulationAccumulator = 0;
   let damageDealt = 0, damageTaken = 0;
+  let dashTrail = [], campPurchase = -1;
+  const ranks = { blade:0, rhythm:0, wind:0, counter:0, bastion:0, oath:0 };
+  const upgrades = [
+    {id:'blade',name:'Bilah Bara',group:'PEDANG',icon:'⚔',cost:45,description:'Damage sasaran utama +5, sasaran tambahan +3 per tingkat.'},
+    {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda antarserangan berkurang 6% per tingkat.'},
+    {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash berkurang 0,25 detik per tingkat.'},
+    {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan elak sempurna +6 damage dan durasi +0,5 detik per tingkat.'},
+    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kapasitas nyawa kastel +80 dan langsung pulih 80 per tingkat.'},
+    {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Kapasitas nyawa penjaga +15 dan langsung pulih 15 per tingkat.'},
+  ];
+  function dashCooldown() { return 2.4 - ranks.wind * .25; }
+  function startDash() {
+    if(state!=='playing'||hero.hp<=0||hero.dash>0||hero.dashCooldown>0)return false;
+    let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
+    let dy=Number(keys.has('s')||keys.has('arrowdown'))-Number(keys.has('w')||keys.has('arrowup'));
+    if(!dx&&!dy){dx=hero.lastMoveX??hero.facing;dy=hero.lastMoveY??0;}
+    const length=Math.hypot(dx,dy);hero.dashX=dx/length;hero.dashY=dy/length;
+    hero.dash=.2;hero.dashCooldown=dashCooldown();hero.dashElapsed=0;hero.dashPerfect=false;
+    hero.work=null;hero.strike=null;hero.attack=0;hero.stagger=0;hero.knockX=0;hero.knockY=0;
+    if(Math.abs(dx)>.1)hero.facing=dx>0?1:-1;
+    addEffect('Particle FX/Dust_01.png',hero.x,hero.y,55);tone(360,.14,'triangle',.025,720);return true;
+  }
+  function renderCamp() {
+    $('campGold').textContent=gold;
+    $('campRound').textContent=`JEDA ${waveIndex+1} / 5`;
+    $('campRule').textContent=campPurchase===waveIndex?'Penempaan selesai. Pilihan berikutnya terbuka setelah gelombang ini.':'Satu penempaan setiap jeda. Pilih kekuatanmu; sisakan emas untuk pasukan.';
+    $('campCards').replaceChildren();
+    for(const perk of upgrades){
+      const level=ranks[perk.id],cost=perk.cost+level*20,button=document.createElement('button');
+      button.className='perk-card';button.dataset.perk=perk.id;
+      button.disabled=level>=3||campPurchase===waveIndex||gold<cost||phase!=='prepare';
+      button.innerHTML=`<span class="perk-category">${perk.group}<span>${'◆'.repeat(level)}${'◇'.repeat(3-level)}</span></span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}</span><span class="perk-price">${level>=3?'TINGKAT MAKSIMAL':`${cost} emas <span>Tingkat ${level+1} →</span>`}</span>`;
+      button.addEventListener('click',()=>buyUpgrade(perk.id));$('campCards').append(button);
+    }
+    $('campBuild').textContent=upgrades.filter(p=>ranks[p.id]).map(p=>`${p.name} ${ranks[p.id]}`).join(' · ')||'Belum ada penempaan. Setiap pilihan membentuk cara bertarungmu.';
+  }
+  function buyUpgrade(id) {
+    const perk=upgrades.find(p=>p.id===id);
+    if(!perk||phase!=='prepare'||campPurchase===waveIndex||ranks[id]>=3||!(state==='playing'||(state==='paused'&&$('campDialog').open)))return false;
+    const cost=perk.cost+ranks[id]*20;if(gold<cost)return false;
+    gold-=cost;ranks[id]++;campPurchase=waveIndex;
+    if(id==='bastion'){castle.maxHp+=80;castle.hp=Math.min(castle.maxHp,castle.hp+80);}
+    if(id==='oath'){hero.maxHp+=15;hero.hp=Math.min(hero.maxHp,hero.hp+15);}
+    if(id==='wind')hero.dashCooldown=Math.min(hero.dashCooldown,dashCooldown());
+    $('campFeedback').textContent=`${perk.name} tingkat ${ranks[id]} ditempa. Berlaku hingga pertandingan selesai.`;
+    tone(523,.2,'triangle');renderCamp();updateUI();return true;
+  }
+  function openCamp(){
+    if(state!=='playing'&&state!=='paused')return;
+    if(phase!=='prepare'){notify('Perkemahan dibuka saat jeda gelombang.');return;}
+    $('campFeedback').textContent='';renderCamp();openDialog('campDialog');$('campCards').querySelector('button:not(:disabled)')?.focus({preventScroll:true});
+  }
   let best = 0, terrainCanvas, lastTime = 0, pausedForDialog = false, initialized = false;
   let scale = 1, cameraX = 0, cameraY = 0, viewW = W, viewH = H, pointerAttack = false;
   let soundOn = false, audio, melodyTimer = 0;
@@ -308,6 +360,7 @@
     ctx.fillStyle = color; ctx.fillRect(x - width / 2, y, width * clamp(hp / max, 0, 1), 3);
   }
   function drawUnit(u, isHero = false) {
+    if(isHero&&hero.dash>0){drawSprite(blue('Warrior','Run'),u.x,u.y,136,hero.dashElapsed,14,u.facing,1);ctx.strokeStyle='#b9f4df';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(u.x,u.y-4,23,10,0,0,Math.PI*2);ctx.stroke();return;}
     if (isHero && hero.work) {
       const work = hero.work, progress = clamp(work.elapsed / work.duration, 0, 1);
       const action = work.node.type === 'wood' ? 'Interact Axe' : work.node.type === 'gold' ? 'Interact Pickaxe' : 'Idle Meat';
@@ -370,6 +423,7 @@
     drawImageAt(terrain('Resources/Wood/Trees/Stump 3'), 522, 211, 45);
     for (const [x, y, i] of rocks) drawImageAt(terrain(`Decorations/Rocks/Rock${i}`), x, y, 39);
     for (const d of drops) drawSprite(terrain(`Resources/${d.type === 'wood' ? 'Wood/Wood Resource/Wood Resource' : 'Gold/Gold Resource/Gold_Resource'}`), d.x, d.y + Math.sin(animTime * 4 + d.x) * 3, d.type === 'wood' ? 44 : 58);
+    for(const trail of dashTrail)drawSprite(blue('Warrior','Run'),trail.x,trail.y,136,trail.time,14,trail.facing,trail.life*2);
     const renderables = [];
     for (const t of trees) renderables.push({ y: t.y, draw: () => {
       const behind = state !== 'ready' && hero.y < t.y - 4 && hero.y > t.y - t.size + 15 && Math.abs(hero.x - t.x) < 42;
@@ -381,7 +435,7 @@
       drawImageAt(`Buildings/${b.color} Buildings/${b.name}.png`, b.x, b.y, b.width);
       if (b.name === 'Castle') {
         if (castle.hitFlash > 0) { ctx.save(); ctx.filter = 'brightness(0) invert(1)'; drawImageAt(`Buildings/${b.color} Buildings/${b.name}.png`, b.x, b.y, b.width, .6); ctx.restore(); }
-        if (castle.hp < 500) healthBar(b.x, b.y - 160, castle.hp, 500, '#a7d7bd', 85);
+        if (castle.hp < castle.maxHp) healthBar(b.x, b.y - 160, castle.hp, castle.maxHp, '#a7d7bd', 85);
         if (castle.hp < 230) drawSprite('Particle FX/Fire_01.png', b.x - 48, b.y - 55, 65);
         if (castle.hp < 100) drawSprite('Particle FX/Fire_02.png', b.x + 49, b.y - 63, 77);
       }
@@ -509,6 +563,8 @@
     if (!initialized) return;
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     simulationAccumulator = 0; pausedForDialog = false;
+    hero.maxHp=100;castle.maxHp=500;campPurchase=-1;for(const id in ranks)ranks[id]=0;dashTrail=[];
+    Object.assign(hero,{dash:0,dashCooldown:0,dashElapsed:0,riposte:0,dashPerfect:false,lastMoveX:1,lastMoveY:0});
     hero.work = null; hero.healCooldown = 0; hero.animTime = 0; hero.animState = 'Idle';
     castle.hp = 500; castle.hitFlash = 0; gold = 80; wood = 40; food = 3; score = 0; kills = 0; recruitIndex = 0;
     enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; hitStop = 0; damageDealt = 0; damageTaken = 0;
@@ -517,7 +573,7 @@
     keys.clear(); pointerAttack = false; state = 'playing';
     $('startScreen').hidden = true; $('pauseScreen').hidden = true; $('endScreen').hidden = true;
     $('wavePanel').hidden = false; $('scorePanel').hidden = false; $('worldCaption').hidden = true;
-    $('battleStatus').hidden = false; document.body.classList.add('is-playing'); $('gameShell').classList.remove('player-hit');
+    $('dashButton').hidden = false; $('battleStatus').hidden = false; document.body.classList.add('is-playing'); $('gameShell').classList.remove('player-hit');
     $('mobileControls').hidden = !matchMedia('(pointer:coarse)').matches;
     $('pauseButton').textContent = 'Ⅱ'; $('pauseButton').setAttribute('aria-label', 'Jeda permainan');
     recruitUnit(true); updateUI(); resize(); canvas.focus({ preventScroll: true });
@@ -533,7 +589,7 @@
   function finishWave() {
     const reward = 30 + waveIndex * 10;
     gold += reward; wood += 15; food += 1; score += 150 + waveIndex * 50;
-    hero.hp = Math.min(100, hero.hp + 25);
+    hero.hp = Math.min(hero.maxHp, hero.hp + 25);
     if (waveIndex === waves.length - 1) { finish(true); return; }
     waveIndex++; phase = 'prepare'; waveTimer = 15;
     announce('Gelombang ditaklukkan!', `+${reward} EMAS · +15 KAYU · +1 BEKAL`);
@@ -576,18 +632,18 @@
   }
   function repairCastle() {
     if (state !== 'playing') return;
-    if (castle.hp >= 500) { notify('Kastel masih dalam kondisi sempurna.'); return; }
+    if (castle.hp >= castle.maxHp) { notify('Kastel masih dalam kondisi sempurna.'); return; }
     if (wood < 30) { notify('Butuh 30 kayu. Dekati pohon lalu tahan E.'); return; }
-    wood -= 30; castle.hp = Math.min(500, castle.hp + 140); score += 15;
+    wood -= 30; castle.hp = Math.min(castle.maxHp, castle.hp + 140); score += 15;
     addEffect(blue('Monk', 'Heal_Effect'), castle.x, castle.y, 220, .8); float('+140', castle.x, castle.y - 70, '#d0efa8', true);
     notify('Kastel diperbaiki. Pertahankan rumahmu!'); tone(330, .2, 'triangle', .03, 550); updateUI();
   }
   function healHero() {
     if (state !== 'playing') return;
     if (hero.healCooldown > 0) return;
-    if (hero.hp >= 100) { notify('Tenagamu masih penuh.'); return; }
+    if (hero.hp >= hero.maxHp) { notify('Tenagamu masih penuh.'); return; }
     if (food < 1) { notify('Bekal habis. Dekati domba lalu tekan E.'); return; }
-    const restored = Math.min(45, 100 - hero.hp);
+    const restored = Math.min(45, hero.maxHp - hero.hp);
     hero.work = null;
     food--; hero.healCooldown = 1.8; hero.hp += restored; float(`+${Math.ceil(restored)}`, hero.x, hero.y, '#c6eea1', true);
     addEffect(blue('Monk', 'Heal_Effect'), hero.x, hero.y, 140, .8); tone(587, .25); updateUI();
@@ -600,7 +656,7 @@
     return closest;
   }
   function gather() {
-    if (state !== 'playing' || gatherCooldown > 0 || hero.work || hero.attack > 0 || hero.stagger > 0 || hero.moving) return;
+    if (state !== 'playing' || gatherCooldown > 0 || hero.work || hero.attack > 0 || hero.stagger > 0 || hero.moving || hero.dash>0) return;
     const node = nearestResource(); if (!node) return;
     hero.work = { node, elapsed: 0, duration: node.type === 'food' ? .7 : .9 };
     hero.facing = node.x < hero.x ? -1 : 1; hero.moving = false;
@@ -624,6 +680,10 @@
   }
 
   function hurt(target, amount, source) {
+    if(target===hero&&hero.dash>0&&hero.dashElapsed<=.16){
+      if(!hero.dashPerfect&&hero.invuln<=0){hero.dashPerfect=true;hero.riposte=2+ranks.counter*.5;float('ELAK SEMPURNA',hero.x,hero.y-30,'#b5f5e4',true);tone(880,.18);}
+      return;
+    }
     if (target.hp <= 0 || (target === hero && hero.invuln > 0)) return;
     const appliedDamage = Math.min(target.hp, amount);
     if (source === hero && target.team === 'enemy') damageDealt += appliedDamage;
@@ -655,9 +715,9 @@
     target.hp = Math.max(0, target.hp);
   }
   function heroAttack() {
-    if (hero.cooldown > 0 || hero.stagger > 0) return;
+    if (hero.cooldown > 0 || hero.stagger > 0 || hero.dash > 0) return;
     hero.work = null;
-    hero.attack = hero.attackDuration = .42; hero.cooldown = .58;
+    hero.attack = hero.attackDuration = .42; hero.cooldown = .58*(1-ranks.rhythm*.06);
     const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94).sort((a, b) => dist(hero, a) - dist(hero, b));
     if (targets.length) hero.facing = targets[0].x < hero.x ? -1 : 1;
     hero.strike = { timer: .21 };
@@ -747,6 +807,15 @@
     if (hitStop > 0) { hitStop -= dt; return; }
     elapsed += dt; gatherCooldown = Math.max(0, gatherCooldown - dt); hero.cooldown = Math.max(0, hero.cooldown - dt); hero.attack = Math.max(0, hero.attack - dt); hero.invuln = Math.max(0, hero.invuln - dt);
     hero.healCooldown = Math.max(0, hero.healCooldown - dt);
+    hero.dashCooldown=Math.max(0,(hero.dashCooldown||0)-dt);hero.riposte=Math.max(0,(hero.riposte||0)-dt);
+    dashTrail.forEach(t=>t.life-=dt);dashTrail=dashTrail.filter(t=>t.life>0);
+    const dashing=hero.dash>0;
+    if(dashing){
+      hero.dashElapsed+=dt;hero.dash=Math.max(0,hero.dash-dt);
+      dashTrail.push({x:hero.x,y:hero.y,time:hero.dashElapsed,facing:hero.facing,life:.12});if(dashTrail.length>6)dashTrail.shift();
+      move(hero,hero.dashX,hero.dashY,dt,720);
+    }
+
     for (const u of [hero, ...allies, ...enemies]) updateReaction(u, dt);
     castle.hitFlash = Math.max(0, (castle.hitFlash || 0) - dt);
     $('gameShell').classList.toggle('player-hit', hero.hitFlash > 0);
@@ -755,19 +824,22 @@
       if (hero.strike.timer <= 0) {
         hero.strike = null;
         const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && (e.x - hero.x) * hero.facing >= -12 && clearPath(hero, e)).sort((a, b) => dist(hero, a) - dist(hero, b)).slice(0, 3);
-        targets.forEach((e, i) => hurt(e, i === 0 ? 27 : 18, hero));
+        const bonus=hero.riposte>0?12+ranks.counter*6:0;
+        targets.forEach((e,i)=>hurt(e,(i===0?27+ranks.blade*5+bonus:18+ranks.blade*3),hero));
+        if(targets.length&&bonus){hero.riposte=0;float('BALASAN!',hero.x,hero.y-25,'#f8d68b',true);}
       }
     }
     const dx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
     const dy = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup'));
     if ((dx || dy) && hero.work) { hero.work = null; gatherCooldown = .2; }
-    if (hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > 0 ? .55 : 1));
+    if((dx||dy)&&!dashing){const length=Math.hypot(dx,dy);hero.lastMoveX=dx/length;hero.lastMoveY=dy/length;}
+    if (!dashing && hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > 0 ? .55 : 1));
     if ((keys.has(' ') || pointerAttack) && hero.work) { hero.work = null; gatherCooldown = .18; }
     updateWork(dt);
     if (keys.has(' ') || pointerAttack) heroAttack();
     if (keys.has('e')) gather();
     for (const s of sheep) s.cooldown = Math.max(0, s.cooldown - dt);
-    if (phase === 'prepare') { waveTimer -= dt; if (dist(hero, castle) < 155) hero.hp = Math.min(100, hero.hp + 4 * dt); if (waveTimer <= 0) startWave(); }
+    if (phase === 'prepare') { waveTimer -= dt; if (dist(hero, castle) < 155) hero.hp = Math.min(hero.maxHp, hero.hp + 4 * dt); if (waveTimer <= 0) startWave(); }
     else {
       spawnTimer -= dt;
       if (spawned < waves[waveIndex].count && spawnTimer <= 0) {
@@ -830,8 +902,15 @@
     if (soundOn && (melodyTimer -= dt) <= 0) { melodyTimer = 2.6; tone([262, 294, 330, 392, 440][Math.floor(elapsed / 2.6) % 5], 1.1, 'sine', .008); }
   }
   function updateUI() {
-    $('heroHealth').textContent = `${Math.ceil(hero.hp)} / 100`; $('heroHealthBar').style.width = `${hero.hp}%`;
-    $('castleHealth').textContent = `${Math.ceil(castle.hp)} / 500`; $('castleHealthBar').style.width = `${castle.hp / 5}%`;
+    const cd=hero.dashCooldown||0,ready=cd<=0;
+    $('dashLabel').textContent=hero.riposte>0?'Balasan siap!':ready?'Langkah Embun':`Pulih ${cd.toFixed(1)} dtk`;
+    $('dashButton').disabled=state!=='playing'||!ready;
+    $('dashFill').style.width=`${(1-cd/dashCooldown())*100}%`;
+    $('touchDash').disabled=state!=='playing'||!ready;$('touchDash').textContent=ready?'➶':cd.toFixed(1);
+    $('campButton').disabled=phase!=='prepare';$('campButton').textContent=phase!=='prepare'?'Perkemahan · jeda':campPurchase===waveIndex?'Penempaan selesai · U':'✦ Pilih upgrade · U';
+
+    $('heroHealth').textContent = `${Math.ceil(hero.hp)} / ${hero.maxHp}`; $('heroHealthBar').style.width = `${hero.hp/hero.maxHp*100}%`;
+    $('castleHealth').textContent = `${Math.ceil(castle.hp)} / ${castle.maxHp}`; $('castleHealthBar').style.width = `${castle.hp/castle.maxHp*100}%`;
     $('goldCount').textContent = gold; $('woodCount').textContent = wood; $('foodCount').textContent = food; $('scoreCount').textContent = String(score).padStart(4, '0');
     const w = waves[waveIndex];
     $('waveCount').textContent = `${phase === 'prepare' ? waveIndex : waveIndex + 1} / 5`;
@@ -839,12 +918,12 @@
     $('waveDetail').textContent = phase === 'prepare' ? `Berikutnya: ${w.name}` : w.name;
     $('waveProgress').style.width = `${phase === 'prepare' ? (1 - waveTimer / (waveIndex === 0 ? 22 : 15)) * 100 : (spawned - enemies.length) / w.count * 100}%`;
     $('enemyCount').textContent = phase === 'prepare' ? `${allies.length} sekutu bersiap` : `${enemies.length + w.count - spawned} musuh tersisa`;
-    $('phaseHint').textContent = phase === 'prepare' ? 'Kumpulkan bekal dan siapkan pertahanan.' : 'Musuh mendekat. Rumahmu membutuhkanmu.';
+    $('phaseHint').textContent = phase === 'prepare' ? 'U: pilih upgrade · Shift: dash menghindar.' : 'Musuh mendekat. Rumahmu membutuhkanmu.';
     const cost = recruitIndex % 4 === 2 ? 55 : 40;
     $('recruitCost').textContent = `${cost} emas · ${allies.length}/8`;
     $('recruitButton').classList.toggle('unavailable', gold < cost || allies.length >= 8);
-    $('repairButton').classList.toggle('unavailable', wood < 30 || castle.hp >= 500);
-    $('healButton').classList.toggle('unavailable', food < 1 || hero.hp >= 100);
+    $('repairButton').classList.toggle('unavailable', wood < 30 || castle.hp >= castle.maxHp);
+    $('healButton').classList.toggle('unavailable', food < 1 || hero.hp >= hero.maxHp);
   }
   function togglePause(force) {
     if (state !== 'playing' && state !== 'paused') return;
@@ -888,11 +967,15 @@
     if (id === 'galleryDialog' && !$('galleryGrid').children.length) renderGallery();
     $(id).showModal();
   }
-  for (const id of ['helpDialog', 'galleryDialog']) {
+  for (const id of ['helpDialog', 'galleryDialog', 'campDialog']) {
     $(id).addEventListener('close', () => { if (pausedForDialog) { state = 'playing'; canvas.focus({ preventScroll: true }); } pausedForDialog = false; });
     $(id).addEventListener('click', e => { if (e.target === $(id)) { const r = $(id).getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $(id).close(); } });
   }
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => $(b.dataset.close).close()));
+  $('dashButton').addEventListener('click',()=>{startDash();canvas.focus({preventScroll:true});});
+  $('touchDash').addEventListener('pointerdown',e=>{e.preventDefault();startDash();});
+  $('campButton').addEventListener('click',openCamp);
+  $('campReady').addEventListener('click',()=>{waveTimer=Math.min(waveTimer,3);$('campDialog').close();});
   $('helpButton').addEventListener('click', () => openDialog('helpDialog'));
   $('galleryButton').addEventListener('click', () => openDialog('galleryDialog'));
   let galleryObserver;
@@ -942,6 +1025,8 @@
     const key = e.key.toLowerCase();
     if ((key === 'p' || key === 'escape') && !e.repeat) { e.preventDefault(); togglePause(); return; }
     if (state !== 'playing') return;
+    if(key==='u'&&!e.repeat){e.preventDefault();openCamp();return;}
+    if(key==='shift'){e.preventDefault();if(!e.repeat)startDash();return;}
     const controls = ['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright', ' ', 'e', '1', '2', 'q'];
     if (!controls.includes(key)) return;
     // Native buttons retain keyboard activation when deliberately focused.
@@ -965,6 +1050,6 @@
   }
 
   // Read-only state for meaningful smoke tests and inspecting an active match.
-  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
+  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
   resize(); preload(); requestAnimationFrame(frame);
 })();

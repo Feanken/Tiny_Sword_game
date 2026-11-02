@@ -185,3 +185,59 @@
   .damage-flash { box-shadow: inset 0 0 24px #dc69534d; }
   .player-hit .damage-flash { opacity: .4; }
 }
+
+/* Langkah Embun and the intermission forge. */
+.camp-button { background:#b8a3611a;border:1px solid #b9bd7680;border-radius:5px;color:#efdaa0;padding:9px 15px;font:600 11px "Segoe UI",sans-serif;white-space:nowrap; }
+.camp-button:hover:enabled { background:#bba46533;border-color:#edd49a; }
+.camp-button:disabled { opacity:.5;cursor:default; }
+.dash-hud { position:absolute;left:18px;bottom:17px;width:182px;padding:9px 12px;background:#19392de8;border:1px solid #a0c2a869;border-radius:6px;box-shadow:0 4px 16px #16302730; }
+.dash-hud>span { display:flex;align-items:center;gap:9px; }
+.dash-hud strong { font:600 10px "Segoe UI",sans-serif;color:#deedcf; }
+.dash-hud kbd { color:#ddcf99;border-color:#a6b98c66;font-size:8px; }
+.dash-hud>i { display:block;height:3px;background:#0d2b21;margin-top:7px;overflow:hidden; }
+.dash-hud b { display:block;background:#b0e3ca;height:100%;width:100%; }
+.dash-hud:disabled { cursor:default;opacity:.8; }
+.camp-modal { max-width:920px;background:radial-gradient(ellipse at top,#344a35,#192f27);color:#eee8ce;border:1px solid #c5c58977;max-height:90dvh;padding:30px; }
+.camp-modal .close-button { color:#d9dfb9; }
+.camp-heading { display:flex;align-items:center;justify-content:space-between;gap:16px; }
+.camp-heading .eyebrow { color:#c8ce96; }
+.camp-heading h2 { color:#f3e8c8;margin:6px 0 8px;font-size:36px; }
+.camp-heading p:last-child { color:#a8bea0;font-size:12px;margin:0; }
+.camp-wallet { text-align:right;flex-shrink:0; }
+.camp-wallet span { display:block;font-size:8px;letter-spacing:1.3px;color:#aec09f; }
+.camp-wallet strong { font:32px Georgia;color:#efd28b; }
+.camp-rule { background:#081d1744;color:#d8dcb9!important;border-left:2px solid #d1bd73;padding:10px 12px;margin:19px 0!important;font-size:11px!important; }
+.perk-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
+.perk-card { text-align:left;background:#304734;border:1px solid #8b9a6566;border-radius:7px;padding:15px;color:#e9e6c8;display:flex;flex-direction:column;min-height:190px;transition:background .15s,border-color .15s; }
+.perk-card:hover:enabled { background:#40543a;border-color:#e2cc88; }
+.perk-card:disabled { opacity:.5;cursor:default; }
+.perk-category { display:flex;justify-content:space-between;gap:5px;font-size:7px;letter-spacing:1.4px;color:#b2c29b; }
+.perk-category>span { color:#efd18b;letter-spacing:2px; }
+.perk-icon { font:27px Georgia;color:#edcf8d;margin:9px 0 3px; }
+.perk-card>strong { font:21px Georgia;color:#f2e6bd;margin-bottom:7px; }
+.perk-description { font-size:10px;line-height:1.65;color:#c4d0b4;flex:1; }
+.perk-price { border-top:1px solid #92a07744;margin-top:12px;padding-top:8px;font-size:10px;color:#efd293;display:flex;justify-content:space-between;gap:7px; }
+.perk-price>span { color:#b1c59e;font-size:9px; }
+.camp-feedback { color:#f2d692!important;min-height:18px;margin:12px 0 4px!important;font-size:11px!important; }
+.camp-build { border-top:1px solid #9aaf7344;padding-top:10px; }
+.camp-build>span { color:#9cb78d;font-size:7px;letter-spacing:1.5px; }
+.camp-build>p { margin:5px 0;font-size:11px;color:#d9dfba; }
+.camp-footer { display:flex;align-items:center;gap:17px;margin-top:13px; }
+.camp-footer>p { margin:0 auto 0 0;color:#9fb493;font-size:9px; }
+.camp-footer .primary-button { margin:0;min-width:180px; }
+.camp-footer .text-button { margin:0;color:#c0d0b2;white-space:nowrap; }
+@media(max-width:1050px){.battle-status .wave-panel{width:55%}.camp-button{font-size:10px;padding:8px}.camp-modal{padding:25px}}
+@media(max-width:650px){
+ .camp-button{font-size:8px;padding:7px 6px;white-space:normal;max-width:94px;line-height:1.4}
+ .battle-status{gap:10px}.battle-status .wave-panel{width:auto;flex:1;min-width:0}.battle-status .score-panel{width:67px}
+ .dash-hud{left:10px;top:10px;bottom:auto;width:145px;padding:7px 9px}.dash-hud strong{font-size:8px}
+ .touch-actions{position:relative}.touch-actions #touchDash{position:absolute;right:12px;bottom:72px;width:46px;height:46px;background:#345d4ae8;border-color:#b0d8bd;font-size:17px;font-weight:700}
+ .touch-actions #touchDash:disabled{font-size:12px;opacity:.75}
+ .camp-modal{padding:25px 17px 20px;width:calc(100% - 20px);max-height:94dvh}
+ .camp-heading h2{font-size:27px}.camp-heading p:last-child{font-size:10px}.camp-wallet span{font-size:6px}.camp-wallet strong{font-size:27px}
+ .perk-grid{grid-template-columns:repeat(2,1fr);gap:8px}.perk-card{padding:11px;min-height:200px}.perk-card>strong{font-size:19px}.perk-description{font-size:10px}.perk-category{font-size:6px;letter-spacing:.5px}.perk-price{font-size:9px}.perk-price>span{font-size:8px}
+ .camp-footer{flex-wrap:wrap;gap:14px}.camp-footer>p{width:100%}.camp-footer .primary-button{flex:1;min-width:150px}.camp-footer .text-button{font-size:10px}.announcement{top:70px}
+ .game-footer>div{gap:7px}
+}
+
+.camp-modal .close-button { top:8px;right:12px;line-height:1;width:30px;height:30px;padding:0; }

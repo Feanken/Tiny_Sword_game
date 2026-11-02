@@ -62,6 +62,18 @@ try {
   await evaluate('document.getElementById("startButton").click()');
   assert.equal((await snapshot()).state, 'playing');
   assert.equal((await snapshot()).allies.length, 1);
+  await page('Input.dispatchKeyEvent',{type:'keyDown',key:'u'});await page('Input.dispatchKeyEvent',{type:'keyUp',key:'u'});
+  assert.equal((await snapshot()).state,'paused');assert.equal(await evaluate('document.querySelectorAll(".perk-card").length'),6);
+  const campTimer=(await snapshot()).waveTimer;await delay(150);assert.equal((await snapshot()).waveTimer,campTimer);
+  await screenshot('camp-desktop.png');
+  await evaluate('document.querySelector("[data-perk=wind]").click()');assert.equal((await snapshot()).upgrades.wind,1);assert.equal((await snapshot()).gold,45);
+  assert.ok(await evaluate('[...document.querySelectorAll(".perk-card")].every(b=>b.disabled)'),'second purchase is locked');
+  await evaluate('document.getElementById("campDialog").close()');await delay(40);
+  const dashOrigin=(await snapshot()).hero.x;
+  await page('Input.dispatchKeyEvent',{type:'keyDown',key:'d'});await page('Input.dispatchKeyEvent',{type:'keyDown',key:'Shift',code:'ShiftLeft'});await page('Input.dispatchKeyEvent',{type:'keyUp',key:'Shift',code:'ShiftLeft'});await delay(80);
+  assert.ok((await snapshot()).dash.active>0);await screenshot('dash-desktop.png');await delay(140);await page('Input.dispatchKeyEvent',{type:'keyUp',key:'d'});
+  assert.ok((await snapshot()).hero.x>dashOrigin+70);assert.ok((await snapshot()).dash.cooldown>0);
+
   assert.ok(await evaluate('document.getElementById("wavePanel").getBoundingClientRect().bottom <= document.getElementById("arena").getBoundingClientRect().top'), 'wave status stays above the battlefield');
   assert.ok(await evaluate('document.querySelector(".command-bar").getBoundingClientRect().bottom <= innerHeight'), 'playing layout fits laptop screen');
   const before = await snapshot();
@@ -149,10 +161,18 @@ try {
   assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true, 'mobile layout fits viewport');
   assert.equal(await evaluate('document.getElementById("mobileControls").hidden'), false);
   await screenshot('mobile-playing.png');
+  await evaluate('document.getElementById("campButton").click()');await delay(60);await screenshot('camp-mobile.png');
+  assert.ok(await evaluate('document.getElementById("campDialog").getBoundingClientRect().width<=innerWidth'));
+  await evaluate('document.getElementById("campDialog").close()');await delay(50);
+
   const touch = await evaluate('(()=>{const r=document.querySelector("[data-move=left]").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
   const touchBefore = (await snapshot()).hero.x;
   await page('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...touch, radiusX: 2, radiusY: 2 }] }); await delay(300); await page('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   assert.ok((await snapshot()).hero.x < touchBefore - 15, 'touch direction pad moves the hero');
+  const dashTouch=await evaluate('(()=>{const r=document.getElementById("touchDash").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()');
+  await page('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...dashTouch,radiusX:2,radiusY:2}]});await page('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(60);
+  assert.ok((await snapshot()).dash.active>0,'touch dash starts the same dodge action');await delay(180);
+
   await evaluate('document.getElementById("pauseButton").click();document.getElementById("endScreen").hidden=false;document.getElementById("resultDescription").textContent="Lima gelombang berlalu. Rumah ini masih milik kita."');
   assert.ok(await evaluate('(()=>{const panel=document.querySelector(".result-panel").getBoundingClientRect(),arena=document.getElementById("arena").getBoundingClientRect();return panel.top>=arena.top&&panel.bottom<=arena.bottom})()'), 'mobile result panel stays inside the arena');
   await evaluate('document.querySelector(".result-panel").scrollTop=9999');
