@@ -1,0 +1,113 @@
+{
+  "units": 29,
+  "difficulty": "hard",
+  "bossEnraged": true,
+  "bossPatterns": [
+    "charge",
+    "slam",
+    "volley"
+  ],
+  "bossResolved": [
+    "charge",
+    "slam",
+    "volley"
+  ],
+  "effects": 80,
+  "impacts": 60,
+  "fields": 3,
+  "approachTargets": 12,
+  "combat": {
+    "swings": 26,
+    "hits": 49,
+    "misses": 3,
+    "interruptions": 6,
+    "cancels": 0,
+    "bufferedInputs": 0,
+    "healingDone": 352,
+    "healingWasted": 0,
+    "stalls": 0,
+    "blockedSeconds": 0,
+    "mergedHits": 0,
+    "pressureDeferrals": 35,
+    "maxWindups": 4,
+    "damageTaken": 553,
+    "allyEvades": 11,
+    "allyHazardHits": 1,
+    "roleIntercepts": 95,
+    "repositions": 0,
+    "damageBySource": {
+      "Warrior": 46,
+      "Lancer": 286,
+      "Archer": 69,
+      "Pawn": 92,
+      "boss": 60,
+      "unknown": 0
+    }
+  },
+  "steps": 900,
+  "meanMs": 0.5648888888872332,
+  "p95Ms": 1.199999999254942,
+  "maxMs": 4.5,
+  "effectCap": 80,
+  "render": {
+    "frames": 837,
+    "medianMs": 16.699999999999818,
+    "p95Ms": 33.29999999999927,
+    "maxMs": 50
+  },
+  "live": {
+    "units": 29,
+    "difficulty": "hard",
+    "bossEnraged": true,
+    "bossPatterns": [
+      "charge",
+      "slam",
+      "volley"
+    ],
+    "bossResolved": [
+      "charge",
+      "slam",
+      "volley"
+    ],
+    "effects": 2,
+    "impacts": 6,
+    "fields": 7,
+    "approachTargets": 18,
+    "combat": {
+      "swings": 0,
+      "hits": 0,
+      "misses": 0,
+      "interruptions": 0,
+      "cancels": 0,
+      "bufferedInputs": 0,
+      "healingDone": 316,
+      "healingWasted": 0,
+      "stalls": 0,
+      "blockedSeconds": 0,
+      "mergedHits": 0,
+      "pressureDeferrals": 39,
+      "maxWindups": 4,
+      "damageTaken": 591,
+      "allyEvades": 19,
+      "allyHazardHits": 1,
+      "roleIntercepts": 89,
+      "repositions": 0,
+      "damageBySource": {
+        "Warrior": 92,
+        "Lancer": 182,
+        "Archer": 161,
+        "Pawn": 92,
+        "boss": 64,
+        "unknown": 0
+      }
+    }
+  },
+  "audio": {
+    "decoded": 17,
+    "failed": 0,
+    "voices": 4,
+    "effectsVolume": 0.75,
+    "musicVolume": 0.25,
+    "enabled": true
+  }
+}

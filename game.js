@@ -58,6 +58,7 @@
   const SWING = Object.freeze({ start:.16, end:.28, angle:1.3, reach:76, radius:18, cap:3 });
   const approachOffsets = Array.from({length:8},(_,i)=>({x:Math.cos(i*Math.PI/4),y:Math.sin(i*Math.PI/4)}));
   const approachSlots = new Map(), combatUnits = [];
+  const engagements=new Map();
   let combatId=0, pressureActive=0, pressureGap=0, collectingHeroDamage=false, pendingHeroDamage=null;
   const combatStats={};
   function resetCombatStats(){
@@ -87,11 +88,18 @@
   function setSquadOrder(order){
     if(state!=='playing'||!['follow','guard'].includes(order))return false;
     squadOrder=order;orderPulse=1.2;
-    for(const u of allies){releaseApproach(u);u.combatTarget=null;u.healTarget=null;u.healThink=0;u.strike=null;u.attack=0;u.route=[];u.routeTimer=0;u.stallSeconds=0;u.blockedSeconds=0;}
+    for(const u of allies){releaseApproach(u);u.combatTarget=null;u.protectTarget=null;u.roleThink=0;u.evadeAction=null;u.evadeGoal=null;u.retreatGoal=null;u.repositionGoal=null;u.targetThink=0;u.arrowEvade=0;u.arrowGoal=null;u.arrowThink=0;u.supportThink=0;u.supportGoal=null;u.healTarget=null;u.healThink=0;u.strike=null;u.attack=0;u.route=[];u.routeTimer=0;u.stallSeconds=0;u.blockedSeconds=0;}
     notify(order==='follow'?'Sekutu mengikuti penjaga dan melindungi sekitarmu.':'Sekutu kembali menjaga halaman kastel.');updateUI();return true;
   }
   function squadAnchor(){return squadOrder==='guard'?{x:845,y:355}:hero;}
-  function squadHome(u){const slot=Number.isInteger(u.formationSlot)?u.formationSlot:0,angle=slot*2.399963,anchor=squadAnchor();const point={x:anchor.x+Math.cos(angle)*(squadOrder==='guard'?95:65),y:anchor.y+Math.sin(angle)*50+20};return positionFits(point.x,point.y)?point:{x:anchor.x,y:anchor.y};}
+  function squadHome(u){
+    const slot=Number.isInteger(u.formationSlot)?u.formationSlot:0,angle=slot*2.399963,anchor=squadAnchor();
+    for(const radius of [squadOrder==='guard'?95:65,40])for(let i=0;i<8;i++){
+      const a=angle+i*Math.PI/4,p={x:anchor.x+Math.cos(a)*radius,y:anchor.y+Math.sin(a)*50+20};
+      if(positionFits(p.x,p.y))return p;
+    }
+    return positionFits(anchor.x,anchor.y)?{x:anchor.x,y:anchor.y}:{x:u.x,y:u.y};
+  }
   function traceCharge(origin,dx,dy,length){
     let traveled=0;
     while(traveled<length){
@@ -155,7 +163,7 @@
     if(type==='charge'){const a=u.bossAction;a.chargeSpeed=u.enraged?650:560;a.chargeEnd=traceCharge(a.origin,a.dx,a.dy,a.chargeSpeed*.45);a.traveled=0;}
   }
   function showTitle(){
-    collectingHeroDamage=false;pendingHeroDamage=null;approachSlots.clear();combatUnits.length=0;
+    collectingHeroDamage=false;pendingHeroDamage=null;approachSlots.clear();engagements.clear();combatUnits.length=0;
     state='ready';keys.clear();pointerAttack=false;hero.attackBuffer=0;simulationAccumulator=0;
     enemies=[];allies=[];effects=[];impacts=[];projectiles=[];dashTrail=[];boss=null;bossSpawned=false;
     Object.assign(hero,{x:788,y:370,hp:100,maxHp:100,attack:0,dash:0,dashCooldown:0,riposte:0,work:null,facing:1,invuln:0,hitFlash:0,stagger:0,cooldown:0,moving:false,knockX:0,knockY:0});castle.hp=castle.maxHp=500;castle.hitFlash=0;orderPulse=0;gold=80;wood=40;food=3;score=0;waveIndex=0;phase='prepare';waveTimer=22;for(const id in ranks)ranks[id]=0;
@@ -740,7 +748,7 @@
       const path = entity.route || [];
       while (path.length && dist(entity, path[0]) < 12) path.shift();
       while (path.length > 1 && clearPath(entity, path[1])) path.shift();
-      if (path.length) { move(entity, path[0].x - entity.x, path[0].y - entity.y, dt, speed); entity.blockedSeconds = 0; return; }
+      if (path.length) { navigateStep(entity,path[0].x-entity.x,path[0].y-entity.y,dt,speed); entity.blockedSeconds = 0; return; }
       entity.blockedSeconds = (entity.blockedSeconds || 0) + dt;if(entity.blockedSeconds>1)combatStats.blockedSeconds+=dt; entity.moving = false; return;
     } else { entity.route = []; entity.blockedSeconds = 0; }
     let dx = target.x - entity.x, dy = target.y - entity.y;
@@ -754,7 +762,25 @@
         dy += (oy / d * 2.3 + ox / d * side * .9) * force;
       }
     }
-    move(entity, dx, dy, dt, speed);
+    navigateStep(entity,dx,dy,dt,speed);
+  }
+  function navigateStep(u,dx,dy,dt,speed){
+    const length=Math.hypot(dx,dy);if(length<.001){u.moving=false;return;}
+    dx/=length;dy/=length;
+    // A shared right-hand passing rule avoids opposite steering decisions each frame.
+    if(u!==hero&&!u.entering){
+      let blocker=null,nearest=38*38;
+      for(const other of combatUnits){if(other===u||other.hp<=0||other.entering)continue;
+        const ox=other.x-u.x,oy=other.y-u.y,d2=ox*ox+oy*oy;
+        if(d2<nearest&&ox*dx+oy*dy>0){nearest=d2;blocker=other;}
+      }
+      if(blocker){
+        const strength=(38-Math.sqrt(nearest))/38*1.4,px=-dy,py=dx;
+        const side=positionFits(u.x+(dx+px)*10,u.y+(dy+py)*10)?1:-1;
+        dx+=px*strength*side;dy+=py*strength*side;
+      }
+    }
+    move(u,dx,dy,dt,speed);
   }
   function updateReaction(entity, dt) {
     entity.impactHold=Math.max(0,(entity.impactHold||0)-dt);
@@ -775,7 +801,7 @@
     runSeed=Number.isInteger(seed)?seed>>>0:Math.floor(Math.random()*4294967296)>>>0;encounters=makeEncounters(runSeed);
     gameRandom=seededRandom(runSeed);
     for(const voice of [...soundVoices]){voice.source.stop();voice.finish();}
-    resetCombatStats();combatId=0;pressureActive=0;pressureGap=0;approachSlots.clear();combatUnits.length=0;collectingHeroDamage=false;pendingHeroDamage=null;lastCombatCue.clear();
+    resetCombatStats();combatId=0;pressureActive=0;pressureGap=0;approachSlots.clear();engagements.clear();combatUnits.length=0;collectingHeroDamage=false;pendingHeroDamage=null;lastCombatCue.clear();
     Object.assign(hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99,stepTimer:0});
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     simulationAccumulator = 0; pausedForDialog = false;toastTimer=0;$('toast').classList.remove('show');
@@ -1038,6 +1064,7 @@
         else if(u.kind==='Warrior')bias=['Monk','Archer'].includes(target.kind)?-22:0;
         else if(u.kind==='Lancer')bias=target.strike?.target?.team===u.team?-40:['Warrior','Pawn'].includes(target.kind)?-18:0;
         if(target===u.protectTarget)bias-=55;
+        else bias+=Math.max(0,(engagements.get(target)||0)-(u.combatTarget===target?1:0))*16;
       }
       const cost=Math.max(1,d+bias),visible=u.kind!=='Archer'||shotClear(u,target);
       if(cost<bestCost){best=target;bestCost=cost;}
@@ -1045,7 +1072,10 @@
       if(target===u.combatTarget){currentCost=cost;currentVisible=visible;}
     }
     const chosen=bestVisible||best,cost=bestVisible?visibleCost:bestCost;
-    if(!u.combatTarget||currentCost===Infinity||currentCost>cost*1.25+12||bestVisible&&!currentVisible)u.combatTarget=chosen;
+    if(!u.combatTarget||currentCost===Infinity||currentCost>cost*1.25+12||bestVisible&&!currentVisible){
+      if(u.combatTarget)engagements.set(u.combatTarget,Math.max(0,(engagements.get(u.combatTarget)||0)-1));
+      u.combatTarget=chosen;if(chosen)engagements.set(chosen,(engagements.get(chosen)||0)+1);
+    }
     return u.combatTarget;
   }
   function updateRole(u,dt){
@@ -1100,10 +1130,36 @@
     for(const radius of [distance,distance*.5])for(const offset of [0,.65,-.65,1.25,-1.25,Math.PI/2,-Math.PI/2]){
       const p={x:u.x+Math.cos(angle+offset)*radius,y:u.y+Math.sin(angle+offset)*radius};
       if(!positionFits(p.x,p.y)||!clearPath(u,p)||u.team==='ally'&&(dist(p,anchor)>leash||bossDangerAt(p)))continue;
-      const value=dist(p,target)+(shotClear(p,target)?35:0)-Math.abs(offset)*8;
+      const visible=shotClear(p,target),cover=u.kind==='Monk'?(visible?0:55):(visible?35:0);
+      const value=dist(p,target)+cover-Math.abs(offset)*8;
       if(value>score){score=value;best=p;}
     }
     return best;
+  }
+  function evadeProjectile(u,dt){
+    if(!['Archer','Monk'].includes(u.kind))return false;
+    u.arrowThink=(u.arrowThink||0)-dt;u.arrowEvade=Math.max(0,(u.arrowEvade||0)-dt);
+    if(u.arrowThink<=0){
+      u.arrowThink=.12+(u.combatId%3)*.02;
+      let incoming=null,soonest=Infinity;
+      for(const p of projectiles){
+        if(p.life<=0||p.team===u.team||dist(p,u)>140)continue;
+        const end={x:p.x+p.vx*.35,y:p.y+p.vy*.35},time=segmentHit(p,end,u,23);
+        if(time<soonest){incoming=p;soonest=time;}
+      }
+      if(incoming){
+        const length=Math.hypot(incoming.vx,incoming.vy),px=-incoming.vy/length,py=incoming.vx/length;
+        let goal=null,cost=Infinity;
+        for(const side of [-1,1]){
+          const p={x:u.x+px*side*44,y:u.y+py*side*44};
+          if(!positionFits(p.x,p.y)||!clearPath(u,p)||u.team==='ally'&&(dist(p,squadAnchor())>(squadOrder==='guard'?235:320)||bossDangerAt(p)))continue;
+          const score=dist(p,squadAnchor());if(score<cost){goal=p;cost=score;}
+        }
+        if(goal){u.arrowGoal=goal;u.arrowEvade=.3;u.strike=null;u.attack=0;}
+      }
+    }
+    if(u.arrowEvade>0&&u.arrowGoal){steerMove(u,u.arrowGoal,dt,u.speed*1.1);return true;}
+    return false;
   }
   function firingPosition(u,target){
     const angle=Math.atan2(u.y-target.y,u.x-target.x),anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
@@ -1160,7 +1216,7 @@
     }
   }
   function healingTarget(u,friends){
-    let best=null,bestScore=-Infinity;
+    let best=null,bestScore=-Infinity,ready=null,readyScore=-Infinity;
     for(const f of friends){
       if(f===u||f.hp<=0||f.hp>=f.maxHp)continue;
       if(u.team==='ally'&&dist(f,squadAnchor())>(squadOrder==='guard'?235:320))continue;
@@ -1168,8 +1224,9 @@
       const missing=f.maxHp-f.hp,urgency=1-f.hp/f.maxHp;
       const score=urgency*urgency*120+Math.min(missing,u.team==='ally'?16:12)*2-d*.04+(elapsed-(f.lastDamageTime??-99)<2?15:0);
       if(score>bestScore){bestScore=score;best=f;}
+      if(d<140&&shotClear(u,f)&&(missing>=8||urgency>.5)&&score>readyScore){ready=f;readyScore=score;}
     }
-    return best;
+    return ready||best;
   }
   function updateHealer(u,dt){
     u.healThink=(u.healThink||0)-dt;
@@ -1191,7 +1248,9 @@
     }
     const threat=u.healThreat;
     if(threat?.hp>0&&dist(u,threat)<80&&u.cooldown>0){
-      const retreat=tacticalRetreat(u,threat,65);
+      u.supportThink=(u.supportThink||0)-dt;
+      if(u.supportThink<=0||u.supportThreat!==threat){u.supportGoal=tacticalRetreat(u,threat,65);u.supportThink=.24;u.supportThreat=threat;}
+      const retreat=u.supportGoal;
       if(retreat){steerMove(u,retreat,dt);return;}
     }
     if(wounded&&u.team==='ally'&&bossDangerAt(wounded)){u.moving=false;return;}
@@ -1215,7 +1274,13 @@
     u.attack = Math.max(0, u.attack - dt); u.cooldown -= dt;
     u.chargeCooldown = (u.chargeCooldown || 0) - dt; u.charge = Math.max(0, (u.charge || 0) - dt);
     if (u.hp <= 0) return;
-    if(!u.isBoss&&!u.entering){updateRole(u,dt);if(u.stagger<=0&&evadeBoss(u,dt))return;}
+    const anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
+    if(u.team==='ally'&&dist(u,anchor)>leash){
+      releaseApproach(u);u.combatTarget=null;u.strike=null;u.attack=0;u.evadeGoal=null;
+      if(u.stagger>0){u.moving=false;return;}
+      steerMove(u,squadHome(u),dt,u.speed*1.15);return;
+    }
+    if(!u.isBoss&&!u.entering){updateRole(u,dt);if(u.stagger<=0&&(evadeBoss(u,dt)||evadeProjectile(u,dt)))return;}
     if (u.strike) {
       u.strike.timer -= dt;
       if (u.strike.timer <= 0) {
@@ -1234,8 +1299,6 @@
       else { steerMove(u, exit, dt); return; }
     }
     if(u.isBoss){updateBoss(u,dt);return;}
-    const anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
-    if(u.team==='ally'&&dist(u,anchor)>leash){releaseApproach(u);u.strike=null;steerMove(u,squadHome(u),dt,u.speed*1.15);return;}
     if (u.kind === 'Monk') {
       updateHealer(u,dt);
       return;
@@ -1316,6 +1379,7 @@
     }
     if(phase==='battle'&&waveIndex===4&&spawned>=Math.ceil(waves[4].count/2)&&!bossSpawned)spawnBoss();
     combatUnits.length=0;for(const u of allies)combatUnits.push(u);for(const u of enemies)combatUnits.push(u);
+    engagements.clear();for(const u of combatUnits)if(u.hp>0&&u.kind!=='Monk'){const target=u.strike?.target||u.combatTarget;if(target?.hp>0)engagements.set(target,(engagements.get(target)||0)+1);}
     beginDamageStep();
     for (const u of combatUnits) updateUnit(u, dt);
     separateCombatUnits(dt);

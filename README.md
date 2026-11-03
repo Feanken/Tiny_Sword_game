@@ -99,7 +99,7 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
 - Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 29 unit: 20 prajurit, 8 sekutu, dan panglima yang mengamuk pada mode Sulit. Ketiga pola panglima harus selesai dijalankan. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance-simulation.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
-Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 50,1 ms. Dengan 17 efek suara terdekode dan audio aktif, CPU simulasi rata-rata sekitar 0,59 ms per langkah pada sesi ini, persentil ke-95 1 ms. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 50,1 ms. Dengan 17 efek suara terdekode dan audio aktif, CPU simulasi rata-rata sekitar 0,54 ms per langkah pada sesi ini, persentil ke-95 1 ms. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
 
 ## Langkah Embun dan Perkemahan
 
@@ -185,7 +185,7 @@ Uji combat juga memeriksa jendela sapuan, deduplikasi hit, batas cleave, kontrol
 
 `node game-preview/balance-matrix.cjs` menambah 15 pertandingan pada tiga seed: racikan pedang/elak/pertahanan dengan 4 sekutu di Normal, 2 sekutu di Santai, serta 4 sekutu di Sulit. Bot matriks menghindari ayunan prajurit biasa dan peringatan panglima; bot pembanding 14 pertandingan memakai kebijakan yang dijelaskan dalam laporannya. Semua memakai input normal tanpa tambahan HP, emas, atau perubahan AI.
 
-Hasil matriks terakhir: setiap racikan Normal menang 3/3; pasukan kecil Santai menang 3/3; pasukan 4 unit Sulit menang 1/3. Tidak ada pertandingan tertahan sampai batas 600 detik. Ini menunjukkan beberapa susunan layak dan Sulit lebih menekan pada bot tersebut, bukan perkiraan tingkat kemenangan manusia. Rincian serta hash sumber tersimpan di `game-preview/balance-matrix.json`.
+Hasil matriks terakhir: setiap racikan Normal menang 3/3; pasukan kecil Santai menang 3/3; pasukan 4 unit Sulit menang 2/3. Tidak ada pertandingan tertahan sampai batas 600 detik. Ini menunjukkan beberapa susunan layak dan Sulit lebih menekan pada bot tersebut, bukan perkiraan tingkat kemenangan manusia. Rincian serta hash sumber tersimpan di `game-preview/balance-matrix.json`.
 
 ## Audio lokal
 
@@ -194,3 +194,14 @@ Efek berasal dari [RPG Audio](https://kenney.nl/assets/rpg-audio) dan [Impact So
 Volume efek dan musik tersimpan terpisah di browser. Mute berlaku melalui master gain; efek yang gagal didekode memakai bunyi cadangan. `audio-pack.js` menyimpan data lokal sehingga `index.html` tetap dapat dimainkan langsung melalui `file://` tanpa koneksi internet.
 
 `node game-preview/browser-test.mjs --stress --audio-only` memeriksa 17 berkas terdekode, energi/durasi sampel, volume terpisah, mute, batas dan pelepasan 12 suara, layout ponsel, serta decode offline. `--replay-only` memeriksa tombol ulangi/ekspedisi baru dan panel hasil ponsel. Untuk membangun ulang payload audio, jalankan `python game-preview/import-audio.py --download`; langkah pengembangan ini membutuhkan internet.
+
+## Pengembangan AI tim
+
+- Musuh dan sekutu membagi sasaran menggunakan jumlah penyerang yang sudah terlibat. Menyelamatkan unit pendukung tetap mendapat prioritas; unit tidak berpindah sasaran hanya karena perubahan jarak kecil. Daftar keterlibatan dihitung sekali per langkah simulasi dan dipakai bersama.
+- Pasukan mengikuti aturan berpapasan ke kanan, dengan pemeriksaan ruang di dekatnya. Penyesuaian ini bekerja saat mengikuti jalur navigasi maupun bergerak langsung; pemisahan tubuh tetap lembut agar penjaga dapat keluar dari kerumunan.
+- Batas wilayah komando sekutu diperiksa sebelum melepas serangan tertunda. Sekutu yang keluar wilayah membatalkan ayunan/tembakan dan kembali. Mengubah F/G juga membersihkan tujuan menghindar, mundur, perlindungan, dan penyembuhan sebelumnya.
+- Posisi formasi mencari titik daratan alternatif jika titik utama tertutup pohon, bangunan, atau pantai. Posisi anggota yang bertahan tetap tidak berubah karena anggota lain gugur.
+- Pemanah dan biarawan kedua kubu dapat melangkah ke samping untuk menghindari panah lawan yang terlihat mendekat. Pemeriksaan memiliki interval reaksi; panah yang sudah terlalu dekat tetap bisa mengenai unit. Tidak ada tambahan kekebalan.
+- Biarawan mengutamakan pemulihan efektif pada pasien yang dapat segera dijangkau, serta memilih perlindungan saat mundur. Tujuan mundur disimpan singkat agar gerak tidak zigzag karena menghitung ulang setiap frame.
+
+`node game-preview/team-ai-test.cjs` memeriksa pembagian sasaran, prioritas perlindungan, pembatalan tembakan di luar wilayah, reset tujuan setelah komando, penyembuhan yang terjangkau, penghindaran panah nyata beserta reaksi terlambat, lalu lintas berlawanan arah, serta posisi formasi dekat bangunan/pantai. Uji ini melengkapi `tactics-test.cjs`, `combat-test.cjs`, pengujian mesin, 29 pertandingan otomatis, dan pengukuran browser 29 unit dengan audio aktif.
