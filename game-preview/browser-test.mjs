@@ -160,15 +160,15 @@ try {
     await evaluate('document.querySelector("[data-perk=rhythm]").click()');assert.ok(await evaluate('document.activeElement.dataset.perk==="rhythm"'),'focus remains on the purchased card');
     await page('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space'});await page('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space'});assert.equal((await snapshot()).upgrades.rhythm,2,'keyboard can immediately buy the next rank');
     for(const id of ['blade','rhythm','wind','counter','bastion','oath']){
-      while((await snapshot()).upgrades[id]<5)await evaluate('document.querySelector("[data-perk='+id+']").click()');
-      assert.ok(await evaluate('document.querySelector("[data-perk='+id+']").disabled'));assert.ok(await evaluate('document.querySelector("[data-perk='+id+']").textContent.includes("TINGKAT 5 / 5")'));
+      while((await snapshot()).upgrades[id]<10)await evaluate('document.querySelector("[data-perk='+id+']").click()');
+      assert.ok(await evaluate('document.querySelector("[data-perk='+id+']").disabled'));assert.ok(await evaluate('document.querySelector("[data-perk='+id+']").textContent.includes("TINGKAT 10 / 10")'));
     }
-    assert.equal((await snapshot()).gold,7625);assert.equal((await snapshot()).waveTimer,timer);await screenshot('upgrade-five-desktop.png');
-    await evaluate('document.getElementById("campDialog").close()');await delay(60);await evaluate('document.getElementById("campButton").click()');assert.ok(Object.values((await snapshot()).upgrades).every(n=>n===5));
-    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});await delay(100);await screenshot('upgrade-five-mobile.png');assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
-    assert.ok(await evaluate('[...document.querySelectorAll(".perk-card")].every(card=>card.scrollWidth<=card.clientWidth+2)'),'five rank marks fit mobile cards');
+    assert.equal((await snapshot()).gold,2250);assert.equal((await snapshot()).waveTimer,timer);await screenshot('upgrade-ten-desktop.png');
+    await evaluate('document.getElementById("campDialog").close()');await delay(60);await evaluate('document.getElementById("campButton").click()');assert.ok(Object.values((await snapshot()).upgrades).every(n=>n===10));
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});await delay(100);await screenshot('upgrade-ten-mobile.png');assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
+    assert.ok(await evaluate('[...document.querySelectorAll(".perk-card")].every(card=>card.scrollWidth<=card.clientWidth+2)'),'ten rank labels fit mobile cards');
     await evaluate('document.getElementById("campDialog").close()');await delay(60);await evaluate('document.getElementById("restartPauseButton").click()');assert.ok(Object.values((await snapshot()).upgrades).every(n=>n===0));
-    assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log('Repeated purchases through all five ranks, keyboard focus, exact gold, cap UI, paused time, reopen persistence, mobile layout and reset: passed');
+    assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log('Repeated purchases through all ten ranks, keyboard focus, exact gold, cap UI, paused time, reopen persistence, mobile layout and reset: passed');
   } else if(process.argv.includes('--director-only')) {
     const result=await evaluate('window.__directorPreview()');assert.equal(result.hp,80);assert.equal(result.maxHp,115);assert.ok(result.title.includes('50'));assert.equal(new Set(result.styles).size,3);await delay(80);await screenshot('director-wave-desktop.png');
     await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});await page('Emulation.setTouchEmulationEnabled',{enabled:true});await evaluate('window.__directorPreview(true)');await delay(80);await screenshot('director-camp-mobile.png');

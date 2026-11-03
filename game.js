@@ -232,17 +232,31 @@
     $('startScreen').hidden=false;$('endScreen').hidden=true;$('pauseScreen').hidden=true;$('battleStatus').hidden=true;$('squadBar').hidden=true;$('bossBar').hidden=true;$('dashButton').hidden=true;$('mobileControls').hidden=true;
     document.body.classList.remove('is-playing');$('arena').classList.remove('boss-active');setDifficulty(difficulty);updateUI();resize();
   }
-  const MAX_UPGRADE_LEVEL=5;
+  const MAX_UPGRADE_LEVEL=10;
   const ranks = { blade:0, rhythm:0, wind:0, counter:0, bastion:0, oath:0 };
   const upgrades = [
     {id:'blade',name:'Bilah Bara',group:'PEDANG',icon:'⚔',cost:45,description:'Damage sasaran utama +5, sasaran tambahan +3 per tingkat.'},
-    {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda antarserangan berkurang 6% per tingkat.'},
-    {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash berkurang 0,25 detik per tingkat.'},
+    {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda serangan −6% per tingkat I–V, lalu −3% per tingkat VI–X.'},
+    {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash −0,25 detik per tingkat I–V, lalu −0,08 detik per tingkat VI–X.'},
     {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan elak sempurna +6 damage dan durasi +0,5 detik per tingkat.'},
     {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kastel +80 HP, pulih 80; damage dekat kastel −2 dan jangkauan perlindungan +20 per tingkat.'},
     {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Nyawa +15, pulih 15; pemulihan bekal +5 dan biarawan untukmu +2 per tingkat.'},
   ];
-  function dashCooldown() { return 2.4 - ranks.wind * .25; }
+  const milestone=id=>Math.floor(ranks[id]/5);
+  const upgradeBuffs={
+    blade:['Sapuan mengenai hingga 4 musuh.','Sapuan mengenai hingga 5 musuh.'],
+    rhythm:['Kecepatan gerak saat mengayun naik menjadi 65%.','Kecepatan gerak saat mengayun naik menjadi 75%.'],
+    wind:['Kebal selama 0,18 detik awal dash.','Kebal selama seluruh 0,20 detik dash.'],
+    counter:['Bonus damage balasan tambahan +8.','Bonus damage balasan tambahan menjadi +16.'],
+    bastion:['Damage ke kastel berkurang 20%.','Damage ke kastel berkurang 40%.'],
+    oath:['Jeda penggunaan bekal menjadi 1,5 detik.','Jeda penggunaan bekal menjadi 1,2 detik.']
+  };
+  function attackCooldown(){return HERO_ATTACK.cooldown*(1-Math.min(5,ranks.rhythm)*.06-Math.max(0,ranks.rhythm-5)*.03);}
+  function swingCap(){return SWING.cap+milestone('blade');}
+  function counterBonus(){return 12+ranks.counter*6+milestone('counter')*8;}
+  function dashImmunity(){return .16+milestone('wind')*.02;}
+  function foodCooldown(){return 1.8-milestone('oath')*.3;}
+  function dashCooldown(){return 2.4-Math.min(5,ranks.wind)*.25-Math.max(0,ranks.wind-5)*.08;}
   function fortressRadius(){return 160+ranks.bastion*20;}
   function startDash() {
     if(state!=='playing'||hero.hp<=0||hero.dash>0||hero.dashCooldown>0)return false;
@@ -263,13 +277,13 @@
   function renderCamp() {
     $('campGold').textContent=gold;
     $('campRound').textContent=`JEDA ${waveIndex+1} / 5`;
-    $('campRule').textContent='Beli berkali-kali selama emas cukup. Setiap jalur maksimal 5 tingkat; sisakan emas untuk pasukan.';
+    $('campRule').textContent='Beli berkali-kali selama emas cukup. Setiap jalur maksimal 10 tingkat; sisakan emas untuk pasukan.';
     $('campCards').replaceChildren();
     for(const perk of upgrades){
       const level=ranks[perk.id],cost=perk.cost+level*20,button=document.createElement('button');
       button.className='perk-card';button.dataset.perk=perk.id;
       button.disabled=level>=MAX_UPGRADE_LEVEL||gold<cost||phase!=='prepare';
-      button.innerHTML=`<span class="perk-category">${perk.group}<span>${'◆'.repeat(level)}${'◇'.repeat(MAX_UPGRADE_LEVEL-level)}</span></span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}</span><span class="perk-price">${level>=MAX_UPGRADE_LEVEL?'TINGKAT 5 / 5':`${cost} emas <span>Tingkat ${level+1} →</span>`}</span>`;
+      button.innerHTML=`<span class="perk-category">${perk.group}<span>${level} / ${MAX_UPGRADE_LEVEL}</span></span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}<span class="perk-milestone ${level>=5?'active':''}">V · ${level>=5?'AKTIF · ':''}${upgradeBuffs[perk.id][0]}</span><span class="perk-milestone ${level>=10?'active':''}">X · ${level>=10?'AKTIF · ':''}${upgradeBuffs[perk.id][1]}</span></span><span class="perk-price">${level>=MAX_UPGRADE_LEVEL?'TINGKAT 10 / 10':`${cost} emas <span>Tingkat ${level+1} →</span>`}</span>`;
       button.addEventListener('click',()=>buyUpgrade(perk.id));$('campCards').append(button);
     }
     $('campBuild').textContent=upgrades.filter(p=>ranks[p.id]).map(p=>`${p.name} ${ranks[p.id]}`).join(' · ')||'Belum ada penempaan. Setiap pilihan membentuk cara bertarungmu.';
@@ -282,7 +296,7 @@
     if(id==='bastion'){castle.maxHp+=80;castle.hp=Math.min(castle.maxHp,castle.hp+80);}
     if(id==='oath'){hero.maxHp+=15;hero.hp=Math.min(hero.maxHp,hero.hp+15);}
     if(id==='wind')hero.dashCooldown=Math.min(hero.dashCooldown,dashCooldown());
-    $('campFeedback').textContent=`${perk.name} tingkat ${ranks[id]} ditempa. Berlaku hingga pertandingan selesai.`;
+    $('campFeedback').textContent=`${perk.name} tingkat ${ranks[id]} ditempa.${ranks[id]%5===0?' Bonus aktif: '+upgradeBuffs[id][ranks[id]/5-1]:' Berlaku hingga pertandingan selesai.'}`;
     tone(523,.2,'triangle');renderCamp();updateUI();
     if($('campDialog').open){const card=$('campCards').querySelector('[data-perk="'+id+'"]');(card&&!card.disabled?card:$('campCards').querySelector('button:not(:disabled)')||$('campReady')).focus({preventScroll:true});}
     return true;
@@ -672,7 +686,7 @@
   const swingAngle = age => -SWING.angle+2*SWING.angle*clamp((age-SWING.start)/(SWING.end-SWING.start),0,1);
   const heroAttackAge = () => hero.attack>0 ? (hero.attackDuration||HERO_ATTACK.duration)-hero.attack : HERO_ATTACK.duration;
   function heroMoveScale(){
-    return HERO_ATTACK.moveScale+(1-HERO_ATTACK.moveScale)*clamp((heroAttackAge()-SWING.end)/((hero.attackDuration||HERO_ATTACK.duration)-SWING.end),0,1);
+    const movement=HERO_ATTACK.moveScale+milestone('rhythm')*.1;return movement+(1-movement)*clamp((heroAttackAge()-SWING.end)/((hero.attackDuration||HERO_ATTACK.duration)-SWING.end),0,1);
   }
   function heroPose(){
     const age=heroAttackAge();
@@ -732,7 +746,7 @@
     const width=counter?66:44;
     ctx.fillStyle='#173327ed';ctx.fillRect(-width/2,-18,width,18);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(-width/2,-18,width,18);
     ctx.font='bold 11px Segoe UI';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(counter?'BALASAN':'KAMU',0,-6);
-    if(hero.cooldown>0){ctx.fillStyle='#ffffff26';ctx.fillRect(-width/2+2,-3,width-4,2);ctx.fillStyle=color;ctx.fillRect(-width/2+2,-3,(width-4)*clamp(1-hero.cooldown/(HERO_ATTACK.cooldown*(1-ranks.rhythm*.06)),0,1),2);}
+    if(hero.cooldown>0){ctx.fillStyle='#ffffff26';ctx.fillRect(-width/2+2,-3,width-4,2);ctx.fillStyle=color;ctx.fillRect(-width/2+2,-3,(width-4)*clamp(1-hero.cooldown/(attackCooldown()),0,1),2);}
     ctx.beginPath();ctx.moveTo(-4,below?-19:1);ctx.lineTo(4,below?-19:1);ctx.lineTo(0,below?-24:6);ctx.closePath();ctx.fill();
     if(hero.hp<hero.maxHp)healthBar(0,below?4:-23,hero.hp,hero.maxHp,hero.hp/hero.maxHp<.3?'#ffb59d':'#bde6b1',width-4);
     ctx.restore();
@@ -1189,7 +1203,7 @@
     if (food < 1) { notify('Bekal habis. Dekati domba lalu tekan E.'); return; }
     const restored = Math.min(45+5*ranks.oath, hero.maxHp - hero.hp);combatStats.oathHealing+=Math.max(0,restored-45);
     hero.work = null;
-    food--; hero.healCooldown = 1.8; hero.hp += restored; float(`+${Math.ceil(restored)}`, hero.x, hero.y, '#c6eea1', true);
+    food--; hero.healCooldown = foodCooldown(); hero.hp += restored; float(`+${Math.ceil(restored)}`, hero.x, hero.y, '#c6eea1', true);
     addEffect(blue('Monk', 'Heal_Effect'), hero.x, hero.y, 140, .8); tone(587, .25); updateUI();
   }
   function nearestResource() {
@@ -1218,13 +1232,13 @@
     const node = work.node; hero.work = null; gatherCooldown = .18;
     if (node.type === 'food' && node.original.cooldown > 0) return;
     if (node.type === 'wood') { wood += 8; float('+8 kayu', node.x, node.y); }
-    if (node.type === 'gold') { gold += 500; float('+10 emas', node.x, node.y); }
+    if (node.type === 'gold') { gold += 50; float('+10 emas', node.x, node.y); }
     if (node.type === 'food') { food++; node.original.cooldown = 12; float('+1 bekal', node.x, node.y); }
     score += 5; addEffect('Particle FX/Dust_01.png', node.x, node.y - 10, 55); tone(node.type === 'gold' ? 740 : 300, .08, 'triangle', .025); updateUI();
   }
 
   function hurt(target, amount, source) {
-    if(target===hero&&hero.dash>0&&hero.dashElapsed<=.16){
+    if(target===hero&&hero.dash>0&&hero.dashElapsed<=dashImmunity()+1e-9){
       if(!hero.dashPerfect&&hero.invuln<=0){hero.dashPerfect=true;hero.riposte=2+ranks.counter*.5;hero.dodgeCue=.35;float('ELAK SEMPURNA',hero.x,hero.y-30,'#b5f5e4',true);combatCue('dodge');}
       return;
     }
@@ -1240,6 +1254,7 @@
       if(source?.team==='ally')amount=Math.max(1,Math.round(amount*(open?1:.55)));
       else if(source===hero&&open)amount=Math.max(1,Math.round(amount*1.3));
     }
+    if(target===castle)amount=Math.max(1,Math.round(amount*(1-milestone('bastion')*.2)));
     const appliedDamage = Math.min(target.hp, amount);
     if(target.team==='ally'&&source?.isBoss)combatStats.allyHazardHits++;
     if (source === hero && target.team === 'enemy') damageDealt += appliedDamage;
@@ -1282,14 +1297,14 @@
     if (state !== 'playing' || hero.cooldown > 0 || hero.stagger > 0 || hero.dash > 0) return;
     hero.attackBuffer = 0;
     hero.work = null;
-    hero.cooldown=HERO_ATTACK.cooldown*(1-ranks.rhythm*.06);
+    hero.cooldown=attackCooldown();
     hero.attack=hero.attackDuration=Math.min(HERO_ATTACK.duration,hero.cooldown);
     const direction=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
     if(direction)hero.facing=direction>0?1:-1;
     const target=heroAttackTarget();
     if(target)hero.facing=target.x<hero.x?-1:1;
     hero.swingFacing=hero.facing;hero.swingEmpowered=hero.riposte>0;hero.missCue=0;
-    hero.strike = { elapsed:0, facing:hero.facing, target, hits:new Set(),counterBonus:hero.riposte>0?12+ranks.counter*6:0 };
+    hero.strike = { elapsed:0, facing:hero.facing, target, hits:new Set(),counterBonus:hero.riposte>0?counterBonus():0 };
     combatStats.swings++;
     tone(380, .1, 'triangle', .018, 110);
   }
@@ -1327,12 +1342,12 @@
   function updateHeroSwing(dt){
     const s=hero.strike;if(!s)return;
     const previous=s.elapsed;s.elapsed+=dt;
-    if(s.elapsed>=SWING.start&&previous<=SWING.end&&s.hits.size<SWING.cap){
+    if(s.elapsed>=SWING.start&&previous<=SWING.end&&s.hits.size<swingCap()){
       // At most three contacts; sorting is bounded by the 21-enemy encounter cap.
       const contacts=enemies.filter(e=>e.hp>0&&!s.hits.has(e)&&swingContact(s,e,previous,s.elapsed));
       contacts.sort((a,b)=>(a===s.target?-1:b===s.target?1:dist(hero,a)-dist(hero,b)));
       for(const target of contacts){
-        if(s.hits.size>=SWING.cap)break;
+        if(s.hits.size>=swingCap())break;
         const primary=s.hits.size===0,bonus=primary?s.counterBonus||0:0;
         s.hits.add(target);combatStats.hits++;
         hurt(target,primary?27+ranks.blade*5+bonus:18+ranks.blade*3,hero);

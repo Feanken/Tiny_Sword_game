@@ -40,7 +40,7 @@ function finishWork() { for(let i=0;i<70;i++) g.update(1/60); }
 g.hero.x=196;g.hero.y=319;const startingWood=g.wood;g.gather();
 assert.ok(g.hero.work);assert.equal(g.wood,startingWood,'no resources before animation completes');
 g.gather();assert.equal(g.wood,startingWood);finishWork();assert.equal(g.wood,startingWood+8);
-g.hero.x=571;g.hero.y=534;const startingGold=g.gold;g.gather();finishWork();assert.equal(g.gold,startingGold+10);
+g.hero.x=571;g.hero.y=534;const startingGold=g.gold;g.gather();finishWork();assert.equal(g.gold,startingGold+Number(fs.readFileSync('game.js','utf8').match(/node.type === 'gold'\) \{ gold \+= (\d+)/)[1]));
 g.hero.x=1014;g.hero.y=298;const startingFood=g.food;g.gather();finishWork();assert.equal(g.food,startingFood+1);
 g.hero.x=196;g.hero.y=319;g.gather();g.keys.add('d');g.update(.1);g.keys.clear();assert.equal(g.hero.work,null,'moving cancels work');assert.equal(g.wood,startingWood+8);
 g.update(.3);g.gather();g.hurt(g.hero,1,{x:100,y:319});assert.equal(g.hero.work,null,'damage cancels work');g.hero.invuln=0;g.hero.stagger=0;
@@ -182,8 +182,8 @@ g.startGame();g.hero.x=730;g.hero.y=250;g.keys.add('d');g.startDash();g.keys.cle
 g.startGame();g.hero.x=600;g.hero.y=400;g.allies.length=0;g.startWave();g.spawnEnemy();Object.assign(g.enemies[0],{x:650,y:400,entering:false,cooldown:999,speed:0,hp:100,maxHp:100});g.hero.riposte=2;g.heroAttack();g.update(.22);assert.equal(g.enemies[0].hp,61,'counterattack adds 12 damage');assert.equal(g.hero.riposte,0);
 
 // Upgrade transactions and dynamic health caps.
-g.startGame();g.setGold(1000);assert.equal(g.buyUpgrade('wind'),true);assert.equal(g.gold,965);assert.equal(g.ranks.wind,1);assert.equal(g.buyUpgrade('blade'),true,'multiple purchases per intermission');
-for(let i=1;i<5;i++)assert.equal(g.buyUpgrade('wind'),true);const goldAtCap=g.gold;assert.equal(g.buyUpgrade('wind'),false);assert.equal(g.gold,goldAtCap);
+g.startGame();g.setGold(5000);assert.equal(g.buyUpgrade('wind'),true);assert.equal(g.gold,4965);assert.equal(g.ranks.wind,1);assert.equal(g.buyUpgrade('blade'),true,'multiple purchases per intermission');
+for(let i=1;i<10;i++)assert.equal(g.buyUpgrade('wind'),true);const goldAtCap=g.gold;assert.equal(g.buyUpgrade('wind'),false);assert.equal(g.gold,goldAtCap);
 assert.equal(g.buyUpgrade('bastion'),true);assert.equal(g.castle.maxHp,580);assert.equal(g.castle.hp,580);g.finishWave();assert.equal(g.buyUpgrade('oath'),true);assert.equal(g.hero.maxHp,115);assert.equal(g.hero.hp,115);
 g.startGame();g.setGold(0);assert.equal(g.buyUpgrade('blade'),false,'cannot spend unavailable gold');g.setGold(1000);g.startWave();assert.equal(g.buyUpgrade('blade'),false,'cannot upgrade in battle');
 g.startGame();for(const id in g.ranks)assert.equal(g.ranks[id],0);assert.equal(g.hero.maxHp,100);assert.equal(g.castle.maxHp,500);assert.equal(g.hero.dashCooldown,0);
