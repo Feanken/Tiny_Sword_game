@@ -238,10 +238,11 @@
     {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda antarserangan berkurang 6% per tingkat.'},
     {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash berkurang 0,25 detik per tingkat.'},
     {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan elak sempurna +6 damage dan durasi +0,5 detik per tingkat.'},
-    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kastel +80 HP, pulih 80; damage penjaga dekat kastel berkurang 2 per tingkat.'},
+    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kastel +80 HP, pulih 80; damage dekat kastel −2 dan jangkauan perlindungan +20 per tingkat.'},
     {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Nyawa +15, pulih 15; pemulihan bekal +5 dan biarawan untukmu +2 per tingkat.'},
   ];
   function dashCooldown() { return 2.4 - ranks.wind * .25; }
+  function fortressRadius(){return 160+ranks.bastion*20;}
   function startDash() {
     if(state!=='playing'||hero.hp<=0||hero.dash>0||hero.dashCooldown>0)return false;
     let dx=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
@@ -719,7 +720,7 @@
     const s=clamp(.8/cssScale,1,1.6),counter=heroCounterReady(),color=counter||hero.dash>0?'#aef8ea':hero.damageCue>0?'#ffb59d':'#f5dfa3';
     ctx.save();ctx.translate(hero.x,hero.y);
     ctx.beginPath();ctx.ellipse(0,-4,22,10,0,0,Math.PI*2);ctx.strokeStyle='#173327';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
-    if(ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=160){ctx.fillStyle='#b5f5e4';ctx.fillRect(-3,-7,6,6);}
+    if(ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=fortressRadius()){ctx.fillStyle='#b5f5e4';ctx.fillRect(-3,-7,6,6);}
     if(hero.damageCue>0){ctx.save();ctx.translate(0,-24);ctx.rotate(hero.damageDirection+Math.PI);ctx.beginPath();ctx.moveTo(46,0);ctx.lineTo(32,-8);ctx.lineTo(32,8);ctx.closePath();ctx.fillStyle='#ffb59d';ctx.strokeStyle='#173327';ctx.lineWidth=3;ctx.stroke();ctx.fill();ctx.restore();}
     const marker=hero.markerLayout||layoutHeroMarker(),markerY=marker.y+9*s;
     const below=markerY>hero.y-45;
@@ -1230,7 +1231,7 @@
       if(!pendingHeroDamage||amount>pendingHeroDamage.amount||amount===pendingHeroDamage.amount&&damagePriority(source)<damagePriority(pendingHeroDamage.source))pendingHeroDamage={amount,source};
       return;
     }
-    if(target===hero&&ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=160){const guarded=Math.max(1,amount-ranks.bastion*2);combatStats.fortressSaved+=amount-guarded;amount=guarded;}
+    if(target===hero&&ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=fortressRadius()){const guarded=Math.max(1,amount-ranks.bastion*2);combatStats.fortressSaved+=amount-guarded;amount=guarded;}
     if(target.isBoss){
       const open=target.bossAction?.stage==='recovery';
       if(source?.team==='ally')amount=Math.max(1,Math.round(amount*(open?1:.55)));

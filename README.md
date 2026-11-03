@@ -26,7 +26,7 @@ Lalu buka http://localhost:4173. Hentikan server dengan Ctrl+C. Untuk ponsel/tab
 | F / G | Sekutu mengikuti penjaga / menjaga kastel |
 | 1 | Rekrut sekutu: pemanah, penombak, biarawan, ksatria; 40 emas, biarawan 55 |
 | 2 | Perbaiki kastel +140 nyawa, biaya 30 kayu |
-| Q | Pulihkan penjaga +45 nyawa, biaya 1 bekal |
+| Q | Pulihkan penjaga hingga 45 nyawa (+5 per tingkat Sumpah Penjaga), biaya 1 bekal |
 | P / Esc | Jeda / lanjutkan |
 
 - Menang setelah semua musuh pada gelombang kelima dikalahkan.
@@ -99,7 +99,7 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
 - Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 29 unit: 20 prajurit, 8 sekutu, dan panglima yang mengamuk pada mode Sulit. Ketiga pola panglima harus selesai dijalankan. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance-simulation.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
-Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada sesi akhir Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 33,4 ms. Dengan 17 efek suara terdekode dan audio aktif, CPU simulasi rata-rata 0,49 ms per langkah, persentil ke-95 1 ms. Render Canvas rata-rata 1,90 ms, persentil ke-95 3,1 ms; sesi pembanding sebelum pemolesan mencatat 7,85 ms dan 13,8 ms. Penurunan rata-rata sekitar 76% adalah hasil sesi pembanding ini, bukan jaminan semua perangkat. Hasil tersimpan di `game-preview/performance.json`, dengan laporan awal di `performance-before-polish.json`. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup.
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` memakai 29 unit dan audio aktif selama sekitar 15 detik. Setelah revisi gelombang, Chrome headless 1440×900 dengan GPU dinonaktifkan mencatat CPU simulasi rata-rata 0,63 ms/p95 1,3 ms; render Canvas rata-rata 1,98 ms/p95 3,1 ms. Interval frame median 16,7 ms/p95 16,8 ms/maksimum 50 ms. Hasil bergantung pada perangkat dan sesi; data lengkap serta hash kode berada di `performance.json`. HP besar hanya dipasang pada fixture performa agar seluruh unit tetap hidup.
 
 ## Langkah Embun dan Perkemahan
 
@@ -115,8 +115,8 @@ Selama 0,16 detik awal dash, pukulan yang masuk dielakkan. Menghindari pukulan s
 | Ritme Tempur | 40 emas | Cooldown serangan -6% dari nilai dasar |
 | Jejak Angin | 35 emas | Cooldown dash -0,25 detik |
 | Balasan Embun | 35 emas | Bonus balasan +6 damage, jendela balasan +0,5 detik |
-| Benteng Hidup | 40 emas | Kastel +80 HP, pulih 80; damage penjaga dekat kastel berkurang 2 |
-| Sumpah Penjaga | 40 emas | Kapasitas penjaga +15 HP, langsung pulih 15 |
+| Benteng Hidup | 40 emas | Kastel +80 HP, pulih 80; damage dekat kastel berkurang 2, radius perlindungan bertambah 20 |
+| Sumpah Penjaga | 40 emas | Kapasitas penjaga +15 HP, langsung pulih 15; pemulihan bekal +5 dan biarawan ke penjaga +2 |
 
 Tombol **Siap bertempur** menutup Perkemahan dan memperpendek sisa persiapan menjadi maksimal tiga detik. **Kembali ke pulau** mempertahankan sisa waktu. Memilih upgrade tidak wajib.
 
@@ -185,7 +185,7 @@ Uji combat juga memeriksa jendela sapuan, deduplikasi hit, batas cleave, kontrol
 
 `node game-preview/balance-matrix.cjs` menambah 15 pertandingan pada tiga seed: racikan pedang/elak/pertahanan dengan 4 sekutu di Normal, 2 sekutu di Santai, serta 4 sekutu di Sulit. Bot matriks menghindari ayunan prajurit biasa dan peringatan panglima; bot pembanding 14 pertandingan memakai kebijakan yang dijelaskan dalam laporannya. Semua memakai input normal tanpa tambahan HP, emas, atau perubahan AI.
 
-Hasil matriks setelah revisi combat pemain: racikan pedang dan elak Normal masing-masing menang 3/3, pertahanan Normal 2/3; pasukan kecil Santai menang 3/3; pasukan 4 unit Sulit menang 1/3. Tidak ada pertandingan tertahan sampai batas 600 detik. Perubahan gerak dan pilihan sasaran juga mengubah hasil bot; kekalahan tetap dicatat, bukan diatasi dengan bantuan khusus. Hasil ini bukan perkiraan tingkat kemenangan manusia. Rincian serta hash sumber tersimpan di `game-preview/balance-matrix.json`.
+Hasil matriks terakhir (tiga seed per profil): pedang, elak, dan pertahanan aktif Normal masing-masing menang 3/3; pasukan kecil Santai 3/3; empat sekutu Sulit 2/3. Seluruh pertandingan selesai. Audit lima seed dengan kebijakan bertahan yang berbeda tersedia pada bagian penyeimbangan di bawah; hasil tersebut bukan perkiraan tingkat kemenangan manusia.
 
 ## Audio lokal
 
@@ -218,7 +218,7 @@ Panglima memiliki dua fase dengan transisi yang terlihat. Ketika nyawanya mencap
 
 Pada fase mengamuk, pemulihan berkurang 0,1 detik dengan batas bawah 0,85 detik. Bar panglima menunjukkan fase, persiapan transisi, dan hitungan waktu **TERBUKA · PEDANG +30%**. Ketika penjaga berada dalam 160 piksel dari panglima yang pulih, jumlah persiapan serangan melee prajurit biasa dibatasi 1/1/2 pada Santai/Normal/Sulit. Serangan yang sudah berjalan dan panah tetap berbahaya; kesempatan membalas memerlukan posisi yang tepat.
 
-**Benteng Hidup** tetap memberi +80 kapasitas HP kastel dan pemulihan 80 per tingkat. Selama penjaga berada dalam radius 160 piksel dari kastel yang masih berdiri, setiap tingkat juga mengurangi damage masuk sebesar 2, dengan damage minimal 1. Kotak kecil hijau kebiruan di dalam pijakan penjaga menandai perlindungan aktif. Efek diterapkan satu kali setelah penggabungan pukulan bersamaan dan dicatat sebagai `fortressSaved`; keluar radius atau kastel runtuh menonaktifkannya. Perlindungan ini membantu strategi bertahan, dan tetap membutuhkan gerakan serta pengelolaan pasukan.
+**Benteng Hidup** tetap memberi +80 kapasitas HP kastel dan pemulihan 80 per tingkat. Saat kastel masih berdiri, radius perlindungan menjadi 180/200/220 piksel pada tingkat 1/2/3. Setiap tingkat mengurangi damage masuk sebesar 2, dengan damage minimal 1. Kotak kecil hijau kebiruan di dalam pijakan penjaga menandai perlindungan aktif. Efek diterapkan satu kali setelah penggabungan pukulan bersamaan dan dicatat sebagai `fortressSaved`; keluar radius atau kastel runtuh menonaktifkannya. Perlindungan ini membantu strategi bertahan, dan tetap membutuhkan gerakan serta pengelolaan pasukan.
 
 `node game-preview/boss-balance-test.cjs` menguji transisi tanpa memotong serangan, satu kali mengamuk, durasi pemulihan tiap mode, kesempatan membalas, batas windup prajurit secara nyata, serta jangkauan/penerapan tunggal/reset Benteng Hidup. Laporan pertandingan memakai 14 kasus pembanding dan 15 kasus racikan/pasukan; hasil bot tidak menyatakan tingkat kemenangan manusia.
 
@@ -255,4 +255,30 @@ Validasi tambahan:
 - `performance-before-polish.json` menyimpan sesi pembanding sebelum revisi ini dengan seed fixture 77. `performance.json` menyimpan sesi akhir beserta hash game.js; hasil antar sesi tetap dipengaruhi beban komputer.
 - Opsi tambahan `--profile-render` pada pengukuran browser mencatat waktu per fungsi beserta hit/miss cache ke `performance-profile.json`. Angkanya menyertakan overhead instrumentasi, sehingga dipisahkan dari pengukuran akhir tanpa instrumentasi per fungsi.
 
-`polish-validation.json` merangkum hash file akhir dan pemeriksaan yang diselesaikan. Pada 24 frame pembanding cache, terdapat 101 piksel berbeda dari 45.099 piksel berisi (sekitar 0,224%, di bawah toleransi uji 0,5% untuk konversi/rasterisasi Canvas). Hasil ini menjaga pemeriksaan visual tetap terukur tanpa mengklaim kesamaan piksel mutlak. Skor 9,5 merupakan sasaran pemolesan tiga fokus tersebut; kenyamanan dan keseruan manusia tetap memerlukan uji bermain.
+`polish-validation.json` menyimpan pemeriksaan pemolesan sebelumnya; `director-validation.json` merangkum revisi keseimbangan terbaru dan hash sumbernya. Pada 24 frame pembanding cache, terdapat 101 piksel berbeda dari 45.099 piksel berisi (sekitar 0,224%, di bawah toleransi uji 0,5% untuk konversi/rasterisasi Canvas). Hasil ini menjaga pemeriksaan visual tetap terukur tanpa mengklaim kesamaan piksel mutlak. Skor 9,5 merupakan sasaran pemolesan tiga fokus tersebut; kenyamanan dan keseruan manusia tetap memerlukan uji bermain.
+
+## Keseimbangan racikan dan ritme gelombang
+
+- Benteng Hidup memperluas radius perlindungan dari dasar 160 menjadi 180/200/220 pada tingkat 1/2/3. Ini memberi ruang menghadapi pemanah yang mundur, dengan pengurangan damage tetap 2 per tingkat dan batas bawah 1 damage. Indikator pijakan memakai perhitungan radius yang sama dengan penerapan damage.
+- Sumpah Penjaga tetap menambah kapasitas HP dan pemulihan langsung 15 per tingkat, dengan harga serta batas tingkat yang sama. Kini setiap tingkat juga menambah pemulihan bekal 5 HP dan pemulihan biarawan sekutu kepada penjaga 2 HP. Pemulihan tetap dibatasi HP maksimum, biaya bekal, jarak/jalur, serta cooldown. `oathHealing` mencatat HP tambahan yang benar-benar dipulihkan di atas kapasitas dasar, bukan bonus nominal yang terbuang.
+- Gelombang 2–4 selalu memakai ketiga gaya yang sudah ada, dalam urutan seed ekspedisi. Gelombang terakhir memilih gaya berbeda dari sebelumnya. Barisan pelindung mendahulukan penombak, sayap pemanah membawa pengawal tengah dan posisi sayap, sedangkan serbuan bergerak berganti jalur. Musuh tetap masuk dari jalan barat.
+- Roster disusun menjadi kelompok maksimal tiga unit, dengan maksimal satu biarawan per kelompok. Unit pendukung mendapat pengawal bila persediaan peran memungkinkan. Jeda kelompok mengikuti bobot perannya dalam rentang 85–115% dari interval dasar. Jumlah 7/10/13/16/20, kelas yang diperkenalkan per gelombang, HP, damage, dan pengali statistik kesulitan tetap dipertahankan. Gelombang pertama tetap menjadi pengenalan yang sama.
+- Ketika panglima muncul, kedatangan kelompok berikutnya diberi jeda minimal 2,2/1,8/1,4 detik pada Santai/Normal/Sulit. Pasukan yang sudah di arena tetap bergerak dan menyerang; pertempuran tidak dibekukan.
+- Pemanah musuh yang membidik penjaga memakai batas persiapan bersamaan 1/2/3 pada Santai/Normal/Sulit, dengan jarak awal 0,16/0,16/0,10 detik. Saat panglima memberi peringatan atau menerjang, batas tembakan baru menjadi 1/1/2. Tembakan yang sudah disiapkan tetap selesai, panah yang sudah terbang tetap berbahaya, dan serangan terhadap sekutu/kastel tetap berjalan. Ini mengatur penumpukan tekanan, tanpa memberi kekebalan tersembunyi.
+
+`wave-balance-test.cjs` memeriksa 500 seed, pengulangan, cakupan gaya, susunan kelompok/jalur, serangan pemanah nyata di dua jangkauan setiap mode, tekanan saat peringatan panglima, tembakan yang sudah terlanjur disiapkan, pemulihan Sumpah Penjaga, batas HP dan reset. Browser `--stress --director-only` memeriksa nilai pemulihan, informasi tombol Q, susunan gelombang, serta deskripsi perk pada ponsel.
+
+`director-audit.cjs` membandingkan kode sebelum/sesudah dengan kebijakan input yang sama: lima seed untuk pedang Normal, elak Normal, pertahanan mengejar Normal, pertahanan kastel Normal, dan elak Sulit, serta tiga seed untuk dua sekutu Santai. Ada 56 pertandingan pembanding. Pengujian bertahan memakai G ketika menjaga halaman, F untuk sortie menghadapi pendukung yang jauh, lalu kembali; pengendali juga berusaha melangkah keluar dari lintasan panah yang terlihat. Radius pertahanan dibaca dari tingkat perk yang sedang dimiliki. Tidak ada tambahan HP, emas, atau aturan khusus AI produksi untuk bot. Percobaan penjaga yang selalu menunggu di kastel disimpan di `director-audit-static-guard.json`: hasil itu menunjukkan keterbatasan kebijakan uji, termasuk menunggu pemanah/biarawan di luar halaman, sehingga tidak disamakan dengan kekuatan racikan. `balance-source-before.txt` menyimpan sumber pembanding beserta hash dalam laporan audit.
+
+Hasil audit terakhir dengan pengendali yang sama pada kedua versi:
+
+| Kebijakan | Sebelum | Sesudah |
+| --- | --- | --- |
+| Pedang Normal, 4 sekutu | 5/5 | 5/5 |
+| Elak Normal, 4 sekutu | 5/5 | 5/5 |
+| Pertahanan aktif Normal, 4 sekutu | 4/5 | 5/5 |
+| Pertahanan kastel dengan sortie dan menghindari panah | 5/5 | 3/5 |
+| Elak Sulit, 4 sekutu | 2/5 | 3/5 |
+| Santai, 2 sekutu | 3/3 | 3/3 |
+
+Semua 56 kasus audit selesai sebagai menang atau kalah. Strategi menjaga kastel tetap punya risiko dan tidak disamakan dengan selalu mengejar musuh. Pada kebijakan kastel, total damage yang diredam Benteng meningkat dari 298 ke 422; bonus pemulihan Sumpah menyumbang sekitar 394,7 HP tambahan pada versi baru. Kenaikan manfaat perk tidak menjamin setiap kebijakan menang lebih sering: urutan/jalur gelombang juga berubah. Laporan menyimpan kekalahan dan waktu mulai tiap gelombang, jumlah sekutu/bekal, serta damage masuk agar hasilnya bisa diperiksa. Audit statis dan percobaan sortie yang belum menghindari panah disimpan terpisah; keduanya adalah keterbatasan pengendali uji, bukan uji manusia.

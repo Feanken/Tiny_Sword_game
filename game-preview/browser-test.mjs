@@ -99,6 +99,14 @@ try {
     }return result;
   };
   window.__polishReset=()=>{startGame(77);hero.x=600;hero.y=410;hero.cooldown=.1;announcementTimer=0;$('announcement').classList.remove('show');overlayDirty=true;};
+  window.__directorPreview=(camp=false)=>{
+    startGame(47);gold=1000;
+    if(camp){openCamp();return {cards:$('campCards').children.length};}
+    buyUpgrade('oath');hero.hp=30;healHero();waveIndex=2;startWave();
+    for(let i=0;i<9;i++){spawnEnemy();const u=enemies.at(-1);Object.assign(u,{x:300+Math.floor(i/3)*88,y:395+u.lane*24,entering:false});}
+    announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();overlayDirty=true;draw();
+    return {hp:hero.hp,maxHp:hero.maxHp,title:$('healButton').title,styles:encounters.slice(1,4).map(p=>p.name),groups:encounters[2].groups};
+  };
   window.__dashButtonQueue=()=>{window.__polishReset();hero.dashCooldown=.08;updateUI();$('dashButton').click();return hero.dashBuffer;};
   window.__soak=(steps=72000)=>{
     window.__stress(0);hero.hp=hero.maxHp=castle.hp=10000000;for(const u of [...allies,...enemies])u.hp=u.maxHp=10000000;boss.hp=4500000;
@@ -146,7 +154,12 @@ try {
   assert.equal((await snapshot()).state, 'ready');
   assert.equal((await snapshot()).assetCount, 410);
   async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); try { fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); } catch { fs.writeFileSync(path.join(root,'game-preview',name.replace('.png','-run'+process.pid+'.png')),Buffer.from(r.data,'base64')); } }
-  if(process.argv.includes('--export-bounds')) {
+  if(process.argv.includes('--director-only')) {
+    const result=await evaluate('window.__directorPreview()');assert.equal(result.hp,80);assert.equal(result.maxHp,115);assert.ok(result.title.includes('50'));assert.equal(new Set(result.styles).size,3);await delay(80);await screenshot('director-wave-desktop.png');
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});await page('Emulation.setTouchEmulationEnabled',{enabled:true});await evaluate('window.__directorPreview(true)');await delay(80);await screenshot('director-camp-mobile.png');
+    assert.ok(await evaluate('(()=>{const card=document.querySelector("[data-perk=oath]"),text=card.querySelector(".perk-description");return text.textContent.includes("+5")&&text.textContent.includes("+2")&&card.scrollHeight<=card.clientHeight+2})()'),'Oath description remains inside the mobile card');
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log('Wave style coverage, Oath health/food tooltip, desktop packet preview and mobile perk description: passed');
+  } else if(process.argv.includes('--export-bounds')) {
     const bounds=await evaluate('window.__exportUnitBounds()');
     fs.writeFileSync('unit-frame-bounds.js','/* Generated from original PNG alpha bounds. Regenerate: node game-preview/browser-test.mjs --stress --export-bounds */\nwindow.TINY_UNIT_BOUNDS = '+JSON.stringify(bounds)+';\n');
     console.log('Exported exact alpha bounds for '+Object.keys(bounds).length+' unit sheets.');

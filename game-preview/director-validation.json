@@ -1,0 +1,136 @@
+{
+  "sourceSha256": "a80ca813633a27ae2053cdeda21bb381e58ce6f4c9c54c3b8f748c881d193ef3",
+  "beforeSourceSha256": "3bfc5cea1dcf1238c40137babb3d12c9c6b79e999723c8827ea072ca473e0bd5",
+  "seededPlansChecked": 500,
+  "logicSuites": [
+    "engine-test",
+    "combat-test",
+    "boss-balance-test",
+    "wave-balance-test",
+    "tactics-test",
+    "team-ai-test",
+    "player-combat-test",
+    "combat-polish-test"
+  ],
+  "auditMatches": 56,
+  "additionalRegressionMatches": 29,
+  "auditSummary": [
+    {
+      "version": "before",
+      "profile": "pedang-normal",
+      "wins": 5,
+      "matches": 5,
+      "meanSeconds": 149.8,
+      "fortressSaved": 0,
+      "oathHealing": 0
+    },
+    {
+      "version": "before",
+      "profile": "elak-normal",
+      "wins": 5,
+      "matches": 5,
+      "meanSeconds": 163.8,
+      "fortressSaved": 0,
+      "oathHealing": 0
+    },
+    {
+      "version": "before",
+      "profile": "pertahanan-mengejar-normal",
+      "wins": 4,
+      "matches": 5,
+      "meanSeconds": 154.3,
+      "fortressSaved": 0,
+      "oathHealing": 0
+    },
+    {
+      "version": "before",
+      "profile": "pertahanan-kastel-normal",
+      "wins": 5,
+      "matches": 5,
+      "meanSeconds": 260.8,
+      "fortressSaved": 298,
+      "oathHealing": 0
+    },
+    {
+      "version": "before",
+      "profile": "elak-sulit",
+      "wins": 2,
+      "matches": 5,
+      "meanSeconds": 174.4,
+      "fortressSaved": 0,
+      "oathHealing": 0
+    },
+    {
+      "version": "before",
+      "profile": "pasukan-kecil-santai",
+      "wins": 3,
+      "matches": 3,
+      "meanSeconds": 165.5,
+      "fortressSaved": 0,
+      "oathHealing": 0
+    },
+    {
+      "version": "after",
+      "profile": "pedang-normal",
+      "wins": 5,
+      "matches": 5,
+      "meanSeconds": 156.6,
+      "fortressSaved": 0,
+      "oathHealing": 6
+    },
+    {
+      "version": "after",
+      "profile": "elak-normal",
+      "wins": 5,
+      "matches": 5,
+      "meanSeconds": 163,
+      "fortressSaved": 0,
+      "oathHealing": 0
+    },
+    {
+      "version": "after",
+      "profile": "pertahanan-mengejar-normal",
+      "wins": 5,
+      "matches": 5,
+      "meanSeconds": 169.7,
+      "fortressSaved": 0,
+      "oathHealing": 171
+    },
+    {
+      "version": "after",
+      "profile": "pertahanan-kastel-normal",
+      "wins": 3,
+      "matches": 5,
+      "meanSeconds": 255.5,
+      "fortressSaved": 422,
+      "oathHealing": 394.666666666667
+    },
+    {
+      "version": "after",
+      "profile": "elak-sulit",
+      "wins": 3,
+      "matches": 5,
+      "meanSeconds": 165.4,
+      "fortressSaved": 0,
+      "oathHealing": 182
+    },
+    {
+      "version": "after",
+      "profile": "pasukan-kecil-santai",
+      "wins": 3,
+      "matches": 3,
+      "meanSeconds": 167.4,
+      "fortressSaved": 0,
+      "oathHealing": 20
+    }
+  ],
+  "browserChecks": [
+    "full gameplay and file offline",
+    "director desktop and mobile perk layout",
+    "replay seed retention",
+    "29-unit audio benchmark",
+    "20-minute simulation soak"
+  ],
+  "upgradeRules": "One purchase per intermission, three ranks; level-five specializations remain on hold.",
+  "knownTradeoff": "Castle-defense policy won 3/5 on new formations versus 5/5 on the prior source. This is a scripted sample, not a human win-rate estimate."
+}

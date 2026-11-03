@@ -23,25 +23,27 @@ function simulate(strategy,mode,seed,options={}){
  const {g,snapshot}=createGame(seed,options.code||code);g.setDifficulty(mode);g.startGame(seed);
  const build=options.build||['blade','wind','counter','blade','rhythm'],maxAllies=options.maxAllies??8;
  let bossArrived=null,bossEnded=null,dashes=0,upgrades=0,fortressSeconds=0,peakEnemies=0;
- const waveLog=[];let lastWave=-1;
+ const waveLog=[];let lastWave=-1,arrowGoal=null,arrowUntil=0;
  for(let frame=0;frame<36000&&g.state==='playing';frame++){
    g.keys.clear();
    if(g.wave!==lastWave){lastWave=g.wave;waveLog.push({wave:g.wave+1,time:+g.time.toFixed(1),hp:Math.ceil(g.hero.hp),food:g.food,allies:g.allies.length,damageTaken:g.combatStats.damageTaken});}
    peakEnemies=Math.max(peakEnemies,g.enemies.length);
-   if(g.ranks.bastion>0&&distance(g.hero,g.castle)<=160)fortressSeconds+=1/60;
-   const cleanup=options.defensive&&g.phase==='battle'&&g.spawned===[7,10,13,16,20][g.wave]&&g.enemies.length<=2&&!g.boss?.hp;
-   const defending=options.defensive&&!cleanup;
-   if(options.defensive){const order=defending?'guard':'follow';if(g.squadOrder!==order)g.setSquadOrder(order);}
+   const defenseRadius=g.fortressRadius?g.fortressRadius():160;
+   if(g.ranks.bastion>0&&distance(g.hero,g.castle)<=defenseRadius)fortressSeconds+=1/60;
    if(strategy!=='basic'&&g.phase==='prepare'&&g.buyUpgrade(build[g.wave]))upgrades++;
    const target=g.enemies.filter(e=>e.hp>0).sort((a,b)=>distance(g.hero,a)-distance(g.hero,b))[0];
+   const cleanup=options.defensive&&g.phase==='battle'&&g.spawned===[7,10,13,16,20][g.wave]&&(g.enemies.length<=2||g.enemies.every(e=>['Archer','Monk'].includes(e.kind)))&&!g.boss?.hp;
+   const sortie=cleanup||target&&['Archer','Monk'].includes(target.kind)&&distance(target,g.castle)>defenseRadius+20;
+   const defending=options.defensive&&!sortie;
+   if(options.defensive){const order=defending?'guard':'follow';if(g.squadOrder!==order)g.setSquadOrder(order);}
    if(target){
      const dx=target.x-g.hero.x,dy=target.y-g.hero.y,d=distance(g.hero,target);
      if(d<86)g.keys.add(' ');
      if(d>65){if(Math.abs(dx)>12)g.keys.add(dx>0?'d':'a');if(Math.abs(dy)>12)g.keys.add(dy>0?'s':'w');}
    }
    if(defending){
-     const home={x:810,y:365},outside=distance(g.hero,g.castle)>155;
-     if(outside||!target||distance(target,g.castle)>220){
+     const home={x:810,y:365},outside=distance(g.hero,g.castle)>defenseRadius-5;
+     if(outside||!target||distance(target,g.castle)>defenseRadius+60){
        g.keys.delete('w');g.keys.delete('a');g.keys.delete('s');g.keys.delete('d');
        if(distance(g.hero,home)>20){const dx=home.x-g.hero.x,dy=home.y-g.hero.y;if(Math.abs(dx)>10)g.keys.add(dx>0?'d':'a');if(Math.abs(dy)>10)g.keys.add(dy>0?'s':'w');}
      }
@@ -73,6 +75,18 @@ function simulate(strategy,mode,seed,options={}){
          .sort((p,q)=>distance(p,target||g.castle)-distance(q,target||g.castle));
        if(endpoints.length){const p=endpoints[0];g.keys.clear();if(p.dx)g.keys.add(p.dx>0?'d':'a');if(p.dy)g.keys.add(p.dy>0?'s':'w');if(g.startDash())dashes++;}
      }
+   }
+   // A defending player must also leave visible arrow trajectories, not only dodge melee.
+   if(options.defensive&&g.hero.dash<=0){
+     if(!arrowGoal||g.time>=arrowUntil||distance(g.hero,arrowGoal)<8){
+       arrowGoal=null;
+       const incoming=g.projectiles.find(p=>p.team==='enemy'&&Number.isFinite(g.segmentHit(p,{x:p.x+p.vx*.28,y:p.y+p.vy*.28},g.hero,25)));
+       if(incoming){const speed=Math.hypot(incoming.vx,incoming.vy),px=-incoming.vy/speed,py=incoming.vx/speed;
+         const goals=[-1,1].map(sign=>({x:g.hero.x+px*52*sign,y:g.hero.y+py*52*sign})).filter(p=>g.positionFits(p.x,p.y)&&g.clearPath(g.hero,p)).sort((a,b)=>distance(a,g.castle)-distance(b,g.castle));
+         if(goals.length){arrowGoal=goals[0];arrowUntil=g.time+.3;}
+       }
+     }
+     if(arrowGoal){g.keys.delete('w');g.keys.delete('a');g.keys.delete('s');g.keys.delete('d');const dx=arrowGoal.x-g.hero.x,dy=arrowGoal.y-g.hero.y;if(Math.abs(dx)>6)g.keys.add(dx>0?'d':'a');if(Math.abs(dy)>6)g.keys.add(dy>0?'s':'w');}
    }
    if(g.hero.hp<g.hero.maxHp*.55&&g.food)g.healHero();
    if(g.castle.hp<g.castle.maxHp-160&&g.wood>=30)g.repairCastle();

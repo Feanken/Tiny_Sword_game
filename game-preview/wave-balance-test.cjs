@@ -26,4 +26,14 @@ g.startGame(31);g.setGold(1000);assert.equal(g.buyUpgrade('oath'),true);assert.e
 Object.assign(g.hero,{hp:113,healCooldown:0});g.healHero();assert.equal(g.hero.hp,115,'food cannot exceed the upgraded maximum');
 const monk=g.allies[0];Object.assign(monk,{kind:'Monk',x:650,y:410,cooldown:0,healThink:0});Object.assign(g.hero,{x:600,y:410,hp:10});g.updateUnit(monk,.01);assert.equal(g.hero.hp,28,'ally monk uses the Oath healing bonus');assert.equal(g.combatStats.oathHealing,7);
 g.startGame(31);assert.equal(g.combatStats.oathHealing,0);assert.equal(g.combatStats.rangedDeferrals,0);assert.equal(g.combatStats.maxRangedWindups,0);
+g.showTitle();g.setDifficulty('normal');g.startGame(31);g.allies.length=0;Object.assign(g.hero,{x:760,y:410});
+for(let i=0;i<2;i++){g.spawnEnemy();Object.assign(g.enemies.at(-1),{kind:'Archer',x:600,y:395+i*30,entering:false,cooldown:999,speed:0,strike:{timer:.1,target:g.hero,range:225},attack:.5,attackDuration:.72});}
+g.setWave(4);g.spawnBoss();Object.assign(g.boss,{entering:false,x:540,y:410,bossAction:{type:'slam',stage:'warning',time:2,duration:2,target:{x:760,y:410},origin:{x:540,y:410}}});
+for(const archer of g.enemies.filter(u=>u.kind==='Archer'))g.updateUnit(archer,.11);assert.equal(g.projectiles.length,2,'already committed shots finish when a boss warning begins');
+g.startGame(31);
 assert.equal(snapshot().upgrades.oath,0);console.log('500 seeded expeditions, complete style coverage, packet roles/lanes, real ranged pressure per difficulty/branch, boss response windows, Oath food/monk healing, caps and reset: passed');
+g.startGame(31);g.setGold(1000);g.buyUpgrade('bastion');assert.equal(g.fortressRadius(),180);
+Object.assign(g.hero,{x:g.castle.x-175,y:g.castle.y});g.hurt(g.hero,20,{x:500,y:310});assert.equal(g.hero.hp,82,'rank one covers the expanded courtyard');
+Object.assign(g.hero,{x:g.castle.x-185,invuln:0});g.hurt(g.hero,20,{x:500,y:310});assert.equal(g.hero.hp,62,'protection ends at the visible perk range');
+g.finishWave();g.buyUpgrade('bastion');assert.equal(g.fortressRadius(),200);Object.assign(g.hero,{x:g.castle.x-195,invuln:0,hp:100});g.hurt(g.hero,20,{x:500,y:310});assert.equal(g.hero.hp,84);
+Object.assign(g.hero,{x:g.castle.x-205,invuln:0});g.hurt(g.hero,20,{x:500,y:310});assert.equal(g.hero.hp,64);console.log('Bastion rank radius growth and exact protection boundaries: passed');

@@ -11,14 +11,16 @@ const profiles=[
  {name:'elak-sulit',mode:'hard',maxAllies:4,build:['wind','counter','oath','blade','rhythm'],seeds},
  {name:'pasukan-kecil-santai',mode:'easy',maxAllies:2,build:['wind','counter','oath','blade','rhythm'],seeds:[11,23,47]},
 ];
-const results=[];
-for(const version of ['before','after'])for(const profile of profiles)for(const seed of profile.seeds){
+const defenseOnly=process.argv.includes('--defense-only'),afterOnly=process.argv.includes('--after-only'),prior=defenseOnly||afterOnly?JSON.parse(fs.readFileSync('game-preview/director-audit.json')):null;
+if(prior)for(const version of (afterOnly?['before']:['before','after']))assert.equal(prior.sources[version],crypto.createHash('sha256').update(sources[version]).digest('hex'),'source must match before reusing unchanged control cases');
+const results=prior?prior.results.filter(r=>afterOnly?r.version==='before':r.profile!=='pertahanan-kastel-normal'):[];
+for(const version of (afterOnly?['after']:['before','after']))for(const profile of profiles.filter(p=>!defenseOnly||p.defensive))for(const seed of profile.seeds){
  const result=simulate('counter',profile.mode,seed,{...profile,regularDodges:true,code:sources[version]});results.push({version,...result});
  console.log(JSON.stringify({version,profile:profile.name,seed,result:result.result,seconds:result.seconds,fortressSaved:result.combat.fortressSaved,oathHealing:result.combat.oathHealing||0,wave:result.waveLog.at(-1)?.wave}));
 }
 const summary=[];
 for(const version of ['before','after'])for(const profile of profiles){const rows=results.filter(r=>r.version===version&&r.profile===profile.name);summary.push({version,profile:profile.name,wins:rows.filter(r=>r.result==='won').length,matches:rows.length,meanSeconds:+(rows.reduce((n,r)=>n+r.seconds,0)/rows.length).toFixed(1),fortressSaved:rows.reduce((n,r)=>n+r.combat.fortressSaved,0),oathHealing:rows.reduce((n,r)=>n+(r.combat.oathHealing||0),0)});}
-fs.writeFileSync('game-preview/director-audit.json',JSON.stringify({sources:Object.fromEntries(Object.entries(sources).map(([k,s])=>[k,crypto.createHash('sha256').update(s).digest('hex')])),description:'Same scripted policies on prior and revised source. Normal health/currency, five seeds for most profiles, including an explicit castle-defense policy and its chase control. Not a human win-rate estimate.',summary,results},null,2));
+fs.writeFileSync('game-preview/director-audit.json',JSON.stringify({policyVersion:3,sources:Object.fromEntries(Object.entries(sources).map(([k,s])=>[k,crypto.createHash('sha256').update(s).digest('hex')])),description:'Same scripted policies on prior and revised source. Normal health/currency, five seeds for most profiles. Castle defense makes sorties against distant ranged/healer targets, then returns; static-guard experiment retained separately. Not a human win-rate estimate.',summary,results},null,2));
 assert.ok(results.every(r=>['won','lost'].includes(r.result)),'every match must finish');
 const guarded=summary.find(r=>r.version==='after'&&r.profile==='pertahanan-kastel-normal');assert.ok(guarded.fortressSaved>0,'castle-defense policy must actually use Bastion');
 assert.ok(summary.filter(r=>r.version==='after'&&r.profile.endsWith('-normal')&&!r.profile.includes('mengejar')).every(r=>r.wins>=3),'Normal builds remain viable across the sampled seeds');
