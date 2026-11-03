@@ -98,7 +98,7 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
 - Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 29 unit: 20 prajurit, 8 sekutu, dan panglima yang mengamuk pada mode Sulit. Ketiga pola panglima harus selesai dijalankan. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance-simulation.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
-Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 33,4 ms. CPU simulasi rata-rata sekitar 0,26 ms per langkah pada sesi ini. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 50,1 ms. CPU simulasi rata-rata sekitar 0,37 ms per langkah pada sesi ini. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
 
 ## Langkah Embun dan Perkemahan
 
@@ -143,6 +143,16 @@ Sekutu mempertahankan posisi formasinya ketika anggota lain gugur. Rekrutan baru
 
 `node game-preview/balance-test.cjs` menjalankan 14 pertandingan lengkap dengan angka acak yang dapat diulang: empat kebijakan kontrol pada tiga seed Normal, serta kebijakan dash/balasan pada Santai dan Sulit. Tidak ada perubahan nyawa, emas, cooldown, atau AI untuk membantu bot. `--verify` memeriksa hasil terakhir tanpa mengulang simulasi.
 
-Pada tiga seed Normal, panglima menyelesaikan ketiga pola untuk setiap kebijakan. Bot tanpa upgrade/dash mengalahkan panglima dalam 12,1–13,9 detik; bot dengan upgrade dalam 8–9 detik. Damage panglima yang diterima selama pertarungan turun dari 51–75 pada kebijakan upgrade menjadi 0–22 ketika dash dipakai, dan 0 pada kebijakan balasan. Menghindar kadang memperpanjang pertarungan karena pemain meninggalkan jangkauan pedang. Angka ini membandingkan kontrol otomatis; rasa sulit dan kenyamanan tetap memerlukan uji pemain.
+Pada tiga seed Normal, panglima menyelesaikan ketiga pola untuk setiap kebijakan. Pengujian memeriksa bahwa investasi upgrade mempercepat rata-rata pertarungan dibanding kebijakan dasar, serta dash mengurangi total damage panglima yang diterima. Menghindar kadang memperpanjang pertarungan karena pemain meninggalkan jangkauan pedang. Angka setiap pertandingan tersedia di JSON hasil. Pengukuran ini membandingkan kontrol otomatis; rasa sulit dan kenyamanan tetap memerlukan uji pemain.
 
 `game-preview/balance-before.json` menyimpan hasil sebelum penyesuaian tempo/garda; `balance-after.json` menyimpan hasil terbaru. Kebijakan balasan hanya ditambahkan pada pengukuran terbaru, sehingga tidak semua kasus memiliki pasangan sebelum/sesudah.
+
+## Penyempurnaan combat
+
+- Ketukan Spasi, klik, atau tombol serang sentuh dapat disimpan selama 0,14 detik ketika cooldown hampir selesai. Ketukan berlaku satu kali, kedaluwarsa jika terlalu awal, dan dibatalkan oleh dash, damage, jeda, atau reset. Menahan tombol tetap menyerang berulang. Input serangan segera membatalkan pekerjaan.
+- Pedang hanya membantu menghadap sasaran yang jalurnya terbuka. Musuh di balik pohon tidak mengalihkan arah ayunan otomatis.
+- Sekutu dan musuh mempertahankan sasaran yang masih relevan, lalu beralih ketika lawan lain jauh lebih dekat, sasaran gugur, atau sasaran keluar wilayah perintah.
+- Pemanah mengutamakan sasaran dengan jalur tembak terbuka. Jika tertutup, mereka mencari jalan; jalur diperiksa lagi saat anak panah dilepas. Arah panah dihitung dari titik kemunculannya agar sesuai pemeriksaan tabrakan.
+- Unit jarak dekat yang terhalang pohon atau bangunan mencari jalan meskipun sasaran sudah berada dalam radius serangan.
+
+`node game-preview/combat-test.cjs` memeriksa ketukan, kedaluwarsa, pembatalan, kestabilan sasaran, arah pedang, gerak mengitari penghalang, dan tembakan. `node game-preview/browser-test.mjs --stress --combat-only` memeriksa ketukan singkat melalui event keyboard, mouse, serta sentuhan di Chrome.

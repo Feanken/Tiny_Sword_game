@@ -1,0 +1,32 @@
+const assert=require('node:assert/strict');
+const {g}=require('./game-harness.cjs').createGame(73);
+g.startGame();g.hero.cooldown=.08;g.requestAttack();assert.equal(g.hero.attack,0);
+for(let i=0;i<6;i++)g.update(1/60);
+assert.ok(g.hero.attack>0,'released tap starts when cooldown ends');
+for(let i=0;i<90;i++)g.update(1/60);
+assert.equal(g.hero.attack,0,'one tap cannot produce repeated attacks');
+g.hero.cooldown=.4;g.requestAttack();for(let i=0;i<30;i++)g.update(1/60);assert.equal(g.hero.attack,0,'old taps expire');
+g.hero.cooldown=.08;g.requestAttack();g.startDash();assert.equal(g.hero.attackBuffer,0);
+g.startGame();g.hero.cooldown=.08;g.requestAttack();g.togglePause(true);g.togglePause(false);g.update(.1);assert.equal(g.hero.attack,0,'pause clears queued attack');
+g.requestAttack();g.startGame();assert.equal(g.hero.attackBuffer,0,'restart clears queued attack');
+
+const unit={x:500,y:400,kind:'Warrior'},a={x:550,y:400,hp:100},b={x:560,y:400,hp:100};
+assert.equal(g.combatTarget(unit,[a,b],200),a);b.x=548;assert.equal(g.combatTarget(unit,[a,b],200),a,'small distance changes do not switch targets');
+b.x=510;assert.equal(g.combatTarget(unit,[a,b],200),b,'much closer threat can replace target');b.hp=0;assert.equal(g.combatTarget(unit,[a,b],200),a,'dead targets are released');
+assert.equal(g.combatTarget(unit,[],200),null,'targets outside command area are released');
+
+g.startGame();g.spawnEnemy();g.spawnEnemy();
+const archer=g.allies[0],blocked=g.enemies[0],clear=g.enemies[1];
+Object.assign(archer,{x:730,y:250,cooldown:0});Object.assign(blocked,{x:940,y:250,entering:false});Object.assign(clear,{x:700,y:380,entering:false});
+assert.equal(g.shotClear(archer,blocked),false);assert.equal(g.shotClear(archer,clear),true);
+assert.equal(g.combatTarget(archer,[blocked,clear],470),clear,'archer chooses visible enemy');
+g.enemies.pop();g.updateUnit(archer,1/60);assert.equal(archer.strike,null,'blocked archer moves instead of winding up');
+archer.strike={timer:.01,target:blocked,range:225};g.updateUnit(archer,.02);assert.equal(g.projectiles.length,0,'cover appearing during windup prevents wasteful shot');
+Object.assign(archer,{x:600,y:400,cooldown:0,attack:0,strike:null});Object.assign(blocked,{x:760,y:400});
+assert.equal(g.shotClear(archer,blocked),true);g.updateUnit(archer,.01);assert.ok(archer.strike);g.updateUnit(archer,.32);assert.equal(g.projectiles.length,1,'clear shot still fires');
+const arrow=g.projectiles[0];assert.ok(Math.abs((blocked.x-arrow.x)*arrow.vy-(blocked.y-arrow.y)*arrow.vx)<1e-8,'arrow trajectory agrees with the checked line of fire');
+g.startGame();g.spawnEnemy();Object.assign(g.hero,{x:170,y:326,facing:-1});Object.assign(g.enemies[0],{x:230,y:326});g.heroAttack();assert.equal(g.hero.facing,-1,'hero does not auto-face a target hidden behind a tree');
+g.startGame();g.hero.cooldown=.08;g.requestAttack();g.hurt(g.hero,10,{x:600,y:400});assert.equal(g.hero.attackBuffer,0,'damage cancels a queued attack');
+g.startGame();g.hero.x=610;g.hero.y=510;g.gather();assert.ok(g.hero.work);g.hero.cooldown=.08;g.requestAttack();assert.equal(g.hero.work,null,'buffered tap immediately cancels gathering');
+g.startGame();g.hero.x=250;g.hero.y=400;g.spawnEnemy();const melee=g.allies[0];Object.assign(melee,{kind:'Warrior',x:176,y:326,cooldown:0});Object.assign(g.enemies[0],{x:224,y:326});assert.equal(g.clearPath(melee,g.enemies[0]),false);g.updateUnit(melee,.01);assert.equal(melee.strike,null,'melee unit routes around a tree instead of swinging into it');
+console.log('Tap buffering/expiry/cancellation, stable target selection, cover-aware archer movement and release-time shot validation: passed');

@@ -58,5 +58,5 @@ for(const seed of [11,23,47])for(const strategy of ['basic','upgrades','tactical
 for(const mode of ['easy','hard'])cases.push(['counter',mode,23]);
 const results=[];
 for(const args of cases){const result=simulate(...args);results.push(result);console.log(JSON.stringify(result));}
-fs.writeFileSync('game-preview/balance-after.json',JSON.stringify({description:'Seeded scripted policies; no health, currency, cooldown or enemy manipulation. Strategy comparison is not a human difficulty rating.',results},null,2));
+fs.writeFileSync('game-preview/balance-after.json',JSON.stringify({sourceSha256:require('node:crypto').createHash('sha256').update(code).digest('hex'),description:'Seeded scripted policies; no health, currency, cooldown or enemy manipulation. Strategy comparison is not a human difficulty rating.',results},null,2));
 verify(results);

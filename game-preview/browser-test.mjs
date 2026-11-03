@@ -28,6 +28,7 @@ try {
   const originalUpdateBoss=updateBoss;
   updateBoss=(u,dt)=>{const action=u.bossAction,stage=action?.stage;originalUpdateBoss(u,dt);if(u.bossAction?.stage==='warning')stressPatterns.add(u.bossAction.type);if(stage==='warning'&&action.stage!=='warning')stressResolved.add(action.type);};
   window.__stressState=()=>({units:enemies.length+allies.length,difficulty,bossEnraged:boss.enraged,bossPatterns:[...stressPatterns],bossResolved:[...stressResolved],effects:effects.length,impacts:impacts.length,fields:routeFields.size});
+  window.__combatTap=(reset=false)=>{if(reset){startGame();hero.cooldown=.1;}return {attack:hero.attack,queued:hero.attackBuffer};};
   window.__stress = (runSteps=900) => {
     showTitle();setDifficulty('hard');startGame();phase='battle';gold=10000;
     for(let i=0;i<7;i++)recruitUnit();waveIndex=4;
@@ -64,7 +65,21 @@ try {
   assert.equal((await snapshot()).state, 'ready');
   assert.equal((await snapshot()).assetCount, 410);
   async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); try { fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); } catch { fs.writeFileSync(path.join(root,'game-preview',name.replace('.png','-run'+process.pid+'.png')),Buffer.from(r.data,'base64')); } }
-  if(process.argv.includes('--preview-only')) {
+  if(process.argv.includes('--combat-only')) {
+    await evaluate('window.__combatTap(true)');
+    await page('Input.dispatchKeyEvent',{type:'keyDown',key:' '});await page('Input.dispatchKeyEvent',{type:'keyUp',key:' '});await delay(180);
+    assert.ok((await evaluate('window.__combatTap()')).attack>0,'released keyboard tap is buffered');
+    await evaluate('window.__combatTap(true)');
+    const point=await evaluate('(()=>{const r=document.getElementById("gameCanvas").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+    await page('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'left',clickCount:1});await page('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'left',clickCount:1});await delay(180);
+    assert.ok((await evaluate('window.__combatTap()')).attack>0,'released mouse tap is buffered');
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await page('Emulation.setTouchEmulationEnabled',{enabled:true});
+    await evaluate('window.__combatTap(true)');
+    const touch=await evaluate('(()=>{const r=document.getElementById("touchAttack").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+    await page('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[touch]});await page('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(180);
+    assert.ok((await evaluate('window.__combatTap()')).attack>0,'released touch tap is buffered');assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+    console.log('Real keyboard, mouse and touch quick taps during attack cooldown: passed');
+  } else if(process.argv.includes('--preview-only')) {
     const chargeEnd=await evaluate('window.__chargePreview()');assert.equal(chargeEnd.distance,50);await delay(100);await screenshot('leader-charge-clipped.png');
     await evaluate('window.__bossPreview()');await delay(100);await screenshot('leader-final.png');
     await evaluate('window.__bossPreview("recovery")');assert.ok(await evaluate('document.getElementById("bossIntent").textContent.includes("+30%")'));

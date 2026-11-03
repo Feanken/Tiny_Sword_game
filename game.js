@@ -111,7 +111,7 @@
     if(type==='charge'){const a=u.bossAction;a.chargeSpeed=u.enraged?650:560;a.chargeEnd=traceCharge(a.origin,a.dx,a.dy,a.chargeSpeed*.45);a.traveled=0;}
   }
   function showTitle(){
-    state='ready';keys.clear();pointerAttack=false;simulationAccumulator=0;
+    state='ready';keys.clear();pointerAttack=false;hero.attackBuffer=0;simulationAccumulator=0;
     enemies=[];allies=[];effects=[];impacts=[];projectiles=[];dashTrail=[];boss=null;bossSpawned=false;
     Object.assign(hero,{x:788,y:370,hp:100,maxHp:100,attack:0,dash:0,dashCooldown:0,riposte:0,work:null,facing:1,invuln:0,hitFlash:0,stagger:0,cooldown:0,moving:false,knockX:0,knockY:0});castle.hp=castle.maxHp=500;castle.hitFlash=0;orderPulse=0;gold=80;wood=40;food=3;score=0;waveIndex=0;phase='prepare';waveTimer=22;for(const id in ranks)ranks[id]=0;
     toastTimer=0;announcementTimer=0;$('toast').classList.remove('show');$('announcement').classList.remove('show');$('worldCaption').hidden=false;
@@ -135,7 +135,7 @@
     if(!dx&&!dy){dx=hero.lastMoveX??hero.facing;dy=hero.lastMoveY??0;}
     const length=Math.hypot(dx,dy);hero.dashX=dx/length;hero.dashY=dy/length;
     hero.dash=.2;hero.dashCooldown=dashCooldown();hero.dashElapsed=0;hero.dashPerfect=false;
-    hero.work=null;hero.strike=null;hero.attack=0;hero.stagger=0;hero.knockX=0;hero.knockY=0;
+    hero.attackBuffer=0;hero.work=null;hero.strike=null;hero.attack=0;hero.stagger=0;hero.knockX=0;hero.knockY=0;
     if(Math.abs(dx)>.1)hero.facing=dx>0?1:-1;
     addEffect('Particle FX/Dust_01.png',hero.x,hero.y,55);tone(360,.14,'triangle',.025,720);return true;
   }
@@ -662,7 +662,7 @@
     enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; hitStop = 0; damageDealt = 0; damageTaken = 0;
     for (const s of sheep) s.cooldown = 0;
     phase = 'prepare'; waveIndex = 0; waveTimer = 22; spawned = 0; spawnTimer = 0; elapsed = 0; passiveTimer = 0; gatherCooldown = 0; shake = 0;
-    keys.clear(); pointerAttack = false; state = 'playing';
+    keys.clear(); pointerAttack = false; hero.attackBuffer=0; state = 'playing';
     $('startScreen').hidden = true; $('pauseScreen').hidden = true; $('endScreen').hidden = true;
     $('wavePanel').hidden = false; $('scorePanel').hidden = false; $('worldCaption').hidden = true;
     $('dashButton').hidden = false; $('battleStatus').hidden = false; document.body.classList.add('is-playing'); $('gameShell').classList.remove('player-hit');
@@ -688,7 +688,7 @@
     tone(523, .2); setTimeout(() => tone(659, .3), 160);
   }
   function finish(won) {
-    state = won ? 'won' : 'lost'; keys.clear(); pointerAttack = false;
+    state = won ? 'won' : 'lost'; keys.clear(); pointerAttack = false; hero.attackBuffer=0;
     $('announcement').classList.remove('show'); $('interactionHint').hidden = true; $('mobileControls').hidden = true;
     if (won) score += Math.round(castle.hp * 2 + hero.hp * 3);
     score=Math.round(score*settings().score);
@@ -799,7 +799,7 @@
     } else if (target === castle) { shake = Math.max(shake, 2); addEffect('Particle FX/Explosion_02.png', castle.x + rand(-45, 45), castle.y - 20, 65, .35, 24); }
     else if (source === hero) { hitStop = .035; shake = Math.max(shake, 1.5); tone(280, .08, 'square', .017, 90); }
     if (target !== castle && !target.isBoss) {
-      if (target === hero) hero.work = null;
+      if (target === hero) {hero.work = null;hero.attackBuffer=0;}
       const force = target.kind === 'Lancer' ? 140 : target === hero ? 195 : 255;
       target.knockX = Math.cos(angle) * force; target.knockY = Math.sin(angle) * force;
       target.stagger = target === hero ? .09 : .12;
@@ -815,22 +815,43 @@
     target.hp = Math.max(0, target.hp);
   }
   function heroAttack() {
-    if (hero.cooldown > 0 || hero.stagger > 0 || hero.dash > 0) return;
+    if (state !== 'playing' || hero.cooldown > 0 || hero.stagger > 0 || hero.dash > 0) return;
+    hero.attackBuffer = 0;
     hero.work = null;
     hero.attack = hero.attackDuration = .42; hero.cooldown = .58*(1-ranks.rhythm*.06);
-    const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94).sort((a, b) => dist(hero, a) - dist(hero, b));
+    const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && clearPath(hero,e)).sort((a, b) => dist(hero, a) - dist(hero, b));
     if (targets.length) hero.facing = targets[0].x < hero.x ? -1 : 1;
     hero.strike = { timer: .21 };
     tone(380, .1, 'triangle', .018, 110);
   }
   function fireArrow(u, target) {
-    const d = Math.max(1, dist(u, target));
-    projectiles.push({ x: u.x, y: u.y - 5, vx: (target.x - u.x) / d * 360, vy: (target.y - u.y) / d * 360, color: u.color, team: u.team, target, source: u, damage: u.team === 'ally' ? 17 : Math.round((10 + waveIndex * 2)*settings().damage), life: 1.4 });
+    const origin={x:u.x,y:u.y-5},d=Math.max(1,dist(origin,target));
+    projectiles.push({ ...origin, vx: (target.x - origin.x) / d * 360, vy: (target.y - origin.y) / d * 360, color: u.color, team: u.team, target, source: u, damage: u.team === 'ally' ? 17 : Math.round((10 + waveIndex * 2)*settings().damage), life: 1.4 });
   }
   function nearest(entity, candidates, limit = Infinity) {
     let target = null;
     for (const other of candidates) { if (other.hp <= 0) continue; const d = dist(entity, other); if (d < limit) { limit = d; target = other; } }
     return target;
+  }
+  function requestAttack() {
+    if(state!=='playing'||hero.dash>0)return;
+    if(hero.work){hero.work=null;gatherCooldown=Math.max(gatherCooldown,.18);}
+    hero.attackBuffer=.14;
+    heroAttack();
+  }
+  function shotClear(source,target) {
+    const origin={x:source.x,y:source.y-5};
+    const hit=segmentHit(origin,target,target,target===castle?57:20);
+    return obstacleList.every(o=>dist(source,o)<o.radius+10||segmentHit(origin,target,o,o.radius+2)>hit);
+  }
+  function combatTarget(u,candidates,limit) {
+    const available=candidates.filter(t=>t.hp>0&&dist(u,t)<limit);
+    const visible=u.kind==='Archer'?available.filter(t=>shotClear(u,t)):available;
+    const pool=visible.length?visible:available,closest=nearest(u,pool);
+    const current=u.combatTarget;
+    // Keep a valid opponent unless another is substantially closer.
+    u.combatTarget=current&&pool.includes(current)&&(!closest||dist(u,current)<=dist(u,closest)*1.25+12)?current:closest;
+    return u.combatTarget;
   }
   function segmentHit(a, b, target, radius) {
     const dx=b.x-a.x,dy=b.y-a.y,ox=a.x-target.x,oy=a.y-target.y;
@@ -851,7 +872,7 @@
       if (u.strike.timer <= 0) {
         const strike = u.strike; u.strike = null;
         if (strike.target.hp > 0 && dist(u, strike.target) <= strike.range && (u.kind === 'Archer' || ((strike.target.x - u.x) * u.facing >= -12 && (strike.target === castle || clearPath(u, strike.target))))) {
-          if (u.kind === 'Archer') fireArrow(u, strike.target);
+          if (u.kind === 'Archer') {if(shotClear(u,strike.target))fireArrow(u, strike.target);}
           else hurt(strike.target, strike.damage, u);
         }
       }
@@ -879,9 +900,11 @@
       else u.moving = false;
       return;
     }
-    const target = u.team === 'enemy' && (u.blockedSeconds > 2 || u.stallSeconds > 3) ? castle : u.team === 'ally' ? nearest(u, enemies.filter(e=>dist(e,anchor)<=leash),leash+150) : nearest(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
+    const target = u.team === 'enemy' && (u.blockedSeconds > 2 || u.stallSeconds > 3) ? castle : u.team === 'ally' ? combatTarget(u, enemies.filter(e=>dist(e,anchor)<=leash),leash+150) : combatTarget(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
     if (!target) { if (dist(u, squadHome(u)) > 30) steerMove(u, squadHome(u), dt); else u.moving = false; return; }
     const d = dist(u, target), range = u.kind === 'Archer' ? 225 : target === castle ? 88 : u.kind === 'Lancer' ? 91 : 51;
+    const blocked=u.kind==='Archer'?!shotClear(u,target):target!==castle&&d<=range&&!clearPath(u,target);
+    if(blocked){steerMove(u,target,dt);return;}
     if (u.kind === 'Archer' && d < (u.team==='ally'?110:145) && !u.strike) {
       const retreat = { x: u.x + (u.x - target.x), y: u.y + (u.y - target.y) };
       if(u.team==='enemy'||dist(retreat,anchor)<leash)steerMove(u, retreat, dt, u.speed * .95);else u.moving=false; u.facing = target.x < u.x ? -1 : 1;
@@ -940,7 +963,8 @@
     if (!dashing && hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > 0 ? .55 : 1));
     if ((keys.has(' ') || pointerAttack) && hero.work) { hero.work = null; gatherCooldown = .18; }
     updateWork(dt);
-    if (keys.has(' ') || pointerAttack) heroAttack();
+    if (keys.has(' ') || pointerAttack || hero.attackBuffer>0) heroAttack();
+    hero.attackBuffer=Math.max(0,(hero.attackBuffer||0)-dt);
     if (keys.has('e')) gather();
     for (const s of sheep) s.cooldown = Math.max(0, s.cooldown - dt);
     if (phase === 'prepare') { waveTimer -= dt; if (dist(hero, castle) < 155) hero.hp = Math.min(hero.maxHp, hero.hp + 4 * dt); if (waveTimer <= 0) startWave(); }
@@ -1040,7 +1064,7 @@
     if (state !== 'playing' && state !== 'paused') return;
     const pause = typeof force === 'boolean' ? force : state === 'playing';
     simulationAccumulator = 0;
-    state = pause ? 'paused' : 'playing'; keys.clear(); pointerAttack = false;
+    state = pause ? 'paused' : 'playing'; keys.clear(); pointerAttack = false; hero.attackBuffer=0;
     $('pauseScreen').hidden = !pause; $('pauseButton').textContent = pause ? '▶' : 'Ⅱ';
     $('pauseButton').setAttribute('aria-label', pause ? 'Lanjutkan permainan' : 'Jeda permainan');
     $('interactionHint').hidden = true;
@@ -1074,7 +1098,7 @@
   function openDialog(id) {
     if (document.querySelector('dialog[open]')) return;
     simulationAccumulator = 0;
-    pausedForDialog = state === 'playing'; if (pausedForDialog) { state = 'paused'; keys.clear(); pointerAttack = false; }
+    pausedForDialog = state === 'playing'; if (pausedForDialog) { state = 'paused'; keys.clear(); pointerAttack = false; hero.attackBuffer=0; }
     if (id === 'galleryDialog' && !$('galleryGrid').children.length) renderGallery();
     $(id).showModal();
   }
@@ -1147,13 +1171,13 @@
     if (!controls.includes(key)) return;
     // Native buttons retain keyboard activation when deliberately focused.
     if (key === ' ' && e.target.tagName === 'BUTTON') return;
-    e.preventDefault(); keys.add(key);
+    e.preventDefault(); keys.add(key);if(key===' '&&!e.repeat)requestAttack();
     if (!e.repeat) { if (key === '1') recruitUnit(); if (key === '2') repairCastle(); if (key === 'q') healHero(); }
   });
   window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
-  window.addEventListener('blur', () => { keys.clear(); pointerAttack = false; if (state === 'playing') togglePause(true); });
+  window.addEventListener('blur', () => { keys.clear(); pointerAttack = false; hero.attackBuffer=0; if (state === 'playing') togglePause(true); });
   document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'playing') togglePause(true); });
-  canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; if (state === 'playing') { canvas.focus({ preventScroll: true }); pointerAttack = true; canvas.setPointerCapture(e.pointerId); } });
+  canvas.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') return; if (state === 'playing') { canvas.focus({ preventScroll: true }); pointerAttack = true; requestAttack(); canvas.setPointerCapture(e.pointerId); } });
   canvas.addEventListener('pointerup', () => { pointerAttack = false; }); canvas.addEventListener('pointercancel', () => { pointerAttack = false; });
   for (const b of document.querySelectorAll('[data-move]')) {
     const key = { up: 'w', left: 'a', down: 's', right: 'd' }[b.dataset.move];
@@ -1161,7 +1185,7 @@
     const release = () => keys.delete(key); b.addEventListener('pointerup', release); b.addEventListener('pointercancel', release); b.addEventListener('lostpointercapture', release);
   }
   for (const [id, key] of [['touchAttack', ' '], ['touchGather', 'e']]) {
-    const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); if (state === 'playing') keys.add(key); });
+    const b = $(id); b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); if (state === 'playing') {keys.add(key);if(key===' ')requestAttack();} });
     const release = () => keys.delete(key); b.addEventListener('pointerup', release); b.addEventListener('pointercancel', release); b.addEventListener('lostpointercapture', release);
   }
 
