@@ -26,6 +26,7 @@ try {
   window.__audioProbe=async()=>{initAudio();await audioLoading;soundOn=true;audioMaster.gain.value=.8;lastCombatCue.clear();for(const name of Object.keys(combatSamples))combatCue(name);for(let i=0;i<20;i++)tone(220,.1);return activeVoices;};
   window.__audioVoices=()=>activeVoices;
   window.__resultPreview=()=>{startGame(77);waveIndex=4;phase='battle';finish(true);};
+  window.__ragePreview=()=>{window.__bossPreview();boss.bossAction=null;boss.hp=boss.maxHp*.49;updateBoss(boss,1/60);updateUI();return {stage:boss.bossAction.stage,intent:$('bossIntent').textContent};};
   window.__audioDetails=async()=>{initAudio();await audioLoading;return {decoded:sampleBuffers.size,failed:audioFailures,maxDuration:Math.max(...[...sampleBuffers.values()].map(b=>b.duration)),fx:effectsBus.gain.value,music:musicBus.gain.value,master:audioMaster.gain.value,clips:[...sampleBuffers].map(([name,b])=>{let peak=0,energy=0;const channel=b.getChannelData(0);for(const v of channel){peak=Math.max(peak,Math.abs(v));energy+=v*v;}return{name,duration:b.duration,peak,rms:Math.sqrt(energy/channel.length)};})};};
   window.__chargePreview=()=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:730,y:250,entering:false,abilityCooldown:0,patternMask:5});hero.x=940;hero.y=250;updateBoss(boss,1/60);announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return boss.bossAction.chargeEnd;};
   let stressPatterns=new Set(),stressResolved=new Set();
@@ -108,6 +109,7 @@ try {
     const poses=[];
     for(let pattern=0;pattern<3;pattern++){poses.push(await evaluate('window.__bossPreview("warning",'+pattern+')'));await delay(80);await screenshot(['leader-slam-pose.png','leader-charge-pose.png','leader-volley-pose.png'][pattern]);}
     assert.equal(new Set(poses).size,3,'all leader warning poses differ');
+    const rage=await evaluate('window.__ragePreview()');assert.equal(rage.stage,'rally');assert.ok(rage.intent.includes('MENGAMUK'));await delay(100);await screenshot('leader-rage-transition.png');
     assert.equal(await evaluate('window.__audioProbe()'),12,'cues respect the voice budget');const audioInfo=await evaluate('window.__audioDetails()');await delay(Math.ceil(audioInfo.maxDuration*1000)+200);assert.equal(await evaluate('window.__audioVoices()'),0,'audio nodes release after cues');
     await evaluate('window.__bossPreview("recovery")');assert.ok(await evaluate('document.getElementById("bossIntent").textContent.includes("+30%")'));
     await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(100);await screenshot('leader-mobile-recovery.png');

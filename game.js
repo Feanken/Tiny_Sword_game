@@ -62,7 +62,7 @@
   let combatId=0, pressureActive=0, pressureGap=0, collectingHeroDamage=false, pendingHeroDamage=null;
   const combatStats={};
   function resetCombatStats(){
-    Object.assign(combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0,allyEvades:0,allyHazardHits:0,roleIntercepts:0,repositions:0});
+    Object.assign(combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0,allyEvades:0,allyHazardHits:0,roleIntercepts:0,repositions:0,fortressSaved:0});
     combatStats.damageBySource={Warrior:0,Lancer:0,Archer:0,Pawn:0,boss:0,unknown:0};
   }
   resetCombatStats();
@@ -125,21 +125,40 @@
     u.patternMask|=1<<selected;u.lastPattern=selected;u.pattern++;
     return ['slam','charge','volley'][selected];
   }
+  const bossRecoveryTimes={easy:{slam:1.3,charge:1.3,volley:1.15},normal:{slam:1.1,charge:1.15,volley:1},hard:{slam:1,charge:1.05,volley:.9}};
+  function recoverBoss(u,action){
+    action.stage='recovery';action.time=action.recoveryDuration=Math.max(.85,bossRecoveryTimes[difficulty][action.type]-(u.enraged?.1:0));
+  }
+  function bossIntentText(u){
+    const a=u.bossAction,time=a?Math.max(0,a.time).toFixed(1):'0';
+    if(a?.stage==='rally')return `FASE II · MENGAMUK · ${time} dtk`;
+    if(a?.stage==='recovery')return `TERBUKA · PEDANG +30% · ${time} dtk`;
+    if(a?.stage==='warning')return ({slam:'HANTAMAN · KELUAR DARI LINGKARAN',charge:'TERJANGAN · HINDARI JALURNYA',volley:'HUJAN PANAH · CARI PERLINDUNGAN'}[a.type])+` · ${time} dtk`;
+    return u.enraged?'FASE II · BERSIAP MENGHINDAR':'FASE I · GARDA AKTIF';
+  }
+  function beginBossRage(u){
+    u.enraged=true;u.ragePending=false;u.moving=false;
+    const duration=difficulty==='easy'?.9:difficulty==='normal'?.75:.6;
+    u.bossAction={type:'rally',stage:'rally',time:duration,duration};
+    notify('Panglima mengamuk! Bersiap untuk tempo yang lebih cepat.');combatCue('charge',u);
+  }
   function updateBoss(u,dt){
-    if(!u.enraged&&u.hp<=u.maxHp*.5){u.enraged=true;announce('Panglima mengamuk!','TEMPO MENINGKAT · TETAP BACA TANDANYA');}
+    if(!u.enraged&&u.hp<=u.maxHp*.5)u.ragePending=true;
     u.abilityCooldown-=dt;
     const action=u.bossAction;
     if(action){
       action.time-=dt;u.moving=false;
-      if(action.stage==='warning'&&action.time<=0){
+      if(action.stage==='rally'){
+        if(action.time<=0){u.bossAction=null;u.abilityCooldown=.35;}
+      }else if(action.stage==='warning'&&action.time<=0){
         if(action.type==='slam'){
           for(const target of [hero,...allies,castle])if(target.hp>0&&dist(target,action.target)<105)hurt(target,Math.round(24*settings().damage),u);
           addEffect('Particle FX/Explosion_02.png',action.target.x,action.target.y,160,.5,20);shake=3;
-          action.stage='recovery';action.time=action.recoveryDuration=.95;
+          recoverBoss(u,action);
         }else if(action.type==='volley'){
           const angle=Math.atan2(action.target.y-u.y,action.target.x-u.x);
           for(const offset of [-.22,0,.22]){fireArrow(u,{x:u.x+Math.cos(angle+offset)*300,y:u.y+Math.sin(angle+offset)*300});projectiles[projectiles.length-1].damage=Math.round(22*settings().damage);}
-          action.stage='recovery';action.time=action.recoveryDuration=.85;
+          recoverBoss(u,action);
         }else {action.stage='charge';action.time=.45;}
       }else if(action.stage==='charge'){
         const previous={x:u.x,y:u.y},remaining=action.chargeEnd.distance-action.traveled;
@@ -149,10 +168,11 @@
           if(positionFits(x,y)){u.x=x;u.y=y;action.traveled=next;u.moving=true;}else action.time=0;
         }
         if(dist(previous,u)>.001)for(const target of [hero,...allies,castle])if(target.hp>0&&!action.hit.has(target)&&Number.isFinite(segmentHit(previous,u,target,target===castle?62:36))&&(target===castle||clearPath(u,target))){hurt(target,Math.round(27*settings().damage),u);action.hit.add(target);}
-        if(action.time<=0||action.traveled>=action.chargeEnd.distance-.001){action.stage='recovery';action.time=action.recoveryDuration=.95;}
+        if(action.time<=0||action.traveled>=action.chargeEnd.distance-.001)recoverBoss(u,action);
       }else if(action.stage==='recovery'&&action.time<=0){u.bossAction=null;u.abilityCooldown=u.enraged?.4:.65;}
       return;
     }
+    if(u.ragePending){beginBossRage(u);return;}
     const target=dist(u,hero)>430&&dist(u,castle)<160?castle:hero;
     if(dist(u,target)>220){steerMove(u,target,dt);return;}
     if(u.abilityCooldown>0){if(dist(u,target)>100)steerMove(u,target,dt,u.speed*.65);else u.moving=false;return;}
@@ -177,7 +197,7 @@
     {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda antarserangan berkurang 6% per tingkat.'},
     {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash berkurang 0,25 detik per tingkat.'},
     {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan elak sempurna +6 damage dan durasi +0,5 detik per tingkat.'},
-    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kapasitas nyawa kastel +80 dan langsung pulih 80 per tingkat.'},
+    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kastel +80 HP, pulih 80; damage penjaga dekat kastel berkurang 2 per tingkat.'},
     {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Kapasitas nyawa penjaga +15 dan langsung pulih 15 per tingkat.'},
   ];
   function dashCooldown() { return 2.4 - ranks.wind * .25; }
@@ -497,6 +517,7 @@
   function bossPose(u){
     const a=u.bossAction;
     if(!a)return {path:unitPath('Black','Warrior',u.moving?'Run':'Idle'),age:u.animTime||0,fps:9,once:false};
+    if(a.stage==='rally')return {path:unitPath('Black','Warrior','Guard'),age:a.duration-a.time,fps:6,once:true};
     const warning=a.stage==='warning',recover=a.stage==='recovery',age=warning?a.duration-a.time:recover?(a.recoveryDuration||.95)-a.time:.45-a.time;
     const action=a.type==='volley'?'Shoot':a.type==='charge'?(a.stage==='charge'?'Run':'Guard'):'Attack2';
     const path=unitPath('Black',a.type==='volley'?'Archer':'Warrior',action);
@@ -525,7 +546,7 @@
     const size = u.isBoss?188:kind === 'Lancer' ? (isHero ? 194 : 178) : isHero ? 136 : 113;
     const alpha = u.invuln > 0 && !u.hitFlash && Math.floor(animTime * 13) % 2 ? .75 : 1;
     if (isHero) {
-      ctx.strokeStyle = '#f5df9a99'; ctx.lineWidth = 2;
+      ctx.strokeStyle = ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=160?'#b5f5e4':'#f5df9a99'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(u.x, u.y - 4, 21, 9, 0, 0, Math.PI * 2); ctx.stroke();
     }
     const pose=u.isBoss?bossPose(u):null;
@@ -543,8 +564,9 @@
     if (!u.isBoss && ((!isHero && u.hp < u.maxHp) || (isHero && u.hitFlash > 0))) healthBar(u.x, u.y - 55, u.hp, u.maxHp, u.team === 'enemy' ? '#ef9a7a' : '#a9dda9', isHero ? 43 : 35);
     if(u.isBoss){
       const a=u.bossAction,open=a?.stage==='recovery';ctx.fillStyle=open?'#cbffce':'#f4cc92';ctx.font='bold 11px Segoe UI';ctx.textAlign='center';
-      ctx.fillText(open?'TERBUKA':a?.stage==='warning'?({slam:'! HANTAM',charge:'>> TERJANG',volley:'||| PANAH'}[a.type]):'PANGLIMA KELAM',u.x,u.y-95);
+      ctx.fillText(open?'TERBUKA':a?.stage==='rally'?'MENGAMUK':a?.stage==='warning'?({slam:'! HANTAM',charge:'>> TERJANG',volley:'||| PANAH'}[a.type]):u.enraged?'PANGLIMA · FASE II':'PANGLIMA · FASE I',u.x,u.y-95);
       if(open){ctx.strokeStyle='#cbffce';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(u.x,u.y,35,12,0,0,Math.PI*2);ctx.stroke();}
+      if(a?.stage==='rally'){ctx.strokeStyle='#ffb37b';ctx.lineWidth=3;ctx.setLineDash([5,4]);ctx.beginPath();ctx.ellipse(u.x,u.y,35+18*(1-a.time/a.duration),14,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
     }
     if(isHero){
       if(hero.damageCue>0){const a=hero.damageDirection+Math.PI;ctx.save();ctx.translate(u.x,u.y-24);ctx.rotate(a);ctx.fillStyle='#ffbaa1';ctx.beginPath();ctx.moveTo(43,0);ctx.lineTo(32,-7);ctx.lineTo(32,7);ctx.closePath();ctx.fill();ctx.restore();}
@@ -937,6 +959,7 @@
       if(!pendingHeroDamage||amount>pendingHeroDamage.amount||amount===pendingHeroDamage.amount&&damagePriority(source)<damagePriority(pendingHeroDamage.source))pendingHeroDamage={amount,source};
       return;
     }
+    if(target===hero&&ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=160){const guarded=Math.max(1,amount-ranks.bastion*2);combatStats.fortressSaved+=amount-guarded;amount=guarded;}
     if(target.isBoss){
       const open=target.bossAction?.stage==='recovery';
       if(source?.team==='ally')amount=Math.max(1,Math.round(amount*(open?1:.55)));
@@ -1199,7 +1222,8 @@
   }
   function mayStartMelee(u,target){
     if(u.team!=='enemy'||target!==hero||u.kind==='Archer')return true;
-    const limit=difficulty==='easy'?2:difficulty==='hard'?4:3;
+    let limit=difficulty==='easy'?2:difficulty==='hard'?4:3;
+    if(boss?.hp>0&&boss.bossAction?.stage==='recovery'&&dist(hero,boss)<160)limit=difficulty==='hard'?2:1;
     if(pressureActive>=limit||pressureGap>0){combatStats.pressureDeferrals++;return false;}
     pressureActive++;pressureGap=difficulty==='hard'?.08:.12;
     combatStats.maxWindups=Math.max(combatStats.maxWindups,pressureActive);return true;
@@ -1436,7 +1460,7 @@
     $('squadHint').textContent=`${allies.length} sekutu · ${squadOrder==='follow'?'Ikuti penjaga, lindungi sekitarnya':'Jaga halaman kastel, jangan mengejar terlalu jauh'}`;
     $('modeBadge').textContent=settings().name;
     $('bossBar').hidden=!(boss&&boss.hp>0);$('arena').classList.toggle('boss-active',!!(boss&&boss.hp>0));
-    if(boss&&boss.hp>0){$('bossHealth').style.width=`${boss.hp/boss.maxHp*100}%`;$('bossValue').textContent=`${Math.ceil(boss.hp)} / ${boss.maxHp}`;const a=boss.bossAction;$('bossIntent').textContent=a?.stage==='warning'?({slam:'HANTAMAN · KELUAR DARI LINGKARAN',charge:'TERJANGAN · HINDARI JALURNYA',volley:'HUJAN PANAH · CARI PERLINDUNGAN'}[a.type])+` · ${Math.max(0,a.time).toFixed(1)} dtk`:a?.stage==='recovery'?'TERBUKA · DAMAGE PEDANG +30%':boss.enraged?'MENGAMUK · BERSIAP MENGHINDAR':'GARDA AKTIF · SERANGAN SEKUTU TEREDAM';}
+    if(boss&&boss.hp>0){$('bossHealth').style.width=`${boss.hp/boss.maxHp*100}%`;$('bossValue').textContent=`${Math.ceil(boss.hp)} / ${boss.maxHp}`;$("bossIntent").textContent=bossIntentText(boss);}
 
     const cd=hero.dashCooldown||0,ready=cd<=0;
     $('dashLabel').textContent=hero.riposte>0?'Balasan siap!':ready?'Langkah Embun':`Pulih ${cd.toFixed(1)} dtk`;
@@ -1595,7 +1619,7 @@
   }
 
   // Read-only state for meaningful smoke tests and inspecting an active match.
-  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ runSeed,encounters:encounters.map(e=>({name:e.name,roster:[...e.roster]})),audio:{decoded:sampleBuffers.size,failed:audioFailures,voices:activeVoices,effectsVolume,musicVolume,enabled:soundOn},combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
+  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ runSeed,encounters:encounters.map(e=>({name:e.name,roster:[...e.roster]})),audio:{decoded:sampleBuffers.size,failed:audioFailures,voices:activeVoices,effectsVolume,musicVolume,enabled:soundOn},combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{ragePending:!!boss.ragePending,hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
   setDifficulty('normal');
   resize(); preload(); requestAnimationFrame(frame);
 })();

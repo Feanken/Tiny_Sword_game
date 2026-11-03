@@ -99,7 +99,7 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
 - Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 29 unit: 20 prajurit, 8 sekutu, dan panglima yang mengamuk pada mode Sulit. Ketiga pola panglima harus selesai dijalankan. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance-simulation.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
-Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 50,1 ms. Dengan 17 efek suara terdekode dan audio aktif, CPU simulasi rata-rata sekitar 0,54 ms per langkah pada sesi ini, persentil ke-95 1 ms. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,7 ms, dan frame terlama 33,4 ms. Dengan 17 efek suara terdekode dan audio aktif, CPU simulasi rata-rata sekitar 0,53 ms per langkah pada sesi ini, persentil ke-95 1 ms. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
 
 ## Langkah Embun dan Perkemahan
 
@@ -115,7 +115,7 @@ Selama 0,16 detik awal dash, pukulan yang masuk dielakkan. Menghindari pukulan s
 | Ritme Tempur | 40 emas | Cooldown serangan -6% dari nilai dasar |
 | Jejak Angin | 35 emas | Cooldown dash -0,25 detik |
 | Balasan Embun | 35 emas | Bonus balasan +6 damage, jendela balasan +0,5 detik |
-| Benteng Hidup | 40 emas | Kapasitas kastel +80 HP, langsung pulih 80 |
+| Benteng Hidup | 40 emas | Kastel +80 HP, pulih 80; damage penjaga dekat kastel berkurang 2 |
 | Sumpah Penjaga | 40 emas | Kapasitas penjaga +15 HP, langsung pulih 15 |
 
 Tombol **Siap bertempur** menutup Perkemahan dan memperpendek sisa persiapan menjadi maksimal tiga detik. **Kembali ke pulau** mempertahankan sisa waktu. Memilih upgrade tidak wajib.
@@ -124,7 +124,7 @@ Tombol **Siap bertempur** menutup Perkemahan dan memperpendek sisa persiapan men
 
 **F — Ikuti penjaga** menjaga sekutu di sekitar pemain dan mencari musuh dalam radius 320 piksel dari pemain. **G — Jaga kastel** menarik pasukan kembali ke halaman kastel dengan wilayah pertahanan 235 piksel. Perintah berlaku untuk seluruh sekutu, termasuk yang direkrut kemudian; membatalkan serangan tertunda agar perintah segera diikuti. Pemanah tetap menjaga jangkauan dan biarawan merawat unit di wilayah perintahnya. Tombol perintah tersedia di bawah arena untuk ponsel.
 
-Pada pertengahan gelombang kelima, **Panglima Kelam** mendarat dari jalan barat. Ia memilih hantaman, terjangan, atau kipas panah berdasarkan jarak, kerumunan, jalur terjangan, dan perlindungan. Setiap siklus tetap memakai ketiga pola; pola terakhir tidak langsung diulang ketika siklus berganti. Tanda dikunci ke posisi pemain saat persiapan serangan, sehingga bergerak, dash, atau berlindung dapat menyelamatkan pemain. Sesudah setiap serangan, ia memiliki masa pemulihan untuk dibalas. Pada 50% nyawa ia mengamuk dan memperpendek jeda antar pola, tetapi tetap memberi peringatan. Ia tidak bisa dikunci dengan stagger. Kemenangan memerlukan seluruh prajurit dan panglima dikalahkan.
+Pada pertengahan gelombang kelima, **Panglima Kelam** mendarat dari jalan barat. Ia memilih hantaman, terjangan, atau kipas panah berdasarkan jarak, kerumunan, jalur terjangan, dan perlindungan. Setiap siklus tetap memakai ketiga pola; pola terakhir tidak langsung diulang ketika siklus berganti. Tanda dikunci ke posisi pemain saat persiapan serangan, sehingga bergerak, dash, atau berlindung dapat menyelamatkan pemain. Sesudah setiap serangan, ia memiliki masa pemulihan untuk dibalas. Saat mencapai 50% nyawa, ia menuntaskan serangan dan pemulihan sebelum melakukan transisi mengamuk; fase berikutnya memperpendek jeda antar pola dengan peringatan tetap utuh. Ia tidak bisa dikunci dengan stagger. Kemenangan memerlukan seluruh prajurit dan panglima dikalahkan.
 
 Jalur terjangan dipotong pada pohon, bangunan, atau pantai pertama. Panglima bergerak lurus sampai ujung tanda; desakan pasukan tidak menggeser titik awalnya. Kecepatan dikunci saat tanda muncul, termasuk jika ia mulai mengamuk sebelum terjangan berlangsung.
 
@@ -205,3 +205,19 @@ Volume efek dan musik tersimpan terpisah di browser. Mute berlaku melalui master
 - Biarawan mengutamakan pemulihan efektif pada pasien yang dapat segera dijangkau, serta memilih perlindungan saat mundur. Tujuan mundur disimpan singkat agar gerak tidak zigzag karena menghitung ulang setiap frame.
 
 `node game-preview/team-ai-test.cjs` memeriksa pembagian sasaran, prioritas perlindungan, pembatalan tembakan di luar wilayah, reset tujuan setelah komando, penyembuhan yang terjangkau, penghindaran panah nyata beserta reaksi terlambat, lalu lintas berlawanan arah, serta posisi formasi dekat bangunan/pantai. Uji ini melengkapi `tactics-test.cjs`, `combat-test.cjs`, pengujian mesin, 29 pertandingan otomatis, dan pengukuran browser 29 unit dengan audio aktif.
+
+## Ritme panglima dan pilihan pertahanan
+
+Panglima memiliki dua fase dengan transisi yang terlihat. Ketika nyawanya mencapai setengah, serangan yang sudah diberi tanda tetap diselesaikan beserta seluruh jendela pemulihannya. Setelah itu ia mengambil posisi mengamuk selama 0,9/0,75/0,6 detik pada Santai/Normal/Sulit, tanpa serangan atau perpindahan mendadak. Transisi hanya terjadi satu kali; penyembuhan musuh tidak mengulanginya. Ada jeda 0,35 detik sebelum ia kembali memilih serangan. Transisi tidak memberi kekebalan dan tidak mengunci HP.
+
+| Mode | Pemulihan hantaman | Pemulihan terjangan | Pemulihan panah |
+| --- | --- | --- | --- |
+| Santai | 1,30 dtk | 1,30 dtk | 1,15 dtk |
+| Normal | 1,10 dtk | 1,15 dtk | 1,00 dtk |
+| Sulit | 1,00 dtk | 1,05 dtk | 0,90 dtk |
+
+Pada fase mengamuk, pemulihan berkurang 0,1 detik dengan batas bawah 0,85 detik. Bar panglima menunjukkan fase, persiapan transisi, dan hitungan waktu **TERBUKA · PEDANG +30%**. Ketika penjaga berada dalam 160 piksel dari panglima yang pulih, jumlah persiapan serangan melee prajurit biasa dibatasi 1/1/2 pada Santai/Normal/Sulit. Serangan yang sudah berjalan dan panah tetap berbahaya; kesempatan membalas memerlukan posisi yang tepat.
+
+**Benteng Hidup** tetap memberi +80 kapasitas HP kastel dan pemulihan 80 per tingkat. Selama penjaga berada dalam radius 160 piksel dari kastel yang masih berdiri, setiap tingkat juga mengurangi damage masuk sebesar 2, dengan damage minimal 1. Lingkaran pijakan penjaga berubah hijau kebiruan ketika perlindungan aktif. Efek diterapkan satu kali setelah penggabungan pukulan bersamaan dan dicatat sebagai `fortressSaved`; keluar radius atau kastel runtuh menonaktifkannya. Perlindungan ini membantu strategi bertahan, dan tetap membutuhkan gerakan serta pengelolaan pasukan.
+
+`node game-preview/boss-balance-test.cjs` menguji transisi tanpa memotong serangan, satu kali mengamuk, durasi pemulihan tiap mode, kesempatan membalas, batas windup prajurit secara nyata, serta jangkauan/penerapan tunggal/reset Benteng Hidup. Laporan pertandingan memakai 14 kasus pembanding dan 15 kasus racikan/pasukan; hasil bot tidak menyatakan tingkat kemenangan manusia.
