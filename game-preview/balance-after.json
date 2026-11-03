@@ -1,0 +1,412 @@
+{
+  "description": "Seeded scripted policies; no health, currency, cooldown or enemy manipulation. Strategy comparison is not a human difficulty rating.",
+  "results": [
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 11,
+      "result": "won",
+      "seconds": 148.8,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 12.1,
+      "dashes": 0,
+      "upgrades": 0,
+      "bossHeroDamage": 510,
+      "bossAllyDamage": 140,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "bossDamageToHero": 102,
+      "perfectDodges": 0
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 11,
+      "result": "won",
+      "seconds": 144.4,
+      "heroHp": 95,
+      "castleHp": 500,
+      "bossSeconds": 9,
+      "dashes": 0,
+      "upgrades": 5,
+      "bossHeroDamage": 379,
+      "bossAllyDamage": 271,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 75,
+      "perfectDodges": 0
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 11,
+      "result": "won",
+      "seconds": 146.8,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 11.3,
+      "dashes": 5,
+      "upgrades": 5,
+      "bossHeroDamage": 349,
+      "bossAllyDamage": 301,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 2
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 11,
+      "result": "won",
+      "seconds": 145,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 9.6,
+      "dashes": 4,
+      "upgrades": 5,
+      "bossHeroDamage": 476,
+      "bossAllyDamage": 186,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 3
+    },
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 149.7,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 13.1,
+      "dashes": 0,
+      "upgrades": 0,
+      "bossHeroDamage": 495,
+      "bossAllyDamage": 167,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "bossDamageToHero": 102,
+      "perfectDodges": 0
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 144,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 8.5,
+      "dashes": 0,
+      "upgrades": 5,
+      "bossHeroDamage": 373,
+      "bossAllyDamage": 289,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "bossDamageToHero": 51,
+      "perfectDodges": 0
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 146.7,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 11.3,
+      "dashes": 5,
+      "upgrades": 5,
+      "bossHeroDamage": 317,
+      "bossAllyDamage": 345,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 2
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 145.3,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 9.9,
+      "dashes": 4,
+      "upgrades": 5,
+      "bossHeroDamage": 432,
+      "bossAllyDamage": 242,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 3
+    },
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 47,
+      "result": "won",
+      "seconds": 149.1,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 13.9,
+      "dashes": 0,
+      "upgrades": 0,
+      "bossHeroDamage": 390,
+      "bossAllyDamage": 272,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "bossDamageToHero": 124,
+      "perfectDodges": 0
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 47,
+      "result": "won",
+      "seconds": 144.6,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 8,
+      "dashes": 0,
+      "upgrades": 5,
+      "bossHeroDamage": 465,
+      "bossAllyDamage": 197,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "bossDamageToHero": 51,
+      "perfectDodges": 0
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 47,
+      "result": "won",
+      "seconds": 145.7,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 10.2,
+      "dashes": 4,
+      "upgrades": 5,
+      "bossHeroDamage": 361,
+      "bossAllyDamage": 313,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 22,
+      "perfectDodges": 2
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 47,
+      "result": "won",
+      "seconds": 150.2,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 14.8,
+      "dashes": 5,
+      "upgrades": 5,
+      "bossHeroDamage": 286,
+      "bossAllyDamage": 376,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 2
+    },
+    {
+      "strategy": "counter",
+      "mode": "easy",
+      "seed": 23,
+      "result": "won",
+      "seconds": 147.2,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 3.9,
+      "dashes": 1,
+      "upgrades": 5,
+      "bossHeroDamage": 318,
+      "bossAllyDamage": 162,
+      "patterns": [
+        "slam",
+        "charge"
+      ],
+      "resolved": [
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1
+    },
+    {
+      "strategy": "counter",
+      "mode": "hard",
+      "seed": 23,
+      "result": "won",
+      "seconds": 143.9,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 15,
+      "dashes": 6,
+      "upgrades": 5,
+      "bossHeroDamage": 480,
+      "bossAllyDamage": 370,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge",
+        "volley"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 3
+    }
+  ]
+}

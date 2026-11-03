@@ -241,3 +241,37 @@
 }
 
 .camp-modal .close-button { top:8px;right:12px;line-height:1;width:30px;height:30px;padding:0; }
+
+.difficulty-picker{display:flex;gap:7px;margin:0 0 7px;max-width:350px}
+.difficulty-picker button{flex:1;min-width:0;padding:9px 10px;background:#18362bbd;border:1px solid #b2c18c66;border-radius:4px;color:#e4e9cb;text-align:left;font-size:11px}
+.difficulty-picker button[aria-pressed="true"]{background:#b9ab6b33;border-color:#edce88;color:#f5d895}
+.difficulty-picker small{display:block;font-size:7px;color:#b4c6a4;margin-top:3px;white-space:nowrap}
+.difficulty-note{font-size:9px!important;line-height:1.5;color:#c2cfb2;max-width:350px;min-height:27px;margin:0 0 15px}
+.mode-badge{color:#d9cd9e;font-size:8px;letter-spacing:1.3px;text-transform:uppercase;padding:4px 7px;border:1px solid #a6b17d44;border-radius:3px;margin-left:auto}
+.battle-status .score-panel{margin-left:0}
+.squad-bar{display:flex;align-items:center;gap:14px;background:#1c3228;padding:7px 21px;border-top:1px solid #72855266;flex-shrink:0;min-height:43px}
+.squad-label{font-size:7px;letter-spacing:1.2px;color:#adc19c}
+.squad-orders{display:flex;gap:6px}
+.squad-orders button{background:#304736;color:#afc3a6;border:1px solid #86995f55;border-radius:4px;padding:5px 10px;font-size:10px}
+.squad-orders button[aria-pressed="true"]{color:#f4dfab;border-color:#c1c481;background:#4e5c37}
+.squad-orders kbd{line-height:14px;font-size:7px;margin-right:4px}
+#squadHint{font-size:9px;color:#9fb493;margin-left:auto}
+.boss-bar{position:absolute;top:13px;right:17px;z-index:3;width:330px;max-width:calc(100% - 34px);padding:10px 13px;background:#302723eb;border:1px solid #de9c718c;border-radius:5px;pointer-events:none}
+.boss-bar>div:first-child{display:flex;justify-content:space-between;align-items:center;color:#f6d59c;font:17px Georgia;gap:12px}
+#bossValue{font:10px "Segoe UI",sans-serif;white-space:nowrap;color:#e1bb9b}
+.boss-track{height:6px;background:#101e19;margin:7px 0;overflow:hidden;border-radius:2px}
+.boss-track i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#a95448,#ebae72);transition:width .15s}
+#bossIntent{font:8px "Segoe UI",sans-serif;letter-spacing:.8px;color:#eac8a1}
+.boss-active .announcement{top:100px}
+@media(max-width:1050px){.battle-status .wave-panel{width:43%}.mode-badge{font-size:7px}#squadHint{font-size:8px}}
+@media(max-width:650px){
+ .difficulty-picker{gap:4px}.difficulty-picker button{font-size:10px;padding:7px}.difficulty-picker small{font-size:6px}
+ .difficulty-note{font-size:8px!important;min-height:25px;margin-bottom:10px}.intro-content{width:84%;top:48%}.intro-content h2{font-size:31px}.intro-description{margin-bottom:12px}.intro-content .eyebrow{margin-bottom:10px}
+ .mode-badge{display:none}.squad-bar{padding:7px 9px;gap:7px;min-height:44px}.squad-label{display:none}.squad-orders{width:100%}.squad-orders button{flex:1;padding:6px 8px;font-size:10px}#squadHint{display:none}
+ .is-playing .arena{height:clamp(310px,calc(100dvh - 434px),460px)}
+ .boss-bar{top:62px;left:10px;right:10px;width:auto;max-width:none;padding:8px 11px}.boss-bar>div:first-child{font-size:16px}.boss-active .announcement{top:150px}
+ .game-footer>div{gap:6px}
+}
+@media(min-width:651px) and (max-height:800px){.intro-content h2{font-size:30px}.intro-description{font-size:10px;margin-bottom:10px}.difficulty-picker button{padding:6px 9px}.difficulty-note{margin-bottom:8px;min-height:24px}.intro-content .light{margin-bottom:9px}}
+
+@media(max-width:650px){body:not(.is-playing) .arena{aspect-ratio:auto;height:clamp(430px,calc(100dvh - 340px),600px)}}

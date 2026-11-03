@@ -1,18 +1,47 @@
 {
-  "units": 28,
-  "steps": 360,
-  "meanMs": 0.3633333333250549,
-  "p95Ms": 1.1000000014901161,
-  "maxMs": 6.099999997764826,
-  "effectCap": 80,
+  "units": 29,
+  "difficulty": "hard",
+  "bossEnraged": true,
+  "bossPatterns": [
+    "slam",
+    "charge",
+    "volley"
+  ],
+  "bossResolved": [
+    "slam",
+    "charge",
+    "volley"
+  ],
   "effects": 80,
-  "impacts": 56,
-  "fields": 4,
+  "impacts": 60,
+  "fields": 8,
+  "steps": 900,
+  "meanMs": 0.2637777777776743,
+  "p95Ms": 0.6000000000931323,
+  "maxMs": 2.7000000001862645,
+  "effectCap": 80,
   "render": {
-    "frames": 239,
+    "frames": 882,
     "medianMs": 16.699999999999818,
-    "p95Ms": 16.700000000000273,
-    "maxMs": 33.399999999999636
+    "p95Ms": 16.800000000000182,
+    "maxMs": 33.400000000001455
   },
-  "activeUnits": 28
+  "live": {
+    "units": 29,
+    "difficulty": "hard",
+    "bossEnraged": true,
+    "bossPatterns": [
+      "slam",
+      "charge",
+      "volley"
+    ],
+    "bossResolved": [
+      "slam",
+      "charge",
+      "volley"
+    ],
+    "effects": 0,
+    "impacts": 3,
+    "fields": 11
+  }
 }

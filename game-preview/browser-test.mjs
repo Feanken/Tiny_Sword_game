@@ -22,18 +22,26 @@ try {
     if (m.id) { const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result); } }
     if(m.method==='Fetch.requestPaused') {
       const source=fs.readFileSync('game.js','utf8').replace('  // Read-only state for meaningful smoke tests', `
-  window.__stress = (runSteps=360) => {
-    startGame();phase='prepare';waveTimer=999;gold=10000;
+  window.__bossPreview=(stage='warning')=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:540,y:410,entering:false,abilityCooldown:0});hero.x=680;hero.y=410;updateBoss(boss,1/60);boss.bossAction.stage=stage;announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();};
+  window.__chargePreview=()=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:730,y:250,entering:false,abilityCooldown:0,pattern:1});hero.x=940;hero.y=250;updateBoss(boss,1/60);announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return boss.bossAction.chargeEnd;};
+  let stressPatterns=new Set(),stressResolved=new Set();
+  const originalUpdateBoss=updateBoss;
+  updateBoss=(u,dt)=>{const action=u.bossAction,stage=action?.stage;originalUpdateBoss(u,dt);if(u.bossAction?.stage==='warning')stressPatterns.add(u.bossAction.type);if(stage==='warning'&&action.stage!=='warning')stressResolved.add(action.type);};
+  window.__stressState=()=>({units:enemies.length+allies.length,difficulty,bossEnraged:boss.enraged,bossPatterns:[...stressPatterns],bossResolved:[...stressResolved],effects:effects.length,impacts:impacts.length,fields:routeFields.size});
+  window.__stress = (runSteps=900) => {
+    showTitle();setDifficulty('hard');startGame();phase='battle';gold=10000;
     for(let i=0;i<7;i++)recruitUnit();waveIndex=4;
     for(let i=0;i<20;i++)spawnEnemy();
     hero.hp=hero.maxHp=100000;castle.hp=100000;allies.forEach(u=>{u.hp=u.maxHp=100000;});
     enemies.forEach((u,i)=>{u.x=420+i%5*35;u.y=345+Math.floor(i/5)*35;u.entering=false;u.hp=u.maxHp=100000;});
+    spawnBoss();Object.assign(boss,{x:610,y:410,entering:false,abilityCooldown:.15,hp:45000,maxHp:100000});hero.x=740;hero.y=410;
+    stressPatterns.clear();stressResolved.clear();
     for(let i=0;i<140;i++)addEffect('Particle FX/Dust_01.png',500,400,40);
     const effectCap=effects.length, samples=[];keys.add(' ');
     for(let i=0;i<runSteps;i++){const before=performance.now();update(1/60);samples.push(performance.now()-before);}
     keys.clear();samples.sort((a,b)=>a-b);
-    const result={units:enemies.length+allies.length,steps:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1),effectCap,effects:effects.length,impacts:impacts.length,fields:routeFields.size};
-    if(runSteps>0)startGame();return result;
+    const result={...window.__stressState(),steps:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1),effectCap};
+    if(runSteps>0){showTitle();setDifficulty('normal');startGame();}return result;
   };
   // Read-only state for meaningful smoke tests`);
       page('Fetch.fulfillRequest',{requestId:m.params.requestId,responseCode:200,responseHeaders:[{name:'Content-Type',value:'text/javascript; charset=utf-8'}],body:Buffer.from(source).toString('base64')}).catch(error=>errors.push(error.message));
@@ -56,12 +64,28 @@ try {
   assert.equal((await snapshot()).state, 'ready');
   assert.equal((await snapshot()).assetCount, 410);
   async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); try { fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); } catch { fs.writeFileSync(path.join(root,'game-preview',name.replace('.png','-run'+process.pid+'.png')),Buffer.from(r.data,'base64')); } }
-  if(!process.argv.includes('--benchmark-only')) {
+  if(process.argv.includes('--preview-only')) {
+    const chargeEnd=await evaluate('window.__chargePreview()');assert.equal(chargeEnd.distance,50);await delay(100);await screenshot('leader-charge-clipped.png');
+    await evaluate('window.__bossPreview()');await delay(100);await screenshot('leader-final.png');
+    await evaluate('window.__bossPreview("recovery")');assert.ok(await evaluate('document.getElementById("bossIntent").textContent.includes("+30%")'));
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(100);await screenshot('leader-mobile-recovery.png');
+    assert.ok(await evaluate('(()=>{const r=document.getElementById("bossBar").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.bottom<=document.getElementById("arena").getBoundingClientRect().bottom})()'),'mobile leader status fits arena');
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+    console.log('Clipped 50px charge warning and mobile recovery HUD: passed');
+  } else if(!process.argv.includes('--benchmark-only')) {
   await screenshot('desktop-start.png');
+  await evaluate('document.querySelector("[data-difficulty=hard]").click()');assert.equal((await snapshot()).difficulty,'hard');
+  await evaluate('document.querySelector("[data-difficulty=easy]").click()');assert.equal((await snapshot()).difficulty,'easy');
+  await evaluate('document.querySelector("[data-difficulty=normal]").click()');
+
   assert.ok(await evaluate('document.querySelector(".command-bar").getBoundingClientRect().bottom <= innerHeight'), 'commands fit on a laptop screen');
   await evaluate('document.getElementById("startButton").click()');
   assert.equal((await snapshot()).state, 'playing');
   assert.equal((await snapshot()).allies.length, 1);
+  await page('Input.dispatchKeyEvent',{type:'keyDown',key:'g'});await page('Input.dispatchKeyEvent',{type:'keyUp',key:'g'});assert.equal((await snapshot()).squadOrder,'guard');
+  await page('Input.dispatchKeyEvent',{type:'keyDown',key:'f'});await page('Input.dispatchKeyEvent',{type:'keyUp',key:'f'});assert.equal((await snapshot()).squadOrder,'follow');
+  await evaluate('document.querySelector("[data-difficulty=hard]").click()');assert.equal((await snapshot()).difficulty,'normal');
+
   await page('Input.dispatchKeyEvent',{type:'keyDown',key:'u'});await page('Input.dispatchKeyEvent',{type:'keyUp',key:'u'});
   assert.equal((await snapshot()).state,'paused');assert.equal(await evaluate('document.querySelectorAll(".perk-card").length'),6);
   const campTimer=(await snapshot()).waveTimer;await delay(150);assert.equal((await snapshot()).waveTimer,campTimer);
@@ -149,11 +173,13 @@ try {
   assert.ok(await evaluate('document.querySelector(".command-bar").getBoundingClientRect().bottom <= innerHeight'), 'fullscreen keeps action controls visible');
   await screenshot('fullscreen-battle.png'); await evaluate('document.exitFullscreen()');
   if(process.argv.includes('--stress')) {
+    await evaluate('window.__bossPreview()');assert.equal((await snapshot()).boss.action.type,'slam');assert.equal(await evaluate('document.getElementById("bossBar").hidden'),false);await delay(100);await screenshot('leader-final.png');
+    const chargeEnd=await evaluate('window.__chargePreview()');assert.ok(chargeEnd.distance<252);await delay(100);await screenshot('leader-charge-clipped.png');
     const stress=await evaluate('window.__stress()');
-    assert.equal(stress.units,28);assert.equal(stress.effectCap,80);assert.ok(stress.effects<=80&&stress.impacts<=60&&stress.fields<=32);
+    assert.equal(stress.units,29);assert.equal(stress.bossEnraged,true);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);assert.equal(stress.effectCap,80);assert.ok(stress.effects<=80&&stress.impacts<=60&&stress.fields<=32);
     assert.ok(stress.meanMs<10&&stress.p95Ms<20,'crowded simulation stays within test CPU budget');
-    fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
-    console.log('28-unit stress benchmark:',JSON.stringify(stress));
+    fs.writeFileSync(path.join(root,'game-preview','performance-simulation.json'),JSON.stringify(stress,null,2));
+    console.log('29-unit stress benchmark with enraged leader:',JSON.stringify(stress));
   }
   await page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await page('Emulation.setTouchEmulationEnabled', { enabled: true });
@@ -180,21 +206,24 @@ try {
   await page('Page.navigate', { url: 'file:///' + root.replaceAll('\\', '/') + '/index.html' });
   for (let i = 0; i < 150; i++) { if (await evaluate('window.PenjagaPulau?.snapshot().state === "ready"')) break; await delay(100); }
   assert.equal((await snapshot()).state, 'ready', 'double-click/file mode loads all game assets');
+  await screenshot('mobile-start.png');
+  assert.ok(await evaluate('(()=>{const b=document.getElementById("startButton").getBoundingClientRect(),a=document.getElementById("arena").getBoundingClientRect();return b.top>=a.top&&b.bottom<=a.bottom})()'),'mobile start and difficulty choices fit the intro');
+
   assert.deepEqual(errors, [], 'browser has no runtime exceptions'); assert.deepEqual(missing, [], 'no missing assets');
   console.log('Mobile layout + touch controls, direct file launch, zero missing assets/runtime exceptions: passed');
   } else {
     const stress=await evaluate('window.__stress()');
-    assert.equal(stress.units,28);assert.ok(stress.meanMs<10&&stress.p95Ms<20);
+    assert.equal(stress.units,29);assert.ok(stress.meanMs<10&&stress.p95Ms<20);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);
     await evaluate('window.__stress(0)');
     stress.render=await evaluate(`new Promise(resolve=>{
       const samples=[];let start=performance.now(),last=start;
       function sample(now){if(now-start>250)samples.push(now-last);last=now;
-        if(now-start<4250)requestAnimationFrame(sample);
+        if(now-start<15250)requestAnimationFrame(sample);
         else {samples.sort((a,b)=>a-b);resolve({frames:samples.length,medianMs:samples[Math.floor(samples.length*.5)],p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)});}
       }requestAnimationFrame(sample);
     })`);
-    stress.activeUnits=(await snapshot()).enemies.length+(await snapshot()).allies.length;
-    assert.equal(stress.activeUnits,28);assert.deepEqual(errors,[]);
+    stress.live=await evaluate('window.__stressState()');
+    assert.equal(stress.live.units,29);assert.equal(stress.live.bossEnraged,true);assert.deepEqual([...stress.live.bossResolved].sort(),['charge','slam','volley']);assert.ok(stress.live.effects<=80&&stress.live.impacts<=60&&stress.live.fields<=32);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
     fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
     console.log('CPU + rendered-frame benchmark:',JSON.stringify(stress));
   }

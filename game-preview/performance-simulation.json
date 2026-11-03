@@ -1,0 +1,23 @@
+{
+  "units": 29,
+  "difficulty": "hard",
+  "bossEnraged": true,
+  "bossPatterns": [
+    "slam",
+    "charge",
+    "volley"
+  ],
+  "bossResolved": [
+    "slam",
+    "charge",
+    "volley"
+  ],
+  "effects": 80,
+  "impacts": 60,
+  "fields": 9,
+  "steps": 900,
+  "meanMs": 0.959888888888268,
+  "p95Ms": 2.400000000372529,
+  "maxMs": 4.2000000001862645,
+  "effectCap": 80
+}

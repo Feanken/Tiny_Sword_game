@@ -21,6 +21,9 @@ Lalu buka http://localhost:4173. Hentikan server dengan Ctrl+C. Untuk ponsel/tab
 | WASD / panah | Bergerak |
 | Spasi / tahan klik di arena | Serangan pedang ke depan, maksimal tiga sasaran |
 | Tahan E dekat sumber daya | Pohon: +8 kayu; tambang: +10 emas; domba: +1 bekal |
+| Shift | Dash; elak tepat waktu untuk bonus balasan |
+| U | Pilih satu upgrade saat jeda gelombang |
+| F / G | Sekutu mengikuti penjaga / menjaga kastel |
 | 1 | Rekrut sekutu: pemanah, penombak, biarawan, ksatria; 40 emas, biarawan 55 |
 | 2 | Perbaiki kastel +140 nyawa, biaya 30 kayu |
 | Q | Pulihkan penjaga +45 nyawa, biaya 1 bekal |
@@ -93,9 +96,9 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Simulasi menggunakan langkah tetap 60 Hz dengan maksimal enam langkah pengejaran per frame. Jeda menghapus sisa waktu tertunda, sehingga melanjutkan permainan tidak memicu lonjakan gerakan.
 - Serangan membatalkan pekerjaan sebelum hadiah diberikan. Terkena pukulan membatalkan ayunan tertunda. Gerakan, serangan, dan interaksi diperiksa dalam uji ulang yang sama pada render 30, 60, dan 120 FPS.
 - Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
-- Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 28 unit. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
+- Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 29 unit: 20 prajurit, 8 sekutu, dan panglima yang mengamuk pada mode Sulit. Ketiga pola panglima harus selesai dijalankan. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance-simulation.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
-Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` juga mengukur interval frame selama sekitar empat detik dengan 28 unit tetap aktif. Pada pengujian Chrome headless 1366×768 dengan GPU dinonaktifkan, cache frame kilatan menurunkan persentil ke-95 interval frame yang teramati dari 50 ms menjadi 16,7 ms; frame terlama dari 83,4 ms menjadi 33,4 ms. CPU simulasi rata-rata sekitar 0,36 ms per langkah. Hasil pengukuran sebelum dan sesudah tersimpan di folder `game-preview`; angka dapat berubah menurut perangkat dan beban komputer. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 33,4 ms. CPU simulasi rata-rata sekitar 0,26 ms per langkah pada sesi ini. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
 
 ## Langkah Embun dan Perkemahan
 
@@ -115,3 +118,31 @@ Selama 0,16 detik awal dash, pukulan yang masuk dielakkan. Menghindari pukulan s
 | Sumpah Penjaga | 40 emas | Kapasitas penjaga +15 HP, langsung pulih 15 |
 
 Tombol **Siap bertempur** menutup Perkemahan dan memperpendek sisa persiapan menjadi maksimal tiga detik. **Kembali ke pulau** mempertahankan sisa waktu. Memilih upgrade tidak wajib.
+
+## Komando, Panglima Kelam, dan kesulitan
+
+**F — Ikuti penjaga** menjaga sekutu di sekitar pemain dan mencari musuh dalam radius 320 piksel dari pemain. **G — Jaga kastel** menarik pasukan kembali ke halaman kastel dengan wilayah pertahanan 235 piksel. Perintah berlaku untuk seluruh sekutu, termasuk yang direkrut kemudian; membatalkan serangan tertunda agar perintah segera diikuti. Pemanah tetap menjaga jangkauan dan biarawan merawat unit di wilayah perintahnya. Tombol perintah tersedia di bawah arena untuk ponsel.
+
+Pada pertengahan gelombang kelima, **Panglima Kelam** mendarat dari jalan barat. Ia bergantian menandai area hantaman, jalur terjangan, dan kipas tiga panah. Tanda dikunci ke posisi pemain saat persiapan serangan, sehingga bergerak, dash, atau berlindung dapat menyelamatkan pemain. Sesudah setiap serangan, ia memiliki masa pemulihan untuk dibalas. Pada 50% nyawa ia mengamuk dan memperpendek jeda antar pola, tetapi tetap memberi peringatan. Ia tidak bisa dikunci dengan stagger. Kemenangan memerlukan seluruh prajurit dan panglima dikalahkan.
+
+Jalur terjangan dipotong pada pohon, bangunan, atau pantai pertama. Panglima bergerak lurus sampai ujung tanda; desakan pasukan tidak menggeser titik awalnya. Kecepatan dikunci saat tanda muncul, termasuk jika ia mulai mengamuk sebelum terjangan berlangsung.
+
+Garda panglima mengurangi damage sekutu menjadi 55% saat ia belum terbuka. Saat pemulihan, damage sekutu kembali penuh dan pedang penjaga mendapat +30%; status di bar panglima menandai kesempatan membalas. Jeda antar pola dipersingkat tanpa mengurangi lama peringatan atau menambah HP panglima. Dash dan balasan sempurna membantu memanfaatkan celah ini.
+
+| Mode | HP musuh | Damage musuh | Kecepatan | Interval kedatangan | HP panglima | Peringatan pola | Pengali skor |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Santai | ×0,75 | ×0,70 | ×0,90 | ×1,15 | 480 | 1,10 detik | ×0,8 |
+| Normal | ×1 | ×1 | ×1 | ×1 | 650 | 0,90 detik | ×1 |
+| Sulit | ×1,20 | ×1,25 | ×1,08 | ×0,82 | 850 | 0,75 detik | ×1,4 |
+
+Kesulitan dipilih sebelum mulai dan dikunci sepanjang pertandingan. Rekor disimpan terpisah untuk setiap mode. Setelah menang atau kalah, **Ganti kesulitan** mengembalikan pemain ke layar pilihan. Rekor lama sebelum pembagian mode dibaca sebagai rekor Normal.
+
+Sekutu mempertahankan posisi formasinya ketika anggota lain gugur. Rekrutan baru mengambil posisi kosong sehingga anggota yang bertahan tidak berganti tujuan hanya karena urutan daftar berubah.
+
+## Pemeriksaan strategi
+
+`node game-preview/balance-test.cjs` menjalankan 14 pertandingan lengkap dengan angka acak yang dapat diulang: empat kebijakan kontrol pada tiga seed Normal, serta kebijakan dash/balasan pada Santai dan Sulit. Tidak ada perubahan nyawa, emas, cooldown, atau AI untuk membantu bot. `--verify` memeriksa hasil terakhir tanpa mengulang simulasi.
+
+Pada tiga seed Normal, panglima menyelesaikan ketiga pola untuk setiap kebijakan. Bot tanpa upgrade/dash mengalahkan panglima dalam 12,1–13,9 detik; bot dengan upgrade dalam 8–9 detik. Damage panglima yang diterima selama pertarungan turun dari 51–75 pada kebijakan upgrade menjadi 0–22 ketika dash dipakai, dan 0 pada kebijakan balasan. Menghindar kadang memperpanjang pertarungan karena pemain meninggalkan jangkauan pedang. Angka ini membandingkan kontrol otomatis; rasa sulit dan kenyamanan tetap memerlukan uji pemain.
+
+`game-preview/balance-before.json` menyimpan hasil sebelum penyesuaian tempo/garda; `balance-after.json` menyimpan hasil terbaru. Kebijakan balasan hanya ditambahkan pada pengukuran terbaru, sehingga tidak semua kasus memiliki pasangan sebelum/sesudah.

@@ -12,10 +12,11 @@ const document = { body: element(), getElementById: id => { if (!elements.has(id
 const assetText = fs.readFileSync('asset-manifest.js', 'utf8');
 const assets = JSON.parse(assetText.slice(assetText.indexOf('['), assetText.lastIndexOf(']') + 1));
 const window = { TINY_ASSETS: assets, devicePixelRatio: 1, addEventListener() {} };
-const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: () => 0, setItem() {} }, requestAnimationFrame() {}, setTimeout() {} };
+const testStorage = new Map();
+const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: key => testStorage.get(key) || null, setItem: (key,value) => testStorage.set(key,String(value)) }, requestAnimationFrame() {}, setTimeout() {} };
 const source = fs.readFileSync('game.js', 'utf8').replace('resize(); preload(); requestAnimationFrame(frame);', `
   initialized = true; state = 'ready';
-  window.test = { startGame, startDash, buyUpgrade, ranks, finishWave, setGold(n){gold=n;}, advance, togglePause, routeTo, routeFields, navNodes, navComponent, navigationStats, obstacleList, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
+  window.test = { setDifficulty, showTitle, settings, setSquadOrder, squadAnchor, squadHome, spawnBoss, updateBoss, traceCharge, setWave(n){waveIndex=n;},get boss(){return boss;},startGame, startDash, buyUpgrade, ranks, finishWave, setGold(n){gold=n;}, advance, togglePause, routeTo, routeFields, navNodes, navComponent, navigationStats, obstacleList, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
     get enemies() { return enemies; }, get allies() { return allies; }, get state() { return state; },
     get effects() { return effects; }, get floaters() { return floaters; },
     get impacts() { return impacts; }, get projectiles() { return projectiles; },
@@ -194,3 +195,60 @@ g.startGame();g.buyUpgrade('blade');assert.equal(g.ranks.blade,1);g.allies.lengt
 g.startGame();g.buyUpgrade('rhythm');g.heroAttack();assert.ok(g.hero.cooldown<.58,'rhythm reduces attack cooldown');
 g.startGame();g.buyUpgrade('counter');g.hero.x=600;g.hero.y=400;g.allies.length=0;g.startWave();g.spawnEnemy();Object.assign(g.enemies[0],{x:650,y:400,entering:false,cooldown:999,speed:0,hp:100,maxHp:100});g.hero.riposte=2;g.heroAttack();g.update(.22);assert.equal(g.enemies[0].hp,55,'counter perk increases riposte damage');
 console.log('Vertical dash memory, paused cooldown, blade, rhythm and counter perk effects: passed');
+
+// Formation orders: return to the anchor and do not abandon the castle.
+g.startGame();g.hero.x=400;g.hero.y=400;const escort=g.allies[0];escort.x=850;escort.y=355;
+assert.equal(g.setSquadOrder('follow'),true);const followBefore=Math.hypot(escort.x-g.hero.x,escort.y-g.hero.y);for(let i=0;i<120;i++)g.updateUnit(escort,1/60);assert.ok(Math.hypot(escort.x-g.hero.x,escort.y-g.hero.y)<followBefore-80);
+g.setSquadOrder('guard');const guardBefore=Math.hypot(escort.x-845,escort.y-355);for(let i=0;i<180;i++)g.updateUnit(escort,1/60);assert.ok(Math.hypot(escort.x-845,escort.y-355)<guardBefore);assert.equal(g.squadAnchor().x,845);
+g.togglePause(true);assert.equal(g.setSquadOrder('follow'),false);g.togglePause(false);
+
+// Difficulty stays locked in-match, changes actual stats, and can be changed at title.
+g.showTitle();assert.equal(g.setDifficulty('easy'),true);g.startGame();g.spawnEnemy();const easyHp=g.enemies[0].hp,easySpeed=g.enemies[0].speed;assert.equal(g.setDifficulty('hard'),false);
+g.showTitle();g.setDifficulty('hard');g.startGame();g.spawnEnemy();assert.ok(g.enemies[0].hp>easyHp&&g.enemies[0].speed>easySpeed);g.setWave(4);g.spawnBoss();assert.equal(g.boss.hp,850);
+g.showTitle();g.setDifficulty('normal');
+function bossFixture(){g.startGame();g.setWave(4);assert.equal(g.spawnBoss(),true);assert.equal(g.spawnBoss(),false,'leader spawns only once');g.allies.length=0;Object.assign(g.boss,{x:500,y:400,entering:false,abilityCooldown:0});g.hero.x=650;g.hero.y=400;return g.boss;}
+let leader=bossFixture();g.updateBoss(leader,.016);assert.equal(leader.bossAction.type,'slam');assert.equal(g.hero.hp,100);g.updateBoss(leader,.5);assert.equal(g.hero.hp,100,'warning must not damage early');g.hero.y=570;g.updateBoss(leader,.5);assert.equal(g.hero.hp,100,'moving out avoids slam');assert.equal(leader.bossAction.stage,'recovery');
+leader=bossFixture();leader.pattern=1;g.updateBoss(leader,.016);assert.equal(leader.bossAction.type,'charge');g.updateBoss(leader,1);for(let i=0;i<28;i++)g.updateBoss(leader,1/60);assert.equal(g.hero.hp,73,'charge damages once');assert.ok(g.positionFits(leader.x,leader.y));
+leader=bossFixture();leader.pattern=2;g.updateBoss(leader,.016);g.updateBoss(leader,1);assert.equal(g.projectiles.length,3,'volley emits three arrows');
+leader=bossFixture();g.updateBoss(leader,.016);g.hero.dash=.2;g.hero.dashElapsed=.05;g.updateBoss(leader,1);assert.equal(g.hero.hp,100,'dash avoids leader slam');assert.ok(g.hero.riposte>0);
+leader=bossFixture();leader.hp=leader.maxHp/2;g.updateBoss(leader,.016);assert.equal(leader.enraged,true);g.hurt(leader,10,g.hero);assert.equal(leader.stagger,0,'leader cannot be stun locked');
+g.startGame();g.setWave(3);assert.equal(g.spawnBoss(),false,'leader is exclusive to final wave');
+console.log('Follow/guard formations, difficulty stat scaling and locking, unique final leader, all three telegraphs, dodge windows, rage and recovery: passed');
+
+g.showTitle();g.setDifficulty('hard');g.startGame();g.setWave(4);g.startWave();for(let i=0;i<20;i++)g.spawnEnemy();g.spawnBoss();
+for(const enemy of g.enemies)if(!enemy.isBoss)g.hurt(enemy,enemy.hp,g.hero);
+for(let i=0;i<10;i++)g.update(1/60);assert.equal(g.state,'playing','final wave cannot finish while leader is alive');
+g.hurt(g.boss,g.boss.hp,g.hero);for(let i=0;i<10;i++)g.update(1/60);assert.equal(g.state,'won','leader plus all soldiers must be defeated');
+g.showTitle();g.setDifficulty('normal');g.startGame();assert.equal(g.boss,null);assert.equal(g.squadAnchor().x,g.hero.x);
+console.log('Hard-mode final victory requires leader defeat; title and match reset clear leader/orders: passed');
+
+assert.ok(Number(testStorage.get('penjaga-pulau-best-normal'))>0,'normal victory saves its own best score');
+assert.ok(Number(testStorage.get('penjaga-pulau-best-hard'))>0,'hard victory saves separately');
+const savedNormal=testStorage.get('penjaga-pulau-best-normal');g.showTitle();g.setDifficulty('easy');assert.equal(testStorage.get('penjaga-pulau-best-normal'),savedNormal,'changing mode preserves other records');
+console.log('Separate best-score persistence for each difficulty: passed');
+
+// Formation slots survive casualties, list compaction and reinforcement.
+g.showTitle();g.setDifficulty('normal');g.startGame();g.setGold(1000);for(let i=0;i<7;i++)g.recruitUnit();g.setSquadOrder('guard');
+const casualty=g.allies[2],survivors=g.allies.filter(u=>u!==casualty),homes=survivors.map(u=>({unit:u,slot:u.formationSlot,point:g.squadHome(u)}));
+g.hurt(casualty,casualty.hp,{team:'enemy',x:600,y:400});g.update(1/60);
+for(const h of homes){assert.equal(h.unit.formationSlot,h.slot);assert.deepEqual(g.squadHome(h.unit),h.point,'survivor keeps the same formation destination');}
+g.recruitUnit();assert.equal(g.allies.at(-1).formationSlot,casualty.formationSlot,'reinforcement takes vacant slot');assert.equal(new Set(g.allies.map(u=>u.formationSlot)).size,8);
+
+// Lock the charge path at warning time, shorten it at colliders, and never slide.
+for(const fixture of [
+ {from:{x:730,y:250},to:{x:940,y:250},name:'castle'},
+ {from:{x:730,y:280},to:{x:910,y:190},name:'diagonal castle'},
+ {from:{x:160,y:326},to:{x:240,y:326},name:'tree'},
+ {from:{x:170,y:405},to:{x:104,y:405},name:'shore'},
+]){
+ const u=bossFixture();Object.assign(u,fixture.from,{pattern:1});Object.assign(g.hero,fixture.to);assert.ok(g.positionFits(u.x,u.y),'valid start at '+fixture.name);assert.ok(g.positionFits(g.hero.x,g.hero.y),'valid target at '+fixture.name);g.updateBoss(u,1/60);
+ const a=u.bossAction,end={x:a.chargeEnd.x,y:a.chargeEnd.y},speed=a.chargeSpeed;
+ assert.ok(a.chargeEnd.distance<speed*.45,'warning is clipped by '+fixture.name);
+ u.hp=u.maxHp*.4;g.updateBoss(u,.05);assert.equal(a.chargeSpeed,speed,'enrage cannot change a telegraphed speed');assert.deepEqual({x:a.chargeEnd.x,y:a.chargeEnd.y},end);
+ g.updateBoss(u,1.2);for(let i=0;i<40&&a.stage==='charge';i++)g.updateBoss(u,1/60);
+ assert.ok(Math.hypot(u.x-end.x,u.y-end.y)<.01,'actual endpoint matches warning at '+fixture.name);
+ assert.ok(g.positionFits(u.x,u.y));assert.ok(Math.abs((u.x-a.origin.x)*a.dy-(u.y-a.origin.y)*a.dx)<.001,'no sliding outside warning');
+}
+let heavy=bossFixture();heavy.pattern=1;g.updateBoss(heavy,1/60);g.spawnEnemy();Object.assign(g.enemies.at(-1),{x:heavy.x+5,y:heavy.y,entering:false,speed:0,cooldown:999});const warningOrigin={x:heavy.x,y:heavy.y};g.update(1/60);assert.deepEqual({x:heavy.x,y:heavy.y},warningOrigin,'crowd separation cannot displace a warning origin');
+heavy=bossFixture();const guardHp=heavy.hp;g.hurt(heavy,20,{team:'ally',x:450,y:400});assert.equal(heavy.hp,guardHp-11);heavy.bossAction={stage:'recovery',time:.95};g.hurt(heavy,20,{team:'ally',x:450,y:400});assert.equal(heavy.hp,guardHp-31);g.hurt(heavy,20,g.hero);assert.equal(heavy.hp,guardHp-57,'player receives the recovery window bonus');
+console.log('Persistent formation slots, vacancy reuse, clipped straight charges at buildings/trees/shore, locked rage speed, immovable warning origin and recovery damage: passed');
