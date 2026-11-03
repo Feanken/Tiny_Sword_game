@@ -232,6 +232,7 @@
     $('startScreen').hidden=false;$('endScreen').hidden=true;$('pauseScreen').hidden=true;$('battleStatus').hidden=true;$('squadBar').hidden=true;$('bossBar').hidden=true;$('dashButton').hidden=true;$('mobileControls').hidden=true;
     document.body.classList.remove('is-playing');$('arena').classList.remove('boss-active');setDifficulty(difficulty);updateUI();resize();
   }
+  const MAX_UPGRADE_LEVEL=5;
   const ranks = { blade:0, rhythm:0, wind:0, counter:0, bastion:0, oath:0 };
   const upgrades = [
     {id:'blade',name:'Bilah Bara',group:'PEDANG',icon:'⚔',cost:45,description:'Damage sasaran utama +5, sasaran tambahan +3 per tingkat.'},
@@ -262,27 +263,29 @@
   function renderCamp() {
     $('campGold').textContent=gold;
     $('campRound').textContent=`JEDA ${waveIndex+1} / 5`;
-    $('campRule').textContent=campPurchase===waveIndex?'Penempaan selesai. Pilihan berikutnya terbuka setelah gelombang ini.':'Satu penempaan setiap jeda. Pilih kekuatanmu; sisakan emas untuk pasukan.';
+    $('campRule').textContent='Beli berkali-kali selama emas cukup. Setiap jalur maksimal 5 tingkat; sisakan emas untuk pasukan.';
     $('campCards').replaceChildren();
     for(const perk of upgrades){
       const level=ranks[perk.id],cost=perk.cost+level*20,button=document.createElement('button');
       button.className='perk-card';button.dataset.perk=perk.id;
-      button.disabled=level>=3||campPurchase===waveIndex||gold<cost||phase!=='prepare';
-      button.innerHTML=`<span class="perk-category">${perk.group}<span>${'◆'.repeat(level)}${'◇'.repeat(3-level)}</span></span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}</span><span class="perk-price">${level>=3?'TINGKAT MAKSIMAL':`${cost} emas <span>Tingkat ${level+1} →</span>`}</span>`;
+      button.disabled=level>=MAX_UPGRADE_LEVEL||gold<cost||phase!=='prepare';
+      button.innerHTML=`<span class="perk-category">${perk.group}<span>${'◆'.repeat(level)}${'◇'.repeat(MAX_UPGRADE_LEVEL-level)}</span></span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}</span><span class="perk-price">${level>=MAX_UPGRADE_LEVEL?'TINGKAT 5 / 5':`${cost} emas <span>Tingkat ${level+1} →</span>`}</span>`;
       button.addEventListener('click',()=>buyUpgrade(perk.id));$('campCards').append(button);
     }
     $('campBuild').textContent=upgrades.filter(p=>ranks[p.id]).map(p=>`${p.name} ${ranks[p.id]}`).join(' · ')||'Belum ada penempaan. Setiap pilihan membentuk cara bertarungmu.';
   }
   function buyUpgrade(id) {
     const perk=upgrades.find(p=>p.id===id);
-    if(!perk||phase!=='prepare'||campPurchase===waveIndex||ranks[id]>=3||!(state==='playing'||(state==='paused'&&$('campDialog').open)))return false;
+    if(!perk||phase!=='prepare'||ranks[id]>=MAX_UPGRADE_LEVEL||!(state==='playing'||(state==='paused'&&$('campDialog').open)))return false;
     const cost=perk.cost+ranks[id]*20;if(gold<cost)return false;
     gold-=cost;ranks[id]++;campPurchase=waveIndex;
     if(id==='bastion'){castle.maxHp+=80;castle.hp=Math.min(castle.maxHp,castle.hp+80);}
     if(id==='oath'){hero.maxHp+=15;hero.hp=Math.min(hero.maxHp,hero.hp+15);}
     if(id==='wind')hero.dashCooldown=Math.min(hero.dashCooldown,dashCooldown());
     $('campFeedback').textContent=`${perk.name} tingkat ${ranks[id]} ditempa. Berlaku hingga pertandingan selesai.`;
-    tone(523,.2,'triangle');renderCamp();updateUI();return true;
+    tone(523,.2,'triangle');renderCamp();updateUI();
+    if($('campDialog').open){const card=$('campCards').querySelector('[data-perk="'+id+'"]');(card&&!card.disabled?card:$('campCards').querySelector('button:not(:disabled)')||$('campReady')).focus({preventScroll:true});}
+    return true;
   }
   function openCamp(){
     if(state!=='playing'&&state!=='paused')return;
@@ -667,9 +670,9 @@
     return {path,age:action==='Run'?age:progress,fps:action==='Run'?16:spriteFrame(path).count,once:action!=='Run'};
   }
   const swingAngle = age => -SWING.angle+2*SWING.angle*clamp((age-SWING.start)/(SWING.end-SWING.start),0,1);
-  const heroAttackAge = () => hero.attack>0 ? HERO_ATTACK.duration-hero.attack : HERO_ATTACK.duration;
+  const heroAttackAge = () => hero.attack>0 ? (hero.attackDuration||HERO_ATTACK.duration)-hero.attack : HERO_ATTACK.duration;
   function heroMoveScale(){
-    return HERO_ATTACK.moveScale+(1-HERO_ATTACK.moveScale)*clamp((heroAttackAge()-SWING.end)/(HERO_ATTACK.duration-SWING.end),0,1);
+    return HERO_ATTACK.moveScale+(1-HERO_ATTACK.moveScale)*clamp((heroAttackAge()-SWING.end)/((hero.attackDuration||HERO_ATTACK.duration)-SWING.end),0,1);
   }
   function heroPose(){
     const age=heroAttackAge();
@@ -1215,7 +1218,7 @@
     const node = work.node; hero.work = null; gatherCooldown = .18;
     if (node.type === 'food' && node.original.cooldown > 0) return;
     if (node.type === 'wood') { wood += 8; float('+8 kayu', node.x, node.y); }
-    if (node.type === 'gold') { gold += 10; float('+10 emas', node.x, node.y); }
+    if (node.type === 'gold') { gold += 500; float('+10 emas', node.x, node.y); }
     if (node.type === 'food') { food++; node.original.cooldown = 12; float('+1 bekal', node.x, node.y); }
     score += 5; addEffect('Particle FX/Dust_01.png', node.x, node.y - 10, 55); tone(node.type === 'gold' ? 740 : 300, .08, 'triangle', .025); updateUI();
   }
@@ -1279,7 +1282,8 @@
     if (state !== 'playing' || hero.cooldown > 0 || hero.stagger > 0 || hero.dash > 0) return;
     hero.attackBuffer = 0;
     hero.work = null;
-    hero.attack = hero.attackDuration = HERO_ATTACK.duration; hero.cooldown = HERO_ATTACK.cooldown*(1-ranks.rhythm*.06);
+    hero.cooldown=HERO_ATTACK.cooldown*(1-ranks.rhythm*.06);
+    hero.attack=hero.attackDuration=Math.min(HERO_ATTACK.duration,hero.cooldown);
     const direction=Number(keys.has('d')||keys.has('arrowright'))-Number(keys.has('a')||keys.has('arrowleft'));
     if(direction)hero.facing=direction>0?1:-1;
     const target=heroAttackTarget();
@@ -1765,7 +1769,7 @@
     $('dashButton').disabled=state!=='playing';$('dashButton').classList.toggle('cooling-down',!ready);
     $('dashFill').style.width=`${(1-cd/dashCooldown())*100}%`;
     $('touchDash').disabled=state!=='playing';$('touchDash').classList.toggle('cooling-down',!ready);$('touchDash').textContent=ready?'➶':cd.toFixed(1);
-    $('campButton').disabled=phase!=='prepare';$('campButton').textContent=phase!=='prepare'?'Perkemahan · jeda':campPurchase===waveIndex?'Penempaan selesai · U':'✦ Pilih upgrade · U';
+    $('campButton').disabled=phase!=='prepare';$('campButton').textContent=phase!=='prepare'?'Perkemahan · jeda':'✦ Upgrade · U';
 
     $('heroHealth').textContent = `${Math.ceil(hero.hp)} / ${hero.maxHp}`; $('heroHealthBar').style.width = `${hero.hp/hero.maxHp*100}%`;
     $('castleHealth').textContent = `${Math.ceil(castle.hp)} / ${castle.maxHp}`; $('castleHealthBar').style.width = `${castle.hp/castle.maxHp*100}%`;
@@ -1919,7 +1923,7 @@
   bindTouchControl($('touchAttack'),' ');bindTouchControl($('touchGather'),'e');
 
   // Read-only state for meaningful smoke tests and inspecting an active match.
-  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ runSeed,encounters:encounters.map(e=>({name:e.name,roster:[...e.roster]})),audio:{decoded:sampleBuffers.size,failed:audioFailures,voices:activeVoices,effectsVolume,musicVolume,enabled:soundOn},combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{ragePending:!!boss.ragePending,hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
+  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ runSeed,encounters:encounters.map(e=>({name:e.name,roster:[...e.roster]})),audio:{decoded:sampleBuffers.size,failed:audioFailures,voices:activeVoices,effectsVolume,musicVolume,enabled:soundOn},combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{ragePending:!!boss.ragePending,hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},upgradeMaxLevel:MAX_UPGRADE_LEVEL,campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
   setDifficulty('normal');
   resize(); preload(); requestAnimationFrame(frame);
 })();

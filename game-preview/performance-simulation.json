@@ -14,7 +14,7 @@
   ],
   "effects": 3,
   "impacts": 5,
-  "fields": 10,
+  "fields": 12,
   "approachTargets": 18,
   "combat": {
     "swings": 26,
@@ -49,8 +49,8 @@
     }
   },
   "steps": 900,
-  "meanMs": 0.44344444445023934,
-  "p95Ms": 0.8000000007450581,
-  "maxMs": 2.300000000745058,
+  "meanMs": 1.6142222222147717,
+  "p95Ms": 2.900000002235174,
+  "maxMs": 7.5,
   "effectCap": 80
 }

@@ -22,7 +22,7 @@ Lalu buka http://localhost:4173. Hentikan server dengan Ctrl+C. Untuk ponsel/tab
 | Spasi / tahan klik di arena | Serangan pedang ke depan, maksimal tiga sasaran |
 | Tahan E dekat sumber daya | Pohon: +8 kayu; tambang: +10 emas; domba: +1 bekal |
 | Shift | Dash; elak tepat waktu untuk bonus balasan |
-| U | Pilih satu upgrade saat jeda gelombang |
+| U | Beli upgrade berkali-kali saat jeda, maksimal 5 tingkat per jalur |
 | F / G | Sekutu mengikuti penjaga / menjaga kastel |
 | 1 | Rekrut sekutu: pemanah, penombak, biarawan, ksatria; 40 emas, biarawan 55 |
 | 2 | Perbaiki kastel +140 nyawa, biaya 30 kayu |
@@ -107,7 +107,7 @@ Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-on
 
 Selama 0,16 detik awal dash, pukulan yang masuk dielakkan. Menghindari pukulan saat tidak sedang kebal dari serangan sebelumnya memicu **Elak Sempurna**: selama dua detik, serangan berikutnya yang mengenai musuh mendapat +12 damage pada sasaran utama. Bonus habis setelah satu pukulan berhasil. Jejak bayangan dan bar cooldown membantu membaca posisi serta kesiapan dash.
 
-**U** atau tombol **Pilih upgrade** membuka Perkemahan saat persiapan awal dan setiap jeda. Waktu berhenti selama memilih. Maksimal satu pembelian per jeda, tiga tingkat untuk setiap upgrade, dan seluruh peningkatan direset saat memulai pertandingan baru. Harga naik 20 emas tiap tingkat. Emas tetap dibutuhkan untuk merekrut pasukan, sehingga pilihan penempaan memiliki biaya strategi.
+**U** atau tombol **Pilih upgrade** membuka Perkemahan saat persiapan awal dan setiap jeda. Waktu berhenti selama memilih. Tidak ada batas jumlah pembelian per jeda selama emas cukup; setiap jalur maksimal lima tingkat, dan seluruh peningkatan direset saat memulai pertandingan baru. Harga naik 20 emas tiap tingkat. Emas tetap dibutuhkan untuk merekrut pasukan, sehingga pilihan penempaan memiliki biaya strategi.
 
 | Upgrade | Harga tingkat pertama | Efek per tingkat |
 | --- | --- | --- |
@@ -236,7 +236,7 @@ Pada fase mengamuk, pemulihan berkurang 0,1 detik dengan batas bawah 0,85 detik.
 
 ## Pemolesan combat, indikator, dan ketahanan
 
-Aturan upgrade tetap satu pembelian per jeda dengan batas tiga tingkat. Rencana spesialisasi belum diterapkan; revisi ini berfokus pada sistem combat dan tampilan yang sudah ada.
+Pada revisi combat sebelumnya pembelian masih satu kali per jeda. Aturan terbaru membuka pembelian berulang selama emas cukup, dengan maksimal lima tingkat per jalur. Spesialisasi belum diterapkan.
 
 - Keyboard dan setiap pointer memiliki kepemilikan input sendiri. Melepas satu jari tidak membatalkan jari lain atau keyboard yang masih ditahan. Klik kanan tidak menyerang, kehilangan pointer capture melepas input terkait, dan pengulangan tombol dari sistem operasi tidak menghidupkan kembali serangan setelah jeda. Jeda, dialog, kehilangan fokus, akhir pertandingan, dan reset membersihkan antrean input.
 - Ketukan dash menjelang pulih disimpan maksimal 0,12 detik. Ketukan terlalu awal tidak berubah menjadi dash tertunda. Dash mendahului serangan jika kedua antrean siap bersamaan. Ketukan serang pada akhir dash dapat masuk ke buffer serangan 0,14 detik yang sudah ada. Tombol HUD, sentuh, dan Shift memakai permintaan dash yang sama.
@@ -282,3 +282,9 @@ Hasil audit terakhir dengan pengendali yang sama pada kedua versi:
 | Santai, 2 sekutu | 3/3 | 3/3 |
 
 Semua 56 kasus audit selesai sebagai menang atau kalah. Strategi menjaga kastel tetap punya risiko dan tidak disamakan dengan selalu mengejar musuh. Pada kebijakan kastel, total damage yang diredam Benteng meningkat dari 298 ke 422; bonus pemulihan Sumpah menyumbang sekitar 394,7 HP tambahan pada versi baru. Kenaikan manfaat perk tidak menjamin setiap kebijakan menang lebih sering: urutan/jalur gelombang juga berubah. Laporan menyimpan kekalahan dan waktu mulai tiap gelombang, jumlah sekutu/bekal, serta damage masuk agar hasilnya bisa diperiksa. Audit statis dan percobaan sortie yang belum menghindari panah disimpan terpisah; keduanya adalah keterbatasan pengendali uji, bukan uji manusia.
+
+## Pembelian bebas saat jeda, lima tingkat
+
+Setiap jeda kini boleh dipakai untuk membeli upgrade yang sama berulang kali atau beberapa jalur sekaligus, selama emas mencukupi. Keenam jalur memiliki batas lima tingkat. Harga tetap harga dasar +20 emas untuk setiap tingkat yang sudah dimiliki; pembelian level enam, dana tidak cukup, dan pembelian saat pertempuran ditolak tanpa mengurangi emas. UI menampilkan lima penanda tingkat, harga berikutnya, serta status 5/5. Fokus keyboard dipertahankan setelah transaksi. Menutup dan membuka perkemahan tidak menghapus racikan; pertandingan baru mengembalikannya ke nol. Spesialisasi level lima belum diaktifkan.
+
+Ritme Tempur tingkat lima memiliki cooldown nominal 0,406 detik. Durasi animasi dipendekkan menjadi nilai yang sama, dengan persiapan/kontak pedang tetap 0,16–0,28 detik, sehingga bonus kecepatan tidak memotong jendela hit atau menumpuk ayunan. Jejak Angin tingkat lima memiliki cooldown 1,15 detik. Uji `upgrade-five-test.cjs` memeriksa semua 30 transaksi dalam satu jeda, biaya persis, penolakan tingkat enam, efek statistik/combat, batas keadaan, dan reset. Browser `--stress --upgrade-only` memeriksa pembelian via klik/keyboard, batas level, saldo, waktu jeda, buka ulang, dan layout ponsel. Laporan keseimbangan lama adalah pembanding aturan sebelum revisi ini.
