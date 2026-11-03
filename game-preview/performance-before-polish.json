@@ -1,0 +1,122 @@
+{
+  "units": 29,
+  "difficulty": "hard",
+  "bossEnraged": true,
+  "bossPatterns": [
+    "charge",
+    "slam",
+    "volley"
+  ],
+  "bossResolved": [
+    "charge",
+    "slam",
+    "volley"
+  ],
+  "effects": 80,
+  "impacts": 60,
+  "fields": 11,
+  "approachTargets": 15,
+  "combat": {
+    "swings": 26,
+    "hits": 33,
+    "misses": 2,
+    "interruptions": 16,
+    "cancels": 0,
+    "bufferedInputs": 0,
+    "healingDone": 343,
+    "healingWasted": 9,
+    "stalls": 0,
+    "blockedSeconds": 0,
+    "mergedHits": 0,
+    "pressureDeferrals": 44,
+    "maxWindups": 4,
+    "damageTaken": 528,
+    "allyEvades": 13,
+    "allyHazardHits": 3,
+    "roleIntercepts": 55,
+    "repositions": 0,
+    "fortressSaved": 0,
+    "damageBySource": {
+      "Warrior": 69,
+      "Lancer": 130,
+      "Archer": 138,
+      "Pawn": 69,
+      "boss": 122,
+      "unknown": 0
+    }
+  },
+  "steps": 900,
+  "meanMs": 0.5389999999933772,
+  "p95Ms": 1.0999999977648258,
+  "maxMs": 4.799999997019768,
+  "effectCap": 80,
+  "render": {
+    "frames": 858,
+    "medianMs": 16.699999999999818,
+    "p95Ms": 16.80000000000109,
+    "maxMs": 50
+  },
+  "draw": {
+    "frames": 875,
+    "meanMs": 7.849942857090916,
+    "p95Ms": 13.800000000745058,
+    "maxMs": 33.70000000298023
+  },
+  "live": {
+    "units": 29,
+    "difficulty": "hard",
+    "bossEnraged": true,
+    "bossPatterns": [
+      "charge",
+      "slam",
+      "volley"
+    ],
+    "bossResolved": [
+      "charge",
+      "slam",
+      "volley"
+    ],
+    "effects": 1,
+    "impacts": 3,
+    "fields": 28,
+    "approachTargets": 20,
+    "combat": {
+      "swings": 0,
+      "hits": 0,
+      "misses": 0,
+      "interruptions": 0,
+      "cancels": 0,
+      "bufferedInputs": 0,
+      "healingDone": 327,
+      "healingWasted": 9,
+      "stalls": 0,
+      "blockedSeconds": 0,
+      "mergedHits": 0,
+      "pressureDeferrals": 14,
+      "maxWindups": 4,
+      "damageTaken": 523,
+      "allyEvades": 22,
+      "allyHazardHits": 4,
+      "roleIntercepts": 53,
+      "repositions": 0,
+      "fortressSaved": 0,
+      "damageBySource": {
+        "Warrior": 23,
+        "Lancer": 286,
+        "Archer": 69,
+        "Pawn": 23,
+        "boss": 122,
+        "unknown": 0
+      }
+    }
+  },
+  "audio": {
+    "decoded": 17,
+    "failed": 0,
+    "voices": 4,
+    "effectsVolume": 0.75,
+    "musicVolume": 0.25,
+    "enabled": true
+  },
+  "sourceSha256": "ae2f35fd4438dc3932ead2b83b880692f623446d61857514e3f4d8f2898d9603"
+}

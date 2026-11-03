@@ -280,4 +280,8 @@
 .audio-modal input[type="range"] { width:100%; accent-color:#e1c27e; cursor:pointer; }
 .audio-modal output { font-variant-numeric:tabular-nums; }
 .run-label { margin:4px 0; color:#51664c; font-size:11px; }
+.toast { left:auto;right:17px;bottom:17px;transform:none;max-width:min(340px,calc(100% - 230px));text-align:left; }
+@media(max-width:650px){
+ .toast { top:10px;right:10px;bottom:auto;max-width:calc(100% - 175px);padding:6px 8px;font-size:9px;line-height:1.4;max-height:42px;overflow:hidden; }
+}
 @media(max-width:600px) { .site-header nav { gap:2px; } .audio-modal { width:calc(100vw - 28px); } }

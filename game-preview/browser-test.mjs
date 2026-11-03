@@ -34,8 +34,32 @@ try {
   updateBoss=(u,dt)=>{const action=u.bossAction,stage=action?.stage;originalUpdateBoss(u,dt);if(u.bossAction?.stage==='warning')stressPatterns.add(u.bossAction.type);if(stage==='warning'&&action.stage!=='warning')stressResolved.add(action.type);};
   window.__stressState=()=>({units:enemies.length+allies.length,difficulty,bossEnraged:boss.enraged,bossPatterns:[...stressPatterns],bossResolved:[...stressResolved],effects:effects.length,impacts:impacts.length,fields:routeFields.size,approachTargets:approachSlots.size,combat:{...combatStats,damageBySource:{...combatStats.damageBySource}}});
   window.__combatTap=(reset=false)=>{if(reset){startGame();hero.cooldown=.1;}return {attack:hero.attack,queued:hero.attackBuffer};};
+  window.__combatReadability=(scene='crowd',age=.22)=>{
+    startGame(77);waveIndex=4;phase='battle';spawned=20;allies=[];enemies=[];gold=10000;hero.x=600;hero.y=410;
+    for(let i=0;i<8;i++){spawnEnemy();Object.assign(enemies.at(-1),{kind:i<6?'Warrior':'Archer',x:i<6?550+i%3*46:480+(i-6)*260,y:i<6?380+Math.floor(i/3)*68:410,entering:false,cooldown:999,speed:0,hp:200,maxHp:200});}
+    for(let i=0;i<6;i++){recruitUnit();Object.assign(allies.at(-1),{x:565+i%3*44,y:398+Math.floor(i/3)*48});}
+    for(const u of enemies)hurt(u,6,allies[0]);
+    enemies.forEach((u,i)=>{u.hitFlash=0;u.stagger=0;u.strike={target:hero,timer:i<6?.12:.2};u.attack=u.attackDuration=i<6?.4:.72;});
+    if(scene==='forest'){hero.x=200;hero.y=280;}
+    else if(scene==='edge'){hero.x=620;hero.y=104;}
+    else if(scene==='roof'){hero.x=845;hero.y=175;}
+    else if(scene==='counter'){startDash();hurt(hero,10,enemies[0]);hero.dash=0;}
+    heroAttack();hero.attack=HERO_ATTACK.duration-age;updateHeroSwing(age);
+    if(scene==='hurt')hurt(hero,12,enemies[0]);
+    announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();draw();
+    const pose=heroPose();return {poseFrame:spriteFrame(pose.path,pose.age,pose.fps,pose.once).x/192,threats:enemies.filter(playerThreat).length,floaters:floaters.length,riposte:hero.riposte,hp:hero.hp};
+  };
+  window.__renderAudit=()=>{
+    const events=[],originalDanger=drawBossDanger,originalUnit=drawUnit,originalMarker=drawHeroMarker;
+    drawBossDanger=(overlay=false)=>{events.push(overlay?'danger-outline':'danger-floor');originalDanger(overlay);};
+    drawUnit=(...args)=>{events.push('unit');originalUnit(...args);};drawHeroMarker=()=>{events.push('player-marker');originalMarker();};
+    try{draw();}finally{drawBossDanger=originalDanger;drawUnit=originalUnit;drawHeroMarker=originalMarker;}return events;
+  };
+  let renderSamples=null;const measuredDraw=draw;
+  draw=()=>{const start=renderSamples?performance.now():0;measuredDraw();if(renderSamples&&renderSamples.length<1100)renderSamples.push(performance.now()-start);};
+  window.__renderMeasure=(start=false)=>{if(start){renderSamples=[];return;}const samples=renderSamples.slice().sort((a,b)=>a-b);renderSamples=null;return {frames:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)};};
   window.__stress = (runSteps=900) => {
-    showTitle();setDifficulty('hard');startGame();phase='battle';gold=10000;
+    showTitle();setDifficulty('hard');startGame(77);phase='battle';gold=10000;
     for(let i=0;i<7;i++)recruitUnit();waveIndex=4;
     for(let i=0;i<20;i++)spawnEnemy();
     hero.hp=hero.maxHp=100000;castle.hp=100000;allies.forEach(u=>{u.hp=u.maxHp=100000;});
@@ -103,6 +127,22 @@ try {
     await page('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[touch]});await page('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(180);
     assert.ok((await evaluate('window.__combatTap()')).attack>0,'released touch tap is buffered');assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
     console.log('Real keyboard, mouse and touch quick taps during attack cooldown: passed');
+  } else if(process.argv.includes('--readability-only')) {
+    for(const [age,frame,name] of [[.1,1,'player-windup.png'],[.22,2,'player-contact.png'],[.34,3,'player-recovery.png']]){
+      const result=await evaluate('window.__combatReadability("crowd",'+age+')');assert.equal(result.poseFrame,frame);assert.ok(result.threats>0);await delay(60);await screenshot(name);
+    }
+    for(const scene of ['counter','hurt','forest','roof']){const result=await evaluate('window.__combatReadability("'+scene+'",.1)');assert.equal(result.hp,scene==='hurt'?88:100);await delay(60);await screenshot('player-'+scene+'.png');}
+    await evaluate('window.__bossPreview()');const layers=await evaluate('window.__renderAudit()');
+    assert.ok(layers.indexOf('danger-floor')<layers.indexOf('unit'));assert.ok(layers.lastIndexOf('unit')<layers.indexOf('danger-outline'));assert.ok(layers.indexOf('danger-outline')<layers.indexOf('player-marker'));
+    await screenshot('readability-boss-desktop.png');
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+    await page('Emulation.setTouchEmulationEnabled',{enabled:true});
+    await evaluate('window.__combatReadability("crowd",.22)');await delay(100);await screenshot('player-combat-mobile.png');
+    assert.equal(await evaluate('document.getElementById("mobileControls").hidden'),false);
+    assert.ok(await evaluate('(()=>{const toast=document.getElementById("toast").getBoundingClientRect(),arena=document.getElementById("arena").getBoundingClientRect(),dash=document.getElementById("dashButton").getBoundingClientRect();return toast.bottom<=arena.top+54&&toast.left>=dash.right&&toast.right<=arena.right})()'),'notification occupies the top corner beside dash, away from combat and touch controls');
+    assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));await evaluate('window.__bossPreview()');await screenshot('readability-boss-mobile.png');
+    await evaluate('window.__combatReadability("edge",.1)');await delay(60);await screenshot('player-edge-mobile.png');
+    assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log('Actual player animation frames, combat/cover/counter previews, foreground warning and player marker layers, mobile readability: passed');
   } else if(process.argv.includes('--preview-only')) {
     const chargeEnd=await evaluate('window.__chargePreview()');assert.equal(chargeEnd.distance,50);await delay(100);await screenshot('leader-charge-clipped.png');
     await evaluate('window.__bossPreview()');await delay(100);await screenshot('leader-final.png');
@@ -259,7 +299,7 @@ try {
     await evaluate('document.getElementById("soundButton").click()');const sound=await evaluate('window.__audioDetails()');assert.equal(sound.decoded,17);assert.equal(sound.failed,0);
     const stress=await evaluate('window.__stress()');
     assert.equal(stress.units,29);assert.ok(stress.meanMs<10&&stress.p95Ms<20);assert.ok(stress.approachTargets<=30);assert.ok(stress.combat.hits<=stress.combat.swings*3);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);
-    await evaluate('window.__stress(0)');
+    await evaluate('window.__stress(0);window.__renderMeasure(true)');
     stress.render=await evaluate(`new Promise(resolve=>{
       const samples=[];let start=performance.now(),last=start;
       function sample(now){if(now-start>250)samples.push(now-last);last=now;
@@ -267,10 +307,12 @@ try {
         else {samples.sort((a,b)=>a-b);resolve({frames:samples.length,medianMs:samples[Math.floor(samples.length*.5)],p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)});}
       }requestAnimationFrame(sample);
     })`);
+    stress.draw=await evaluate('window.__renderMeasure()');
     stress.live=await evaluate('window.__stressState()');
     stress.audio=(await snapshot()).audio;assert.equal(stress.audio.enabled,true);assert.equal(stress.audio.decoded,17);assert.ok(stress.audio.voices<=12);
     assert.equal(stress.live.units,29);assert.equal(stress.live.bossEnraged,true);assert.deepEqual([...stress.live.bossResolved].sort(),['charge','slam','volley']);assert.ok(stress.live.effects<=80&&stress.live.impacts<=60&&stress.live.fields<=32&&stress.live.approachTargets<=30);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
-    fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
+    stress.sourceSha256=(await import('node:crypto')).createHash('sha256').update(fs.readFileSync('game.js')).digest('hex');
+    fs.writeFileSync(path.join(root,'game-preview',process.argv.includes('--baseline')?'performance-before-polish.json':'performance.json'),JSON.stringify(stress,null,2));
     console.log('CPU + rendered-frame benchmark:',JSON.stringify(stress));
   }
   await call('Browser.close');
