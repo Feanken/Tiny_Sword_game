@@ -31,7 +31,16 @@
   let gold = 80, wood = 40, food = 3, score = 0, kills = 0, recruitIndex = 0;
   let elapsed = 0, animTime = 0, gatherCooldown = 0, passiveTimer = 0, uiTimer = 0, announcementTimer = 0, toastTimer = 0, shake = 0;
   let enemies = [], allies = [], effects = [], floaters = [], drops = [], projectiles = [], impacts = [];
-  let hitStop = 0;
+  const SWING = Object.freeze({ start:.16, end:.28, angle:1.3, reach:76, radius:18, cap:3 });
+  const approachOffsets = Array.from({length:8},(_,i)=>({x:Math.cos(i*Math.PI/4),y:Math.sin(i*Math.PI/4)}));
+  const approachSlots = new Map(), combatUnits = [];
+  let combatId=0, pressureActive=0, pressureGap=0, collectingHeroDamage=false, pendingHeroDamage=null;
+  const combatStats={};
+  function resetCombatStats(){
+    Object.assign(combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0});
+    combatStats.damageBySource={Warrior:0,Lancer:0,Archer:0,Pawn:0,boss:0,unknown:0};
+  }
+  resetCombatStats();
   const FIXED_STEP = 1 / 60;
   let simulationAccumulator = 0;
   let damageDealt = 0, damageTaken = 0;
@@ -54,7 +63,7 @@
   function setSquadOrder(order){
     if(state!=='playing'||!['follow','guard'].includes(order))return false;
     squadOrder=order;orderPulse=1.2;
-    for(const u of allies){u.strike=null;u.attack=0;u.route=[];u.routeTimer=0;u.stallSeconds=0;u.blockedSeconds=0;}
+    for(const u of allies){releaseApproach(u);u.combatTarget=null;u.healTarget=null;u.healThink=0;u.strike=null;u.attack=0;u.route=[];u.routeTimer=0;u.stallSeconds=0;u.blockedSeconds=0;}
     notify(order==='follow'?'Sekutu mengikuti penjaga dan melindungi sekitarmu.':'Sekutu kembali menjaga halaman kastel.');updateUI();return true;
   }
   function squadAnchor(){return squadOrder==='guard'?{x:845,y:355}:hero;}
@@ -71,7 +80,7 @@
   function spawnBoss(){
     if(waveIndex!==4||bossSpawned)return false;
     bossSpawned=true;const hp=settings().bossHp;
-    boss={x:roadEntry.x,y:405,kind:'Warrior',color:'Black',hp,maxHp:hp,facing:1,moving:false,attack:0,cooldown:1,seed:0,speed:62*settings().speed,team:'enemy',entering:true,lane:0,flankSign:1,isBoss:true,hitFlash:0,stagger:0,knockX:0,knockY:0,bossAction:null,abilityCooldown:.5,pattern:0,enraged:false};
+    boss={combatId:++combatId,x:roadEntry.x,y:405,kind:'Warrior',color:'Black',hp,maxHp:hp,facing:1,moving:false,attack:0,cooldown:1,seed:0,speed:62*settings().speed,team:'enemy',entering:true,lane:0,flankSign:1,isBoss:true,hitFlash:0,stagger:0,knockX:0,knockY:0,bossAction:null,abilityCooldown:.5,pattern:0,enraged:false};
     enemies.push(boss);announce('Panglima Kelam','BACA TANDANYA · HINDARI · BALAS');return true;
   }
   function updateBoss(u,dt){
@@ -84,11 +93,11 @@
         if(action.type==='slam'){
           for(const target of [hero,...allies,castle])if(target.hp>0&&dist(target,action.target)<105)hurt(target,Math.round(24*settings().damage),u);
           addEffect('Particle FX/Explosion_02.png',action.target.x,action.target.y,160,.5,20);shake=3;
-          action.stage='recovery';action.time=.95;
+          action.stage='recovery';action.time=action.recoveryDuration=.95;
         }else if(action.type==='volley'){
           const angle=Math.atan2(action.target.y-u.y,action.target.x-u.x);
           for(const offset of [-.22,0,.22]){fireArrow(u,{x:u.x+Math.cos(angle+offset)*300,y:u.y+Math.sin(angle+offset)*300});projectiles[projectiles.length-1].damage=Math.round(22*settings().damage);}
-          action.stage='recovery';action.time=.85;
+          action.stage='recovery';action.time=action.recoveryDuration=.85;
         }else {action.stage='charge';action.time=.45;}
       }else if(action.stage==='charge'){
         const previous={x:u.x,y:u.y},remaining=action.chargeEnd.distance-action.traveled;
@@ -98,7 +107,7 @@
           if(positionFits(x,y)){u.x=x;u.y=y;action.traveled=next;u.moving=true;}else action.time=0;
         }
         if(dist(previous,u)>.001)for(const target of [hero,...allies,castle])if(target.hp>0&&!action.hit.has(target)&&Number.isFinite(segmentHit(previous,u,target,target===castle?62:36))&&(target===castle||clearPath(u,target))){hurt(target,Math.round(27*settings().damage),u);action.hit.add(target);}
-        if(action.time<=0||action.traveled>=action.chargeEnd.distance-.001){action.stage='recovery';action.time=.95;}
+        if(action.time<=0||action.traveled>=action.chargeEnd.distance-.001){action.stage='recovery';action.time=action.recoveryDuration=.95;}
       }else if(action.stage==='recovery'&&action.time<=0){u.bossAction=null;u.abilityCooldown=u.enraged?.4:.65;}
       return;
     }
@@ -108,9 +117,11 @@
     const type=['slam','charge','volley'][u.pattern++%3],length=Math.max(1,dist(u,target));
     u.facing=target.x<u.x?-1:1;u.moving=false;
     u.bossAction={type,stage:'warning',time:settings().warning,duration:settings().warning,target:{x:target.x,y:target.y},origin:{x:u.x,y:u.y},dx:(target.x-u.x)/length,dy:(target.y-u.y)/length,hit:new Set()};
+    combatCue(type);
     if(type==='charge'){const a=u.bossAction;a.chargeSpeed=u.enraged?650:560;a.chargeEnd=traceCharge(a.origin,a.dx,a.dy,a.chargeSpeed*.45);a.traveled=0;}
   }
   function showTitle(){
+    collectingHeroDamage=false;pendingHeroDamage=null;approachSlots.clear();combatUnits.length=0;
     state='ready';keys.clear();pointerAttack=false;hero.attackBuffer=0;simulationAccumulator=0;
     enemies=[];allies=[];effects=[];impacts=[];projectiles=[];dashTrail=[];boss=null;bossSpawned=false;
     Object.assign(hero,{x:788,y:370,hp:100,maxHp:100,attack:0,dash:0,dashCooldown:0,riposte:0,work:null,facing:1,invuln:0,hitFlash:0,stagger:0,cooldown:0,moving:false,knockX:0,knockY:0});castle.hp=castle.maxHp=500;castle.hitFlash=0;orderPulse=0;gold=80;wood=40;food=3;score=0;waveIndex=0;phase='prepare';waveTimer=22;for(const id in ranks)ranks[id]=0;
@@ -135,7 +146,7 @@
     if(!dx&&!dy){dx=hero.lastMoveX??hero.facing;dy=hero.lastMoveY??0;}
     const length=Math.hypot(dx,dy);hero.dashX=dx/length;hero.dashY=dy/length;
     hero.dash=.2;hero.dashCooldown=dashCooldown();hero.dashElapsed=0;hero.dashPerfect=false;
-    hero.attackBuffer=0;hero.work=null;hero.strike=null;hero.attack=0;hero.stagger=0;hero.knockX=0;hero.knockY=0;
+    cancelHeroSwing(false);hero.impactHold=0;hero.attackBuffer=0;hero.work=null;hero.attack=0;hero.stagger=0;hero.knockX=0;hero.knockY=0;
     if(Math.abs(dx)>.1)hero.facing=dx>0?1:-1;
     addEffect('Particle FX/Dust_01.png',hero.x,hero.y,55);tone(360,.14,'triangle',.025,720);return true;
   }
@@ -306,7 +317,7 @@
       }
     }
     for (const tool of ['Axe', 'Pickaxe']) paths.add(blue('Pawn', `Interact ${tool}`));
-    paths.add(blue('Pawn', 'Idle Meat'));paths.add(unitPath('Black','Warrior','Attack2'));
+    paths.add(blue('Pawn', 'Idle Meat'));paths.add(unitPath('Black','Warrior','Attack2'));paths.add(unitPath('Black','Warrior','Guard'));
     paths.add(blue('Monk', 'Heal_Effect'));
     for (const b of buildings) paths.add(`Buildings/${b.color} Buildings/${b.name}.png`);
     for (let i = 1; i <= 4; i++) {
@@ -441,7 +452,21 @@
     ctx.fillStyle = '#173327cc'; ctx.fillRect(x - width / 2 - 1, y - 1, width + 2, 5);
     ctx.fillStyle = color; ctx.fillRect(x - width / 2, y, width * clamp(hp / max, 0, 1), 3);
   }
+  function bossPose(u){
+    const a=u.bossAction;
+    if(!a)return {path:unitPath('Black','Warrior',u.moving?'Run':'Idle'),age:u.animTime||0,fps:9,once:false};
+    const warning=a.stage==='warning',recover=a.stage==='recovery',age=warning?a.duration-a.time:recover?(a.recoveryDuration||.95)-a.time:.45-a.time;
+    const action=a.type==='volley'?'Shoot':a.type==='charge'?(a.stage==='charge'?'Run':'Guard'):'Attack2';
+    const path=unitPath('Black',a.type==='volley'?'Archer':'Warrior',action);
+    if(recover&&age>.2)return {path:unitPath('Black','Warrior','Idle'),age,fps:5,once:false};
+    const duration=warning?a.duration:.3,progress=warning?age/duration*.6:.6+Math.min(1,age/.2)*.4;
+    return {path,age:action==='Run'?age:progress,fps:action==='Run'?16:spriteFrame(path).count,once:action!=='Run'};
+  }
   function drawUnit(u, isHero = false) {
+    if(!isHero){
+      ctx.save();ctx.translate(u.x,u.y-3);ctx.strokeStyle=u.team==='enemy'?'#ffc49b':'#b8e5df';ctx.lineWidth=1.5;
+      ctx.beginPath();if(u.team==='enemy'){ctx.moveTo(-6,0);ctx.lineTo(0,6);ctx.lineTo(6,0);}else ctx.ellipse(0,0,7,3,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+    }
     if(isHero&&hero.dash>0){drawSprite(blue('Warrior','Run'),u.x,u.y,136,hero.dashElapsed,14,u.facing,1);ctx.strokeStyle='#b9f4df';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(u.x,u.y-4,23,10,0,0,Math.PI*2);ctx.stroke();return;}
     if (isHero && hero.work) {
       const work = hero.work, progress = clamp(work.elapsed / work.duration, 0, 1);
@@ -461,20 +486,29 @@
       ctx.strokeStyle = '#f5df9a99'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(u.x, u.y - 4, 21, 9, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    const bossWarning=u.isBoss&&u.bossAction?.stage==='warning';
-    const path = unitPath(color, kind, action), age = bossWarning?u.bossAction.duration-u.bossAction.time:u.attack > 0 ? (u.attackDuration || .4) - u.attack : (u.animTime || 0);
-    const fps = bossWarning?spriteFrame(path).count/u.bossAction.duration:u.attack > 0 ? spriteFrame(path).count / (u.attackDuration || .4) : 9;
-    drawSprite(path, u.x, u.y, size, age, fps, u.facing, alpha, u.attack > 0||bossWarning);
-    if (u.hitFlash > 0) drawSprite(path, u.x, u.y, size, age, fps, u.facing, Math.min(.92, u.hitFlash / .15), u.attack > 0||bossWarning, true);
-    if (u.attack > 0 && age > .07 && age < .29 && !['Archer', 'Monk'].includes(kind)) {
+    const pose=u.isBoss?bossPose(u):null;
+    const path=pose?.path||unitPath(color,kind,action),age=pose?pose.age:u.impactHold>0?u.impactAge:u.attack>0?(u.attackDuration||.4)-u.attack:(u.animTime||0);
+    const fps=pose?pose.fps:u.attack>0?spriteFrame(path).count/(u.attackDuration||.4):9,once=pose?pose.once:u.attack>0;
+    drawSprite(path,u.x,u.y,size,age,fps,u.facing,alpha,once);
+    if (u.hitFlash > 0) drawSprite(path,u.x,u.y,size,age,fps,u.facing,Math.min(.92,u.hitFlash/.15),once,true);
+    if (u.attack > 0 && age > (isHero?SWING.start:.07) && age < (isHero?SWING.end:.29) && !['Archer', 'Monk'].includes(kind)) {
       ctx.save(); ctx.translate(u.x, u.y - 23); ctx.scale(u.facing, 1);
       ctx.strokeStyle = isHero ? '#fff1c7cc' : u.team === 'enemy' ? '#ffc49ba8' : '#d4f5ddb0';
       ctx.lineWidth = isHero ? 4 : 3; ctx.lineCap = 'round';
-      const progress = (age - .07) / .22;
-      ctx.beginPath(); ctx.arc(0, 0, isHero ? 76 : kind === 'Lancer' ? 77 : 43, -1.45, 1.45 * progress); ctx.stroke(); ctx.restore();
+      const progress=isHero?clamp((age-SWING.start)/(SWING.end-SWING.start),0,1):(age-.07)/.22;
+      ctx.beginPath();ctx.arc(0,0,isHero?SWING.reach:kind==='Lancer'?77:43,isHero?-SWING.angle:-1.45,isHero?-SWING.angle+2*SWING.angle*progress:1.45*progress);ctx.stroke();ctx.restore();
     }
     if (!u.isBoss && ((!isHero && u.hp < u.maxHp) || (isHero && u.hitFlash > 0))) healthBar(u.x, u.y - 55, u.hp, u.maxHp, u.team === 'enemy' ? '#ef9a7a' : '#a9dda9', isHero ? 43 : 35);
-    if(u.isBoss){ctx.fillStyle='#f4cc92';ctx.font='bold 10px Segoe UI';ctx.textAlign='center';ctx.fillText('♛ PANGLIMA KELAM',u.x,u.y-95);}
+    if(u.isBoss){
+      const a=u.bossAction,open=a?.stage==='recovery';ctx.fillStyle=open?'#cbffce':'#f4cc92';ctx.font='bold 11px Segoe UI';ctx.textAlign='center';
+      ctx.fillText(open?'TERBUKA':a?.stage==='warning'?({slam:'! HANTAM',charge:'>> TERJANG',volley:'||| PANAH'}[a.type]):'PANGLIMA KELAM',u.x,u.y-95);
+      if(open){ctx.strokeStyle='#cbffce';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(u.x,u.y,35,12,0,0,Math.PI*2);ctx.stroke();}
+    }
+    if(isHero){
+      if(hero.damageCue>0){const a=hero.damageDirection+Math.PI;ctx.save();ctx.translate(u.x,u.y-24);ctx.rotate(a);ctx.fillStyle='#ffbaa1';ctx.beginPath();ctx.moveTo(43,0);ctx.lineTo(32,-7);ctx.lineTo(32,7);ctx.closePath();ctx.fill();ctx.restore();}
+      if(hero.dodgeCue>0){ctx.strokeStyle='#b5f5e4';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(u.x,u.y-75);ctx.lineTo(u.x+10,u.y-65);ctx.lineTo(u.x,u.y-55);ctx.lineTo(u.x-10,u.y-65);ctx.closePath();ctx.stroke();}
+      if(hero.missCue>0){ctx.save();ctx.translate(u.x,u.y-23);ctx.scale(u.facing,1);ctx.strokeStyle='#e8e8d566';ctx.setLineDash([3,5]);ctx.beginPath();ctx.arc(0,0,SWING.reach,-SWING.angle,SWING.angle);ctx.stroke();ctx.restore();}
+    }
     if (isHero) { ctx.fillStyle = '#e9dda7'; ctx.font = 'bold 9px Segoe UI'; ctx.textAlign = 'center'; ctx.fillText('KAMU', u.x, u.y - 70); }
   }
 
@@ -588,11 +622,17 @@
     $('announcement').classList.add('show'); announcementTimer = 2.5;
   }
   function initAudio() { if (!audio) { const A = window.AudioContext || window.webkitAudioContext; if (A) audio = new A(); } if (audio?.state === 'suspended') audio.resume().catch(() => {}); }
+  const lastCombatCue=new Map();let activeVoices=0;
+  const combatSounds={hit:[280,90,'square',.08],miss:[190,100,'triangle',.08],hurt:[150,75,'triangle',.12],dodge:[880,1320,'sine',.18],slam:[150,65,'sawtooth',.22],charge:[240,480,'triangle',.18],volley:[720,540,'sine',.18]};
+  function combatCue(type){
+    if(elapsed-(lastCombatCue.get(type)??-99)<.06)return;
+    lastCombatCue.set(type,elapsed);const s=combatSounds[type];if(s)tone(s[0],s[3],s[2],.025,s[1]);
+  }
   function tone(freq, duration = .1, type = 'sine', volume = .035, endFreq = freq) {
-    if (!soundOn || !audio) return;
+    if (!soundOn || !audio || activeVoices>=12) return;
     const o = audio.createOscillator(), g = audio.createGain(); o.type = type; o.frequency.setValueAtTime(freq, audio.currentTime); o.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), audio.currentTime + duration);
     g.gain.setValueAtTime(volume, audio.currentTime); g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + duration);
-    o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + duration);
+    o.connect(g); g.connect(audio.destination);activeVoices++;o.onended=()=>{activeVoices--;o.disconnect();g.disconnect();};o.start(); o.stop(audio.currentTime + duration);
   }
   function move(entity, dx, dy, dt, speed) {
     const len = Math.hypot(dx, dy); entity.moving = len > .05;
@@ -610,7 +650,9 @@
   function steerMove(entity, target, dt, speed = entity.speed) {
     entity.progressTimer = (entity.progressTimer || 0) - dt;
     if(entity.progressTimer<=0){
-      entity.stallSeconds = entity.progressPosition && dist(entity,entity.progressPosition)<6 && dist(entity,target)>40 ? (entity.stallSeconds||0)+1 : 0;
+      const previousStall=entity.stallSeconds||0;
+      entity.stallSeconds = entity.progressPosition && dist(entity,entity.progressPosition)<6 && dist(entity,target)>40 ? previousStall+1 : 0;
+      if(entity.stallSeconds>0&&!previousStall)combatStats.stalls++;
       entity.progressPosition = {x:entity.x,y:entity.y};entity.progressTimer=1;
       if(entity.stallSeconds>0)entity.routeTimer=0;
     }
@@ -623,7 +665,7 @@
       while (path.length && dist(entity, path[0]) < 12) path.shift();
       while (path.length > 1 && clearPath(entity, path[1])) path.shift();
       if (path.length) { move(entity, path[0].x - entity.x, path[0].y - entity.y, dt, speed); entity.blockedSeconds = 0; return; }
-      entity.blockedSeconds = (entity.blockedSeconds || 0) + dt; entity.moving = false; return;
+      entity.blockedSeconds = (entity.blockedSeconds || 0) + dt;if(entity.blockedSeconds>1)combatStats.blockedSeconds+=dt; entity.moving = false; return;
     } else { entity.route = []; entity.blockedSeconds = 0; }
     let dx = target.x - entity.x, dy = target.y - entity.y;
     const distance = Math.hypot(dx, dy); if (distance < 3) { entity.moving = false; return; }
@@ -639,6 +681,8 @@
     move(entity, dx, dy, dt, speed);
   }
   function updateReaction(entity, dt) {
+    entity.impactHold=Math.max(0,(entity.impactHold||0)-dt);
+    entity.damageCue=Math.max(0,(entity.damageCue||0)-dt);entity.dodgeCue=Math.max(0,(entity.dodgeCue||0)-dt);entity.missCue=Math.max(0,(entity.missCue||0)-dt);
     entity.hitFlash = Math.max(0, (entity.hitFlash || 0) - dt);
     entity.stagger = Math.max(0, (entity.stagger || 0) - dt);
     if (Math.hypot(entity.knockX || 0, entity.knockY || 0) > 5) {
@@ -652,6 +696,8 @@
 
   function startGame() {
     if (!initialized) return;
+    resetCombatStats();combatId=0;pressureActive=0;pressureGap=0;approachSlots.clear();combatUnits.length=0;collectingHeroDamage=false;pendingHeroDamage=null;lastCombatCue.clear();
+    Object.assign(hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99});
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     simulationAccumulator = 0; pausedForDialog = false;toastTimer=0;$('toast').classList.remove('show');
     squadOrder='follow';boss=null;bossSpawned=false;orderPulse=0;$('squadBar').hidden=false;
@@ -659,7 +705,7 @@
     Object.assign(hero,{dash:0,dashCooldown:0,dashElapsed:0,riposte:0,dashPerfect:false,lastMoveX:1,lastMoveY:0});
     hero.work = null; hero.healCooldown = 0; hero.animTime = 0; hero.animState = 'Idle';
     castle.hp = 500; castle.hitFlash = 0; gold = 80; wood = 40; food = 3; score = 0; kills = 0; recruitIndex = 0;
-    enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; hitStop = 0; damageDealt = 0; damageTaken = 0;
+    enemies = []; allies = []; effects = []; floaters = []; drops = []; projectiles = []; impacts = []; damageDealt = 0; damageTaken = 0;
     for (const s of sheep) s.cooldown = 0;
     phase = 'prepare'; waveIndex = 0; waveTimer = 22; spawned = 0; spawnTimer = 0; elapsed = 0; passiveTimer = 0; gatherCooldown = 0; shake = 0;
     keys.clear(); pointerAttack = false; hero.attackBuffer=0; state = 'playing';
@@ -708,7 +754,7 @@
     const entry = { x: roadEntry.x + rand(-3, 3), y: roadEntry.y + lane * 7 };
     const baseHp = ({ Warrior: 62, Archer: 43, Lancer: 82, Monk: 48, Pawn: 38 }[kind]) + waveIndex * 9;
     const hp=Math.round(baseHp*settings().hp);
-    enemies.push({ x: entry.x, y: entry.y, kind, color: waveIndex === 4 ? ['Red', 'Purple', 'Yellow', 'Black'][spawned % 4] : w.color, hp, maxHp: hp, facing: 1, moving: false, attack: 0, cooldown: rand(.1, .6), seed: rand(0, 10), speed: kind === 'Lancer' ? 59 : kind === 'Pawn' ? 75 : 66, team: 'enemy', entering: true, lane, flankAngle: spawned * 2.399963 + waveIndex * .8, flankSign: spawned % 2 ? -1 : 1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
+    enemies.push({ combatId:++combatId, x: entry.x, y: entry.y, kind, color: waveIndex === 4 ? ['Red', 'Purple', 'Yellow', 'Black'][spawned % 4] : w.color, hp, maxHp: hp, facing: 1, moving: false, attack: 0, cooldown: rand(.1, .6), seed: rand(0, 10), speed: kind === 'Lancer' ? 59 : kind === 'Pawn' ? 75 : 66, team: 'enemy', entering: true, lane, flankAngle: spawned * 2.399963 + waveIndex * .8, flankSign: spawned % 2 ? -1 : 1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     addEffect('Particle FX/Dust_02.png', entry.x, entry.y, 48); spawned++;
     const enemy = enemies[enemies.length - 1]; enemy.speed = (enemy.speed+waveIndex*5)*settings().speed; enemy.chargeCooldown = 2; enemy.charge = 0;
   }
@@ -721,7 +767,7 @@
     if (!free) gold -= cost;
     const hp = kind === 'Lancer' ? 130 : kind === 'Monk' ? 90 : 100;
     const occupied=new Set(allies.filter(u=>u.hp>0).map(u=>u.formationSlot));let formationSlot=0;while(occupied.has(formationSlot))formationSlot++;
-    allies.push({ formationSlot, x: 885 + rand(-15, 15), y: 355 + rand(-10, 10), homeX: 720 + rand(0, 120), homeY: 325 + rand(0, 100), kind, color: 'Blue', hp, maxHp: hp, facing: -1, moving: false, attack: 0, cooldown: .2, seed: rand(0, 10), speed: 88, team: 'ally', flankSign: recruitIndex % 2 ? 1 : -1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
+    allies.push({ combatId:++combatId, formationSlot, x: 885 + rand(-15, 15), y: 355 + rand(-10, 10), homeX: 720 + rand(0, 120), homeY: 325 + rand(0, 100), kind, color: 'Blue', hp, maxHp: hp, facing: -1, moving: false, attack: 0, cooldown: .2, seed: rand(0, 10), speed: 88, team: 'ally', flankSign: recruitIndex % 2 ? 1 : -1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     recruitIndex++; if (!free) { notify(`${{ Archer: 'Pemanah', Lancer: 'Penombak', Monk: 'Biarawan', Warrior: 'Ksatria' }[kind]} bergabung! (${allies.length}/8 sekutu)`); tone(440, .15, 'triangle'); }
     addEffect('Particle FX/Dust_01.png', 885, 355, 65); updateUI();
   }
@@ -776,10 +822,15 @@
 
   function hurt(target, amount, source) {
     if(target===hero&&hero.dash>0&&hero.dashElapsed<=.16){
-      if(!hero.dashPerfect&&hero.invuln<=0){hero.dashPerfect=true;hero.riposte=2+ranks.counter*.5;float('ELAK SEMPURNA',hero.x,hero.y-30,'#b5f5e4',true);tone(880,.18);}
+      if(!hero.dashPerfect&&hero.invuln<=0){hero.dashPerfect=true;hero.riposte=2+ranks.counter*.5;hero.dodgeCue=.35;float('ELAK SEMPURNA',hero.x,hero.y-30,'#b5f5e4',true);combatCue('dodge');}
       return;
     }
     if (target.hp <= 0 || (target === hero && hero.invuln > 0)) return;
+    if(target===hero&&collectingHeroDamage){
+      if(pendingHeroDamage)combatStats.mergedHits++;
+      if(!pendingHeroDamage||amount>pendingHeroDamage.amount||amount===pendingHeroDamage.amount&&damagePriority(source)<damagePriority(pendingHeroDamage.source))pendingHeroDamage={amount,source};
+      return;
+    }
     if(target.isBoss){
       const open=target.bossAction?.stage==='recovery';
       if(source?.team==='ally')amount=Math.max(1,Math.round(amount*(open?1:.55)));
@@ -788,18 +839,25 @@
     const appliedDamage = Math.min(target.hp, amount);
     if (source === hero && target.team === 'enemy') damageDealt += appliedDamage;
     if (target === hero) damageTaken += appliedDamage;
+    if(target===hero){
+      combatStats.damageTaken+=appliedDamage;
+      const key=source?.isBoss?'boss':source?.kind||'unknown';
+      combatStats.damageBySource[key]=(combatStats.damageBySource[key]||0)+appliedDamage;
+    }
     target.hp -= amount;
+    target.lastDamageTime=elapsed;
     target.hitFlash = .18;
     const angle = source ? Math.atan2(target.y - source.y, target.x - source.x) : rand(0, Math.PI * 2);
     if(impacts.length>=60)impacts.shift();
     impacts.push({ x: target.x, y: target.y - (target === castle ? 40 : 27), angle, color: target === hero || target.team === 'ally' ? '#ff977d' : '#ffdb86', life: .3, duration: .3 });
     float(`−${Math.ceil(appliedDamage)}`, target.x, target.y - (target === castle ? 45 : 10), target === hero ? '#ffbaa1' : '#fff1c5', true);
     if (target === hero) {
-      hero.invuln = .45; shake = Math.max(shake, 3); $('gameShell').classList.add('player-hit'); tone(150, .12, 'triangle', .035, 75);
+      hero.invuln = .45;hero.damageDirection=angle;hero.damageCue=.35; shake = Math.max(shake, 3); $('gameShell').classList.add('player-hit');combatCue('hurt');
     } else if (target === castle) { shake = Math.max(shake, 2); addEffect('Particle FX/Explosion_02.png', castle.x + rand(-45, 45), castle.y - 20, 65, .35, 24); }
-    else if (source === hero) { hitStop = .035; shake = Math.max(shake, 1.5); tone(280, .08, 'square', .017, 90); }
+    else if (source === hero) { shake = Math.max(shake, 1.5);holdImpactPose(hero);if(!hero.strike||hero.strike.hits.size===1)combatCue('hit'); }
+    if(target!==castle&&!target.isBoss)holdImpactPose(target);
     if (target !== castle && !target.isBoss) {
-      if (target === hero) {hero.work = null;hero.attackBuffer=0;}
+      if (target === hero) {cancelHeroSwing(true);hero.work = null;hero.attackBuffer=0;}
       const force = target.kind === 'Lancer' ? 140 : target === hero ? 195 : 255;
       target.knockX = Math.cos(angle) * force; target.knockY = Math.sin(angle) * force;
       target.stagger = target === hero ? .09 : .12;
@@ -807,11 +865,12 @@
       target.attack = 0;
     }
     if (target.hp <= 0 && target.team === 'enemy' && !target.dead) {
+      releaseApproach(target);approachSlots.delete(target);
       target.dead = true; kills++; score += target.isBoss?500:25 + waveIndex * 5; gold += target.isBoss?50:6;
       addEffect('Particle FX/Explosion_01.png', target.x, target.y - 9, 75);
       drops.push({ x: target.x, y: target.y, type: Math.random() > .7 ? 'wood' : 'gold', life: 18, value: 5 });
       tone(320, .075, 'triangle', .02, 540);
-    } else if (target.hp <= 0 && target.team === 'ally' && !target.dead) { target.dead = true; addEffect('Particle FX/Dust_02.png', target.x, target.y, 70); }
+    } else if (target.hp <= 0 && target.team === 'ally' && !target.dead) { releaseApproach(target);approachSlots.delete(target);target.dead = true; addEffect('Particle FX/Dust_02.png', target.x, target.y, 70); }
     target.hp = Math.max(0, target.hp);
   }
   function heroAttack() {
@@ -821,8 +880,50 @@
     hero.attack = hero.attackDuration = .42; hero.cooldown = .58*(1-ranks.rhythm*.06);
     const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && clearPath(hero,e)).sort((a, b) => dist(hero, a) - dist(hero, b));
     if (targets.length) hero.facing = targets[0].x < hero.x ? -1 : 1;
-    hero.strike = { timer: .21 };
+    hero.strike = { elapsed:0, facing:hero.facing, target:targets[0]||null, hits:new Set() };
+    combatStats.swings++;
     tone(380, .1, 'triangle', .018, 110);
+  }
+  function cancelHeroSwing(interrupted){
+    if(hero.strike){combatStats[interrupted?'interruptions':'cancels']++;hero.strike=null;}
+  }
+  function holdImpactPose(u){
+    u.impactAge=u.attack>0?(u.attackDuration||.4)-u.attack:(u.animTime||0);u.impactHold=.035;
+  }
+  function damagePriority(source){return (source?.isBoss?-100000:0)+(source?.combatId||0);}
+  function beginDamageStep(){collectingHeroDamage=true;pendingHeroDamage=null;}
+  function resolveHeroDamage(){
+    collectingHeroDamage=false;
+    const hit=pendingHeroDamage;pendingHeroDamage=null;
+    if(hit)hurt(hero,hit.amount,hit.source);
+  }
+  function swingContact(strike,target,previous,current){
+    const dx=(target.x-hero.x)*strike.facing,dy=target.y-hero.y,d2=dx*dx+dy*dy;
+    if(dx < -12||d2>(SWING.reach+SWING.radius)**2)return false;
+    const angle=Math.atan2(dy,dx),padding=Math.asin(Math.min(1,SWING.radius/Math.max(1,Math.sqrt(d2))));
+    const from=-SWING.angle+2*SWING.angle*clamp((previous-SWING.start)/(SWING.end-SWING.start),0,1);
+    const to=-SWING.angle+2*SWING.angle*clamp((current-SWING.start)/(SWING.end-SWING.start),0,1);
+    return angle+padding>=from&&angle-padding<=to&&clearPath(hero,target);
+  }
+  function updateHeroSwing(dt){
+    const s=hero.strike;if(!s)return;
+    const previous=s.elapsed;s.elapsed+=dt;
+    if(s.elapsed>=SWING.start&&previous<=SWING.end&&s.hits.size<SWING.cap){
+      // At most three contacts; sorting is bounded by the 21-enemy encounter cap.
+      const contacts=enemies.filter(e=>e.hp>0&&!s.hits.has(e)&&swingContact(s,e,previous,s.elapsed));
+      contacts.sort((a,b)=>(a===s.target?-1:b===s.target?1:dist(hero,a)-dist(hero,b)));
+      for(const target of contacts){
+        if(s.hits.size>=SWING.cap)break;
+        const primary=s.hits.size===0,bonus=primary&&hero.riposte>0?12+ranks.counter*6:0;
+        s.hits.add(target);combatStats.hits++;
+        hurt(target,primary?27+ranks.blade*5+bonus:18+ranks.blade*3,hero);
+        if(bonus){hero.riposte=0;float('BALASAN!',hero.x,hero.y-25,'#f8d68b',true);}
+      }
+    }
+    if(s.elapsed>=SWING.end){
+      if(!s.hits.size){combatStats.misses++;hero.missCue=.18;combatCue('miss');}
+      hero.strike=null;
+    }
   }
   function fireArrow(u, target) {
     const origin={x:u.x,y:u.y-5},d=Math.max(1,dist(origin,target));
@@ -837,6 +938,7 @@
     if(state!=='playing'||hero.dash>0)return;
     if(hero.work){hero.work=null;gatherCooldown=Math.max(gatherCooldown,.18);}
     hero.attackBuffer=.14;
+    if(hero.cooldown>0)combatStats.bufferedInputs++;
     heroAttack();
   }
   function shotClear(source,target) {
@@ -853,6 +955,84 @@
     u.combatTarget=current&&pool.includes(current)&&(!closest||dist(u,current)<=dist(u,closest)*1.25+12)?current:closest;
     return u.combatTarget;
   }
+  function releaseApproach(u){
+    const slots=approachSlots.get(u.approachTarget);
+    if(slots?.[u.approachSlot]===u)slots[u.approachSlot]=null;
+    u.approachTarget=null;u.approachSlot=-1;
+  }
+  function approachPoint(u,target,range){
+    const radius=Math.min(68,range*.78);
+    let slots=approachSlots.get(target);
+    if(!slots){slots=Array(8).fill(null);approachSlots.set(target,slots);}
+    if(u.approachTarget!==target){releaseApproach(u);u.approachTarget=target;u.approachThink=0;}
+    if((u.approachThink||0)<=0||u.approachSlot<0){
+      let best=-1,cost=Infinity;
+      for(let i=0;i<8;i++){
+        if(slots[i]&&slots[i].hp<=0)slots[i]=null;
+        if(slots[i]&&slots[i]!==u)continue;
+        const p=approachOffsets[i],x=target.x+p.x*radius,y=target.y+p.y*radius;
+        if(!positionFits(x,y))continue;
+        const score=(x-u.x)**2+(y-u.y)**2-(i===u.approachSlot?400:0);
+        if(score<cost){best=i;cost=score;}
+      }
+      if(best>=0){if(slots[u.approachSlot]===u)slots[u.approachSlot]=null;u.approachSlot=best;slots[best]=u;}
+      u.approachThink=.3;
+    }
+    const p=approachOffsets[u.approachSlot];
+    return p?{x:target.x+p.x*radius,y:target.y+p.y*radius}:target;
+  }
+  function mayStartMelee(u,target){
+    if(u.team!=='enemy'||target!==hero||u.kind==='Archer')return true;
+    const limit=difficulty==='easy'?2:difficulty==='hard'?4:3;
+    if(pressureActive>=limit||pressureGap>0){combatStats.pressureDeferrals++;return false;}
+    pressureActive++;pressureGap=difficulty==='hard'?.08:.12;
+    combatStats.maxWindups=Math.max(combatStats.maxWindups,pressureActive);return true;
+  }
+  function separateCombatUnits(dt){
+    for(let i=0;i<combatUnits.length;i++)for(let j=i+1;j<combatUnits.length;j++){
+      const a=combatUnits[i],b=combatUnits[j];if(a.hp<=0||b.hp<=0||a.entering||b.entering)continue;
+      const dx=a.x-b.x,dy=a.y-b.y,min=a.team===b.team?31:26,d2=dx*dx+dy*dy;
+      if(d2>=min*min)continue;
+      const d=Math.sqrt(d2),angle=(a.combatId||i)+(b.combatId||j)*2.399963;
+      const force=(min-d)*Math.min(.25,dt*5),px=(d>.01?dx/d:Math.cos(angle))*force,py=(d>.01?dy/d:Math.sin(angle))*force;
+      if(!a.isBoss)translateEntity(a,px*(b.isBoss?2:1),py*(b.isBoss?2:1));
+      if(!b.isBoss)translateEntity(b,-px*(a.isBoss?2:1),-py*(a.isBoss?2:1));
+    }
+  }
+  function healingTarget(u,friends){
+    let best=null,bestScore=-Infinity;
+    for(const f of friends){
+      if(f===u||f.hp<=0||f.hp>=f.maxHp)continue;
+      if(u.team==='ally'&&dist(f,squadAnchor())>(squadOrder==='guard'?235:320))continue;
+      const d=dist(u,f);if(d>220)continue;
+      const missing=f.maxHp-f.hp,urgency=1-f.hp/f.maxHp;
+      const score=urgency*urgency*120+Math.min(missing,u.team==='ally'?16:12)*2-d*.04+(elapsed-(f.lastDamageTime??-99)<2?15:0);
+      if(score>bestScore){bestScore=score;best=f;}
+    }
+    return best;
+  }
+  function updateHealer(u,dt){
+    u.healThink=(u.healThink||0)-dt;
+    if(u.healThink<=0||u.healTarget&&(u.healTarget.hp<=0||u.healTarget.hp>=u.healTarget.maxHp)){
+      u.healTarget=healingTarget(u,u.team==='ally'?[hero,...allies]:enemies);u.healThink=.2;
+      u.healThreat=nearest(u,u.team==='ally'?enemies:[hero,...allies],100);
+    }
+    const wounded=u.healTarget,home=u.team==='ally'?squadHome(u):{x:hero.x-130,y:hero.y+Math.sin(u.flankAngle||0)*90};
+    if(wounded&&dist(u,wounded)<140&&u.cooldown<=0&&shotClear(u,wounded)){
+      const capacity=u.team==='ally'?16:12,healed=Math.min(wounded.maxHp-wounded.hp,capacity);
+      wounded.hp+=healed;combatStats.healingDone+=healed;combatStats.healingWasted+=capacity-healed;
+      u.attack=u.attackDuration=.45;u.cooldown=u.team==='ally'?3:4.5;u.moving=false;
+      addEffect(blue('Monk','Heal_Effect'),wounded.x,wounded.y,110,.7);float(`+${Math.ceil(healed)}`,wounded.x,wounded.y,'#ceefa0');return;
+    }
+    const threat=u.healThreat;
+    if(threat?.hp>0&&dist(u,threat)<80&&u.cooldown>0){
+      const d=Math.max(1,dist(u,threat)),retreat={x:u.x+(u.x-threat.x)/d*65,y:u.y+(u.y-threat.y)/d*65};
+      if(positionFits(retreat.x,retreat.y)&&(u.team!=='ally'||dist(retreat,squadAnchor())<220)){steerMove(u,retreat,dt);return;}
+    }
+    if(wounded&&(!shotClear(u,wounded)||dist(u,wounded)>100))steerMove(u,wounded,dt);
+    else if(!wounded&&dist(u,home)>35)steerMove(u,home,dt);
+    else u.moving=false;
+  }
   function segmentHit(a, b, target, radius) {
     const dx=b.x-a.x,dy=b.y-a.y,ox=a.x-target.x,oy=a.y-target.y;
     const c=ox*ox+oy*oy-radius*radius;
@@ -864,6 +1044,7 @@
     return t>=0&&t<=1?t:Infinity;
   }
   function updateUnit(u, dt) {
+    u.approachThink=(u.approachThink||0)-dt;
     u.attack = Math.max(0, u.attack - dt); u.cooldown -= dt;
     u.chargeCooldown = (u.chargeCooldown || 0) - dt; u.charge = Math.max(0, (u.charge || 0) - dt);
     if (u.hp <= 0) return;
@@ -886,22 +1067,14 @@
     }
     if(u.isBoss){updateBoss(u,dt);return;}
     const anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
-    if(u.team==='ally'&&dist(u,anchor)>leash){u.strike=null;steerMove(u,squadHome(u),dt,u.speed*1.15);return;}
+    if(u.team==='ally'&&dist(u,anchor)>leash){releaseApproach(u);u.strike=null;steerMove(u,squadHome(u),dt,u.speed*1.15);return;}
     if (u.kind === 'Monk') {
-      const friends = u.team === 'ally' ? [hero, ...allies].filter(f=>dist(f,anchor)<=leash) : enemies;
-      const wounded = nearest(u, friends.filter(f => f !== u && f.hp < f.maxHp), 220);
-      const home = u.team === 'ally' ? squadHome(u) : { x: hero.x - 130, y: hero.y + Math.sin(u.flankAngle) * 90 };
-      if (wounded && dist(u, wounded) < 140 && u.cooldown <= 0) {
-        const healed = Math.min(wounded.maxHp - wounded.hp, u.team === 'ally' ? 16 : 12);
-        wounded.hp += healed;
-        u.attack = u.attackDuration = .45; u.cooldown = u.team === 'ally' ? 3 : 4.5;
-        addEffect(blue('Monk', 'Heal_Effect'), wounded.x, wounded.y, 110, .7); float(`+${Math.ceil(healed)}`, wounded.x, wounded.y, '#ceefa0'); u.moving = false;
-      } else if (dist(u, wounded || home) > 100) steerMove(u, wounded || home, dt);
-      else u.moving = false;
+      updateHealer(u,dt);
       return;
     }
     const target = u.team === 'enemy' && (u.blockedSeconds > 2 || u.stallSeconds > 3) ? castle : u.team === 'ally' ? combatTarget(u, enemies.filter(e=>dist(e,anchor)<=leash),leash+150) : combatTarget(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
-    if (!target) { if (dist(u, squadHome(u)) > 30) steerMove(u, squadHome(u), dt); else u.moving = false; return; }
+    if(u.approachTarget&&u.approachTarget!==target)releaseApproach(u);
+    if (!target) { releaseApproach(u);if (dist(u, squadHome(u)) > 30) steerMove(u, squadHome(u), dt); else u.moving = false; return; }
     const d = dist(u, target), range = u.kind === 'Archer' ? 225 : target === castle ? 88 : u.kind === 'Lancer' ? 91 : 51;
     const blocked=u.kind==='Archer'?!shotClear(u,target):target!==castle&&d<=range&&!clearPath(u,target);
     if(blocked){steerMove(u,target,dt);return;}
@@ -913,13 +1086,11 @@
     }
     if (u.team === 'enemy' && u.kind === 'Warrior' && d > 100 && d < 250 && u.chargeCooldown <= 0) { u.charge = .65; u.chargeCooldown = 3.8; addEffect('Particle FX/Dust_01.png', u.x, u.y, 42); }
     if (d > range) {
-      const radius = u.team === 'enemy' ? Math.min(100, d * .35) : 10;
-      const angle = u.flankAngle || u.seed;
-      const aim = { x: target.x + Math.cos(angle) * radius, y: target.y + Math.sin(angle) * radius };
+      const aim = u.kind==='Archer'||target===castle?target:approachPoint(u,target,range);
       steerMove(u, canStand(aim.x, aim.y) ? aim : target, dt, u.speed * (u.charge > 0 ? 1.5 : 1));
     } else {
       u.moving = false; if (u.attack <= 0) u.facing = target.x < u.x ? -1 : 1;
-      if (u.cooldown <= 0) {
+      if (u.cooldown <= 0&&mayStartMelee(u,target)) {
         u.attack = u.attackDuration = u.kind === 'Archer' ? .72 : .4; u.cooldown = u.kind === 'Archer' ? 1.6 : u.team === 'ally' ? .9 : Math.max(.85, 1.25 - waveIndex * .08);
         u.strike = { timer: u.kind === 'Archer' ? .31 : u.kind === 'Lancer' ? .24 : .2, target, range, damage: u.team === 'ally' ? 18 : Math.round(((target === castle ? 13 : u.kind === 'Lancer' ? 13 : 10) + waveIndex * 2)*settings().damage) };
       }
@@ -930,7 +1101,8 @@
     if (state !== 'playing') return;
     for (const u of [hero, ...allies, ...enemies]) keepOnLand(u);
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
-    if (hitStop > 0) { hitStop -= dt; return; }
+    pressureGap=Math.max(0,pressureGap-dt);pressureActive=0;
+    for(const u of enemies)if(u.hp>0&&(u.strike?.target===hero&&u.kind!=='Archer'||u.isBoss&&u.bossAction?.stage==='warning'))pressureActive++;
     orderPulse=Math.max(0,orderPulse-dt);
     elapsed += dt; gatherCooldown = Math.max(0, gatherCooldown - dt); hero.cooldown = Math.max(0, hero.cooldown - dt); hero.attack = Math.max(0, hero.attack - dt); hero.invuln = Math.max(0, hero.invuln - dt);
     hero.healCooldown = Math.max(0, hero.healCooldown - dt);
@@ -946,16 +1118,7 @@
     for (const u of [hero, ...allies, ...enemies]) updateReaction(u, dt);
     castle.hitFlash = Math.max(0, (castle.hitFlash || 0) - dt);
     $('gameShell').classList.toggle('player-hit', hero.hitFlash > 0);
-    if (hero.strike) {
-      hero.strike.timer -= dt;
-      if (hero.strike.timer <= 0) {
-        hero.strike = null;
-        const targets = enemies.filter(e => e.hp > 0 && dist(hero, e) < 94 && (e.x - hero.x) * hero.facing >= -12 && clearPath(hero, e)).sort((a, b) => dist(hero, a) - dist(hero, b)).slice(0, 3);
-        const bonus=hero.riposte>0?12+ranks.counter*6:0;
-        targets.forEach((e,i)=>hurt(e,(i===0?27+ranks.blade*5+bonus:18+ranks.blade*3),hero));
-        if(targets.length&&bonus){hero.riposte=0;float('BALASAN!',hero.x,hero.y-25,'#f8d68b',true);}
-      }
-    }
+    updateHeroSwing(dt);
     const dx = Number(keys.has('d') || keys.has('arrowright')) - Number(keys.has('a') || keys.has('arrowleft'));
     const dy = Number(keys.has('s') || keys.has('arrowdown')) - Number(keys.has('w') || keys.has('arrowup'));
     if ((dx || dy) && hero.work) { hero.work = null; gatherCooldown = .2; }
@@ -977,12 +1140,10 @@
       }
     }
     if(phase==='battle'&&waveIndex===4&&spawned>=Math.ceil(waves[4].count/2)&&!bossSpawned)spawnBoss();
-    for (const u of [...allies, ...enemies]) updateUnit(u, dt);
-    // Soft separation keeps soldiers from drawing exactly on top of one another.
-    for (const group of [allies, enemies]) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
-      const a = group[i], b = group[j], d = dist(a, b);
-      if (d < 31) { const push = (31 - d) * Math.min(.25, dt * 5), angle = (i + j * 3) * 2.399963, px = (d > .01 ? (a.x - b.x) / d : Math.cos(angle)) * push, py = (d > .01 ? (a.y - b.y) / d : Math.sin(angle)) * push; if(!a.isBoss)translateEntity(a,px*(b.isBoss?2:1),py*(b.isBoss?2:1));if(!b.isBoss)translateEntity(b,-px*(a.isBoss?2:1),-py*(a.isBoss?2:1)); }
-    }
+    combatUnits.length=0;for(const u of allies)combatUnits.push(u);for(const u of enemies)combatUnits.push(u);
+    beginDamageStep();
+    for (const u of combatUnits) updateUnit(u, dt);
+    separateCombatUnits(dt);
     for (const p of projectiles) {
       const previous = { x: p.x, y: p.y };
       p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
@@ -1005,6 +1166,7 @@
       }
     }
 
+    resolveHeroDamage();
     projectiles = projectiles.filter(p => p.life > 0); enemies = enemies.filter(u => u.hp > 0); allies = allies.filter(u => u.hp > 0);
     for (const d of drops) {
       d.life -= dt;
@@ -1016,7 +1178,7 @@
     for (const u of [hero, ...allies, ...enemies]) {
       const animState = u.work ? 'Work' : u.stagger > 0 ? 'Hurt' : u.attack > 0 ? 'Attack' : u.moving ? 'Run' : 'Idle';
       if (u.animState !== animState) { u.animState = animState; u.animTime = 0; }
-      else u.animTime = (u.animTime || 0) + dt;
+      else if(!(u.impactHold>0))u.animTime = (u.animTime || 0) + dt;
     }
     passiveTimer += dt;
     if (passiveTimer >= 6) { passiveTimer -= 6; wood += 3; gold += 4; float('+3 kayu', villagers[0].x, villagers[0].y, '#dbdca0'); float('+4 emas', villagers[1].x, villagers[1].y); }
@@ -1190,7 +1352,7 @@
   }
 
   // Read-only state for meaningful smoke tests and inspecting an active match.
-  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ difficulty,squadOrder,boss:boss?{hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
+  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
   setDifficulty('normal');
   resize(); preload(); requestAnimationFrame(frame);
 })();

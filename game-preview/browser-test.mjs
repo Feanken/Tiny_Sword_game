@@ -22,12 +22,14 @@ try {
     if (m.id) { const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result); } }
     if(m.method==='Fetch.requestPaused') {
       const source=fs.readFileSync('game.js','utf8').replace('  // Read-only state for meaningful smoke tests', `
-  window.__bossPreview=(stage='warning')=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:540,y:410,entering:false,abilityCooldown:0});hero.x=680;hero.y=410;updateBoss(boss,1/60);boss.bossAction.stage=stage;announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();};
+  window.__bossPreview=(stage='warning',pattern=0)=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:540,y:410,entering:false,abilityCooldown:0,pattern});hero.x=680;hero.y=410;updateBoss(boss,1/60);boss.bossAction.stage=stage;boss.bossAction.time=stage==='warning'?boss.bossAction.duration*.5:.5;boss.bossAction.recoveryDuration=.95;announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return bossPose(boss).path;};
+  window.__audioProbe=()=>{initAudio();soundOn=true;lastCombatCue.clear();for(const name of Object.keys(combatSounds))combatCue(name);for(let i=0;i<20;i++)tone(220,.1);return activeVoices;};
+  window.__audioVoices=()=>activeVoices;
   window.__chargePreview=()=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:730,y:250,entering:false,abilityCooldown:0,pattern:1});hero.x=940;hero.y=250;updateBoss(boss,1/60);announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return boss.bossAction.chargeEnd;};
   let stressPatterns=new Set(),stressResolved=new Set();
   const originalUpdateBoss=updateBoss;
   updateBoss=(u,dt)=>{const action=u.bossAction,stage=action?.stage;originalUpdateBoss(u,dt);if(u.bossAction?.stage==='warning')stressPatterns.add(u.bossAction.type);if(stage==='warning'&&action.stage!=='warning')stressResolved.add(action.type);};
-  window.__stressState=()=>({units:enemies.length+allies.length,difficulty,bossEnraged:boss.enraged,bossPatterns:[...stressPatterns],bossResolved:[...stressResolved],effects:effects.length,impacts:impacts.length,fields:routeFields.size});
+  window.__stressState=()=>({units:enemies.length+allies.length,difficulty,bossEnraged:boss.enraged,bossPatterns:[...stressPatterns],bossResolved:[...stressResolved],effects:effects.length,impacts:impacts.length,fields:routeFields.size,approachTargets:approachSlots.size,combat:{...combatStats,damageBySource:{...combatStats.damageBySource}}});
   window.__combatTap=(reset=false)=>{if(reset){startGame();hero.cooldown=.1;}return {attack:hero.attack,queued:hero.attackBuffer};};
   window.__stress = (runSteps=900) => {
     showTitle();setDifficulty('hard');startGame();phase='battle';gold=10000;
@@ -82,6 +84,10 @@ try {
   } else if(process.argv.includes('--preview-only')) {
     const chargeEnd=await evaluate('window.__chargePreview()');assert.equal(chargeEnd.distance,50);await delay(100);await screenshot('leader-charge-clipped.png');
     await evaluate('window.__bossPreview()');await delay(100);await screenshot('leader-final.png');
+    const poses=[];
+    for(let pattern=0;pattern<3;pattern++){poses.push(await evaluate('window.__bossPreview("warning",'+pattern+')'));await delay(80);await screenshot(['leader-slam-pose.png','leader-charge-pose.png','leader-volley-pose.png'][pattern]);}
+    assert.equal(new Set(poses).size,3,'all leader warning poses differ');
+    assert.equal(await evaluate('window.__audioProbe()'),12,'synthesized cues respect the voice budget');await delay(600);assert.equal(await evaluate('window.__audioVoices()'),0,'audio nodes release after cues');
     await evaluate('window.__bossPreview("recovery")');assert.ok(await evaluate('document.getElementById("bossIntent").textContent.includes("+30%")'));
     await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(100);await screenshot('leader-mobile-recovery.png');
     assert.ok(await evaluate('(()=>{const r=document.getElementById("bossBar").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.bottom<=document.getElementById("arena").getBoundingClientRect().bottom})()'),'mobile leader status fits arena');
@@ -228,7 +234,7 @@ try {
   console.log('Mobile layout + touch controls, direct file launch, zero missing assets/runtime exceptions: passed');
   } else {
     const stress=await evaluate('window.__stress()');
-    assert.equal(stress.units,29);assert.ok(stress.meanMs<10&&stress.p95Ms<20);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);
+    assert.equal(stress.units,29);assert.ok(stress.meanMs<10&&stress.p95Ms<20);assert.ok(stress.approachTargets<=30);assert.ok(stress.combat.hits<=stress.combat.swings*3);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);
     await evaluate('window.__stress(0)');
     stress.render=await evaluate(`new Promise(resolve=>{
       const samples=[];let start=performance.now(),last=start;
@@ -238,7 +244,7 @@ try {
       }requestAnimationFrame(sample);
     })`);
     stress.live=await evaluate('window.__stressState()');
-    assert.equal(stress.live.units,29);assert.equal(stress.live.bossEnraged,true);assert.deepEqual([...stress.live.bossResolved].sort(),['charge','slam','volley']);assert.ok(stress.live.effects<=80&&stress.live.impacts<=60&&stress.live.fields<=32);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+    assert.equal(stress.live.units,29);assert.equal(stress.live.bossEnraged,true);assert.deepEqual([...stress.live.bossResolved].sort(),['charge','slam','volley']);assert.ok(stress.live.effects<=80&&stress.live.impacts<=60&&stress.live.fields<=32&&stress.live.approachTargets<=30);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
     fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
     console.log('CPU + rendered-frame benchmark:',JSON.stringify(stress));
   }

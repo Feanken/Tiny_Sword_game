@@ -14,14 +14,39 @@
   ],
   "effects": 80,
   "impacts": 60,
-  "fields": 6,
+  "fields": 9,
+  "approachTargets": 11,
+  "combat": {
+    "swings": 26,
+    "hits": 45,
+    "misses": 2,
+    "interruptions": 10,
+    "cancels": 0,
+    "bufferedInputs": 0,
+    "healingDone": 348,
+    "healingWasted": 4,
+    "stalls": 2,
+    "blockedSeconds": 0,
+    "mergedHits": 1,
+    "pressureDeferrals": 7,
+    "maxWindups": 3,
+    "damageTaken": 361,
+    "damageBySource": {
+      "Warrior": 23,
+      "Lancer": 78,
+      "Archer": 69,
+      "Pawn": 69,
+      "boss": 122,
+      "unknown": 0
+    }
+  },
   "steps": 900,
-  "meanMs": 0.3674444444456862,
-  "p95Ms": 0.7999999998137355,
-  "maxMs": 3.1000000005587935,
+  "meanMs": 0.44411111111235285,
+  "p95Ms": 0.8000000007450581,
+  "maxMs": 4.100000001490116,
   "effectCap": 80,
   "render": {
-    "frames": 881,
+    "frames": 873,
     "medianMs": 16.699999999999818,
     "p95Ms": 16.800000000000182,
     "maxMs": 50.100000000000364
@@ -41,7 +66,32 @@
       "volley"
     ],
     "effects": 0,
-    "impacts": 5,
-    "fields": 12
+    "impacts": 2,
+    "fields": 14,
+    "approachTargets": 12,
+    "combat": {
+      "swings": 0,
+      "hits": 0,
+      "misses": 0,
+      "interruptions": 0,
+      "cancels": 0,
+      "bufferedInputs": 0,
+      "healingDone": 352,
+      "healingWasted": 0,
+      "stalls": 0,
+      "blockedSeconds": 0,
+      "mergedHits": 0,
+      "pressureDeferrals": 10,
+      "maxWindups": 4,
+      "damageTaken": 474,
+      "damageBySource": {
+        "Warrior": 23,
+        "Lancer": 104,
+        "Archer": 69,
+        "Pawn": 184,
+        "boss": 94,
+        "unknown": 0
+      }
+    }
   }
 }

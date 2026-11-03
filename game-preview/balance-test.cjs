@@ -4,6 +4,12 @@ const {createGame}=require('./game-harness.cjs');
 const code=fs.readFileSync('game.js','utf8');
 function verify(results){
  assert.equal(results.length,14);assert.ok(results.every(r=>r.result==='won'),'all scripted matches finish');
+ for(const r of results){
+   const c=r.combat;assert.ok(c&&c.swings>0&&c.hits<=c.swings*3);
+   assert.equal(Object.values(c.damageBySource).reduce((a,b)=>a+b,0),c.damageTaken,'damage-source accounting matches applied damage');
+   assert.ok(c.misses+c.interruptions+c.cancels<=c.swings,'each swing has one final outcome');
+   assert.ok(Object.values(c).filter(v=>typeof v==='number').every(v=>Number.isFinite(v)&&v>=0));
+ }
  const normal=results.filter(r=>r.mode==='normal'),group=id=>normal.filter(r=>r.strategy===id),sum=(rows,key)=>rows.reduce((n,r)=>n+r[key],0);
  for(const r of normal)assert.deepEqual([...new Set(r.resolved)].sort(),['charge','slam','volley'],'all leader patterns execute before defeat');
  assert.ok(sum(group('upgrades'),'bossSeconds')<sum(group('basic'),'bossSeconds'),'upgrade investment improves boss clear time');
@@ -51,7 +57,7 @@ function simulate(strategy,mode,seed){
    if(g.gold>=55+reserve&&g.allies.length<8)g.recruitUnit();
    g.advance(1/60);
  }
- return {strategy,mode,seed,result:g.state,seconds:+g.time.toFixed(1),heroHp:Math.ceil(g.hero.hp),castleHp:Math.ceil(g.castle.hp),bossSeconds:bossArrived===null?null:+((bossEnded??g.time)-bossArrived).toFixed(1),dashes,upgrades,...g.metrics};
+ return {strategy,mode,seed,result:g.state,seconds:+g.time.toFixed(1),heroHp:Math.ceil(g.hero.hp),castleHp:Math.ceil(g.castle.hp),bossSeconds:bossArrived===null?null:+((bossEnded??g.time)-bossArrived).toFixed(1),dashes,upgrades,...g.metrics,combat:snapshot().combat};
 }
 const cases=[];
 for(const seed of [11,23,47])for(const strategy of ['basic','upgrades','tactical','counter'])cases.push([strategy,'normal',seed]);

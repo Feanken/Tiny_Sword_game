@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "46e8f99b8110b47fdd11db3fa98e3a2184ff38cf7bb35531376d9f4f72d91f78",
+  "sourceSha256": "1c95fcda1d1d60eb77031e10931e1b493a7619216f0841bac933ac79eeb62905",
   "description": "Seeded scripted policies; no health, currency, cooldown or enemy manipulation. Strategy comparison is not a human difficulty rating.",
   "results": [
     {
@@ -7,46 +7,66 @@
       "mode": "normal",
       "seed": 11,
       "result": "won",
-      "seconds": 149.2,
-      "heroHp": 100,
+      "seconds": 146.8,
+      "heroHp": 95,
       "castleHp": 500,
-      "bossSeconds": 14.2,
+      "bossSeconds": 9.7,
       "dashes": 0,
       "upgrades": 0,
-      "bossHeroDamage": 428,
-      "bossAllyDamage": 234,
+      "bossHeroDamage": 414,
+      "bossAllyDamage": 236,
       "patterns": [
         "slam",
         "charge",
         "volley",
-        "slam",
-        "charge",
-        "volley"
+        "slam"
       ],
       "resolved": [
         "slam",
         "charge",
         "volley",
-        "slam",
-        "charge",
-        "volley"
+        "slam"
       ],
-      "bossDamageToHero": 124,
-      "perfectDodges": 0
+      "bossDamageToHero": 75,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 83,
+        "hits": 164,
+        "misses": 3,
+        "interruptions": 3,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 174,
+        "healingWasted": 6,
+        "stalls": 5,
+        "blockedSeconds": 15.950000000000372,
+        "mergedHits": 0,
+        "pressureDeferrals": 7,
+        "maxWindups": 2,
+        "damageTaken": 85,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 75,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "upgrades",
       "mode": "normal",
       "seed": 11,
       "result": "won",
-      "seconds": 144.5,
-      "heroHp": 100,
+      "seconds": 143,
+      "heroHp": 97,
       "castleHp": 500,
-      "bossSeconds": 8.5,
+      "bossSeconds": 8,
       "dashes": 0,
       "upgrades": 5,
-      "bossHeroDamage": 418,
-      "bossAllyDamage": 232,
+      "bossHeroDamage": 448,
+      "bossAllyDamage": 214,
       "patterns": [
         "slam",
         "charge",
@@ -58,22 +78,46 @@
         "charge",
         "volley"
       ],
-      "bossDamageToHero": 51,
-      "perfectDodges": 0
+      "bossDamageToHero": 73,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 79,
+        "hits": 160,
+        "misses": 5,
+        "interruptions": 5,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 125,
+        "healingWasted": 11,
+        "stalls": 4,
+        "blockedSeconds": 6.783333333333315,
+        "mergedHits": 2,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 103,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 73,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "tactical",
       "mode": "normal",
       "seed": 11,
       "result": "won",
-      "seconds": 147,
-      "heroHp": 100,
+      "seconds": 145,
+      "heroHp": 89,
       "castleHp": 500,
-      "bossSeconds": 11.6,
-      "dashes": 5,
+      "bossSeconds": 10,
+      "dashes": 4,
       "upgrades": 5,
-      "bossHeroDamage": 387,
-      "bossAllyDamage": 263,
+      "bossHeroDamage": 432,
+      "bossAllyDamage": 242,
       "patterns": [
         "slam",
         "charge",
@@ -85,25 +129,48 @@
         "slam",
         "charge",
         "volley",
-        "slam",
-        "charge"
+        "slam"
       ],
       "bossDamageToHero": 0,
-      "perfectDodges": 1
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 82,
+        "hits": 158,
+        "misses": 5,
+        "interruptions": 5,
+        "cancels": 2,
+        "bufferedInputs": 0,
+        "healingDone": 125,
+        "healingWasted": 11,
+        "stalls": 6,
+        "blockedSeconds": 8.433333333333332,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 66,
+        "damageBySource": {
+          "Warrior": 28,
+          "Lancer": 0,
+          "Archer": 18,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "counter",
       "mode": "normal",
       "seed": 11,
       "result": "won",
-      "seconds": 145.6,
+      "seconds": 145.2,
       "heroHp": 100,
       "castleHp": 500,
       "bossSeconds": 10.2,
       "dashes": 4,
       "upgrades": 5,
-      "bossHeroDamage": 427,
-      "bossAllyDamage": 235,
+      "bossHeroDamage": 464,
+      "bossAllyDamage": 198,
       "patterns": [
         "slam",
         "charge",
@@ -117,21 +184,255 @@
         "slam"
       ],
       "bossDamageToHero": 0,
-      "perfectDodges": 3
+      "perfectDodges": 2,
+      "combat": {
+        "swings": 82,
+        "hits": 160,
+        "misses": 7,
+        "interruptions": 3,
+        "cancels": 2,
+        "bufferedInputs": 0,
+        "healingDone": 113,
+        "healingWasted": 11,
+        "stalls": 4,
+        "blockedSeconds": 3.26666666666666,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 48,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 0,
+          "Archer": 18,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "basic",
       "mode": "normal",
       "seed": 23,
       "result": "won",
-      "seconds": 147.9,
-      "heroHp": 100,
+      "seconds": 147,
+      "heroHp": 91,
       "castleHp": 500,
-      "bossSeconds": 11,
+      "bossSeconds": 11.6,
       "dashes": 0,
       "upgrades": 0,
-      "bossHeroDamage": 500,
-      "bossAllyDamage": 162,
+      "bossHeroDamage": 425,
+      "bossAllyDamage": 225,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
+      "bossDamageToHero": 124,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 86,
+        "hits": 171,
+        "misses": 4,
+        "interruptions": 4,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 195,
+        "healingWasted": 17,
+        "stalls": 3,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 134,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 124,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 145.8,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 8.7,
+      "dashes": 0,
+      "upgrades": 5,
+      "bossHeroDamage": 484,
+      "bossAllyDamage": 178,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 97,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 79,
+        "hits": 156,
+        "misses": 6,
+        "interruptions": 5,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 136,
+        "healingWasted": 0,
+        "stalls": 3,
+        "blockedSeconds": 2.549999999999996,
+        "mergedHits": 1,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 117,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 97,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 144.1,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 9,
+      "dashes": 4,
+      "upgrades": 5,
+      "bossHeroDamage": 367,
+      "bossAllyDamage": 295,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 2,
+      "combat": {
+        "swings": 72,
+        "hits": 149,
+        "misses": 6,
+        "interruptions": 2,
+        "cancels": 1,
+        "bufferedInputs": 0,
+        "healingDone": 92,
+        "healingWasted": 0,
+        "stalls": 2,
+        "blockedSeconds": 1.649999999999999,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 20,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 23,
+      "result": "won",
+      "seconds": 145.3,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 10.3,
+      "dashes": 4,
+      "upgrades": 5,
+      "bossHeroDamage": 456,
+      "bossAllyDamage": 206,
+      "patterns": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 3,
+      "combat": {
+        "swings": 78,
+        "hits": 154,
+        "misses": 6,
+        "interruptions": 3,
+        "cancels": 1,
+        "bufferedInputs": 0,
+        "healingDone": 120,
+        "healingWasted": 0,
+        "stalls": 2,
+        "blockedSeconds": 2.883333333333328,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 38,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 18,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 47,
+      "result": "won",
+      "seconds": 146.3,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 11.1,
+      "dashes": 0,
+      "upgrades": 0,
+      "bossHeroDamage": 424,
+      "bossAllyDamage": 226,
       "patterns": [
         "slam",
         "charge",
@@ -146,135 +447,45 @@
         "slam"
       ],
       "bossDamageToHero": 97,
-      "perfectDodges": 0
-    },
-    {
-      "strategy": "upgrades",
-      "mode": "normal",
-      "seed": 23,
-      "result": "won",
-      "seconds": 143.6,
-      "heroHp": 100,
-      "castleHp": 500,
-      "bossSeconds": 8,
-      "dashes": 0,
-      "upgrades": 5,
-      "bossHeroDamage": 398,
-      "bossAllyDamage": 252,
-      "patterns": [
-        "slam",
-        "charge",
-        "volley",
-        "slam"
-      ],
-      "resolved": [
-        "slam",
-        "charge",
-        "volley"
-      ],
-      "bossDamageToHero": 51,
-      "perfectDodges": 0
-    },
-    {
-      "strategy": "tactical",
-      "mode": "normal",
-      "seed": 23,
-      "result": "won",
-      "seconds": 145.2,
-      "heroHp": 100,
-      "castleHp": 500,
-      "bossSeconds": 9.6,
-      "dashes": 4,
-      "upgrades": 5,
-      "bossHeroDamage": 411,
-      "bossAllyDamage": 239,
-      "patterns": [
-        "slam",
-        "charge",
-        "volley",
-        "slam"
-      ],
-      "resolved": [
-        "slam",
-        "charge",
-        "volley",
-        "slam"
-      ],
-      "bossDamageToHero": 0,
-      "perfectDodges": 2
-    },
-    {
-      "strategy": "counter",
-      "mode": "normal",
-      "seed": 23,
-      "result": "won",
-      "seconds": 147.6,
-      "heroHp": 100,
-      "castleHp": 500,
-      "bossSeconds": 12,
-      "dashes": 4,
-      "upgrades": 5,
-      "bossHeroDamage": 292,
-      "bossAllyDamage": 370,
-      "patterns": [
-        "slam",
-        "charge",
-        "volley",
-        "slam",
-        "charge"
-      ],
-      "resolved": [
-        "slam",
-        "charge",
-        "volley",
-        "slam",
-        "charge"
-      ],
-      "bossDamageToHero": 0,
-      "perfectDodges": 3
-    },
-    {
-      "strategy": "basic",
-      "mode": "normal",
-      "seed": 47,
-      "result": "won",
-      "seconds": 146,
-      "heroHp": 100,
-      "castleHp": 500,
-      "bossSeconds": 10.6,
-      "dashes": 0,
-      "upgrades": 0,
-      "bossHeroDamage": 433,
-      "bossAllyDamage": 229,
-      "patterns": [
-        "slam",
-        "charge",
-        "volley",
-        "slam",
-        "charge"
-      ],
-      "resolved": [
-        "slam",
-        "charge",
-        "volley",
-        "slam"
-      ],
-      "bossDamageToHero": 75,
-      "perfectDodges": 0
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 84,
+        "hits": 166,
+        "misses": 3,
+        "interruptions": 2,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 138,
+        "healingWasted": 34,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 1,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 107,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 97,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "upgrades",
       "mode": "normal",
       "seed": 47,
       "result": "won",
-      "seconds": 144.6,
+      "seconds": 145.3,
       "heroHp": 95,
       "castleHp": 500,
       "bossSeconds": 9.1,
       "dashes": 0,
       "upgrades": 5,
-      "bossHeroDamage": 406,
-      "bossAllyDamage": 256,
+      "bossHeroDamage": 436,
+      "bossAllyDamage": 226,
       "patterns": [
         "slam",
         "charge",
@@ -288,27 +499,50 @@
         "slam"
       ],
       "bossDamageToHero": 75,
-      "perfectDodges": 0
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 82,
+        "hits": 161,
+        "misses": 5,
+        "interruptions": 5,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 92,
+        "healingWasted": 0,
+        "stalls": 4,
+        "blockedSeconds": 5.433333333333319,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 95,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 75,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "tactical",
       "mode": "normal",
       "seed": 47,
       "result": "won",
-      "seconds": 146.2,
+      "seconds": 144,
       "heroHp": 100,
       "castleHp": 500,
-      "bossSeconds": 10.6,
+      "bossSeconds": 8.9,
       "dashes": 4,
       "upgrades": 5,
-      "bossHeroDamage": 186,
-      "bossAllyDamage": 476,
+      "bossHeroDamage": 384,
+      "bossAllyDamage": 290,
       "patterns": [
         "slam",
         "charge",
         "volley",
-        "slam",
-        "charge"
+        "slam"
       ],
       "resolved": [
         "slam",
@@ -317,21 +551,45 @@
         "slam"
       ],
       "bossDamageToHero": 0,
-      "perfectDodges": 2
+      "perfectDodges": 2,
+      "combat": {
+        "swings": 79,
+        "hits": 157,
+        "misses": 5,
+        "interruptions": 2,
+        "cancels": 3,
+        "bufferedInputs": 0,
+        "healingDone": 120,
+        "healingWasted": 0,
+        "stalls": 2,
+        "blockedSeconds": 5.416666666666653,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 20,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "counter",
       "mode": "normal",
       "seed": 47,
       "result": "won",
-      "seconds": 145.7,
+      "seconds": 145.3,
       "heroHp": 100,
       "castleHp": 500,
-      "bossSeconds": 10.1,
+      "bossSeconds": 10.2,
       "dashes": 4,
       "upgrades": 5,
-      "bossHeroDamage": 412,
-      "bossAllyDamage": 250,
+      "bossHeroDamage": 447,
+      "bossAllyDamage": 215,
       "patterns": [
         "slam",
         "charge",
@@ -345,55 +603,93 @@
         "slam"
       ],
       "bossDamageToHero": 0,
-      "perfectDodges": 3
+      "perfectDodges": 3,
+      "combat": {
+        "swings": 79,
+        "hits": 158,
+        "misses": 5,
+        "interruptions": 2,
+        "cancels": 1,
+        "bufferedInputs": 0,
+        "healingDone": 76,
+        "healingWasted": 0,
+        "stalls": 2,
+        "blockedSeconds": 2.249999999999997,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 20,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "counter",
       "mode": "easy",
       "seed": 23,
       "result": "won",
-      "seconds": 147.5,
+      "seconds": 147.3,
       "heroHp": 100,
       "castleHp": 500,
-      "bossSeconds": 6.8,
-      "dashes": 2,
+      "bossSeconds": 3.7,
+      "dashes": 1,
       "upgrades": 5,
-      "bossHeroDamage": 275,
-      "bossAllyDamage": 205,
+      "bossHeroDamage": 311,
+      "bossAllyDamage": 181,
       "patterns": [
         "slam",
         "charge"
       ],
       "resolved": [
-        "slam",
-        "charge"
+        "slam"
       ],
       "bossDamageToHero": 0,
-      "perfectDodges": 2
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 60,
+        "hits": 124,
+        "misses": 5,
+        "interruptions": 1,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 76,
+        "healingWasted": 0,
+        "stalls": 3,
+        "blockedSeconds": 3.483333333333326,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 7,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 7,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
     },
     {
       "strategy": "counter",
       "mode": "hard",
       "seed": 23,
       "result": "won",
-      "seconds": 145.8,
+      "seconds": 142.4,
       "heroHp": 100,
       "castleHp": 500,
-      "bossSeconds": 15.7,
-      "dashes": 6,
+      "bossSeconds": 13.1,
+      "dashes": 5,
       "upgrades": 5,
-      "bossHeroDamage": 484,
-      "bossAllyDamage": 378,
+      "bossHeroDamage": 613,
+      "bossAllyDamage": 237,
       "patterns": [
-        "slam",
-        "charge",
-        "volley",
-        "slam",
-        "charge",
-        "volley",
-        "slam"
-      ],
-      "resolved": [
         "slam",
         "charge",
         "volley",
@@ -401,8 +697,39 @@
         "charge",
         "volley"
       ],
+      "resolved": [
+        "slam",
+        "charge",
+        "volley",
+        "slam",
+        "charge"
+      ],
       "bossDamageToHero": 0,
-      "perfectDodges": 4
+      "perfectDodges": 4,
+      "combat": {
+        "swings": 89,
+        "hits": 193,
+        "misses": 1,
+        "interruptions": 2,
+        "cancels": 1,
+        "bufferedInputs": 0,
+        "healingDone": 151,
+        "healingWasted": 37,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 49,
+        "damageBySource": {
+          "Warrior": 13,
+          "Lancer": 0,
+          "Archer": 23,
+          "Pawn": 13,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
     }
   ]
 }

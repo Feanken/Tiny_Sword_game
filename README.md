@@ -98,7 +98,7 @@ Hak dan lisensi aset mengikuti paket Tiny Swords aslinya.
 - Efek sementara dibatasi 80 animasi dan 60 benturan agar alokasi tidak terus bertambah saat ramai.
 - Jalankan `node game-preview/browser-test.mjs --stress` untuk uji browser biasa ditambah pengukuran 29 unit: 20 prajurit, 8 sekutu, dan panglima yang mengamuk pada mode Sulit. Ketiga pola panglima harus selesai dijalankan. Hasil waktu CPU simulasi disimpan dalam `game-preview/performance-simulation.json`. Angka ini mengukur simulasi pada komputer penguji, bukan jaminan FPS di semua perangkat.
 
-Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 50,1 ms. CPU simulasi rata-rata sekitar 0,37 ms per langkah pada sesi ini. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
+Pengukuran tambahan: `node game-preview/browser-test.mjs --stress --benchmark-only` mengukur interval frame selama sekitar 15 detik dengan 29 unit tetap aktif, termasuk seluruh pola panglima yang mengamuk. Pada pengujian Chrome headless 1440×900 dengan GPU dinonaktifkan, median interval frame 16,7 ms, persentil ke-95 16,8 ms, dan frame terlama 50,1 ms. CPU simulasi rata-rata sekitar 0,44 ms per langkah pada sesi ini, persentil ke-95 0,8 ms. Hasil disimpan di `game-preview/performance.json`; angka dapat berubah menurut perangkat dan beban komputer. Nyawa unit dinaikkan hanya dalam fixture pengukuran agar semua unit tetap hidup. Cache kilatan dibatasi 32 frame dan sprite di luar kamera dilewati.
 
 ## Langkah Embun dan Perkemahan
 
@@ -156,3 +156,18 @@ Pada tiga seed Normal, panglima menyelesaikan ketiga pola untuk setiap kebijakan
 - Unit jarak dekat yang terhalang pohon atau bangunan mencari jalan meskipun sasaran sudah berada dalam radius serangan.
 
 `node game-preview/combat-test.cjs` memeriksa ketukan, kedaluwarsa, pembatalan, kestabilan sasaran, arah pedang, gerak mengitari penghalang, dan tembakan. `node game-preview/browser-test.mjs --stress --combat-only` memeriksa ketukan singkat melalui event keyboard, mouse, serta sentuhan di Chrome.
+
+## Sapuan, tekanan pasukan, dan kejelasan pertempuran
+
+- Pedang menyapu sudut −1,3 sampai +1,3 radian di depan penjaga pada 0,16–0,28 detik ayunan. Pemeriksaan mencakup lintasan antar-langkah simulasi, mengikuti busur visual dengan jangkauan bilah 76 piksel dan toleransi tubuh 18 piksel. Setiap sasaran hanya terkena sekali dan maksimal tiga sasaran sepanjang satu ayunan. Masa pemulihan tidak memberikan damage.
+- Efek hentakan menahan pose karakter selama 0,035 detik. Gerakan, cooldown, panah, dan waktu gelombang terus berjalan; tidak ada pembekuan simulasi global.
+- Pasukan jarak dekat mengambil posisi dari delapan titik pendekatan yang dibagi per sasaran. Reservasi diperiksa ulang paling sering setiap 0,3 detik, dilepas saat pergantian sasaran/perintah atau kematian, dan dibersihkan saat reset. Kedua kubu dipisahkan secara lembut tanpa membuat penjaga terkurung tabrakan tubuh.
+- Persiapan serangan melee prajurit biasa ke penjaga dibatasi 2/3/4 untuk Santai/Normal/Sulit, dengan jeda awal antarserangan. Peringatan panglima ikut mengurangi kuota serangan berikutnya. Tembakan dan pertarungan melawan sekutu tetap berlangsung.
+- Jika beberapa serangan mengenai penjaga dalam satu langkah simulasi, damage terbesar diterapkan satu kali, lalu kekebalan 0,45 detik berlaku. Damage tidak dijumlahkan. Untuk nilai sama, panglima mendapat prioritas sumber, lalu ID unit yang tetap. Elak sempurna diperiksa sebelum penggabungan.
+- Biarawan menilai urgensi nyawa, pemulihan efektif, jarak, dan damage baru diterima. Keputusan disimpan hingga 0,2 detik. Penyembuhan memerlukan jalur terbuka; biarawan mencoba menjauh dari ancaman dekat saat cooldown.
+- Panglima memakai pose hantaman, bersiap menerjang, dan membidik yang berbeda dari aset asli. Masa pemulihan memiliki tanda cincin dan teks **TERBUKA**. Tiga pola memiliki suara berbeda.
+- Pukulan berhasil, meleset, terkena damage, dan elak sempurna memiliki umpan balik berbeda. Indikator arah menunjukkan asal damage, bentuk pijakan membedakan kubu, dan tanda penting tetap tersedia tanpa suara. Suara sintetis dibatasi 12 oscillator aktif; node audio dilepas setelah selesai.
+
+`PenjagaPulau.snapshot().combat` menampilkan jumlah ayunan, kontak, meleset, terputus, dibatalkan, input tersimpan, penyembuhan efektif/terbuang, kejadian terhambat, damage bersamaan, serta damage menurut sumber. `blockedSeconds` adalah akumulasi waktu unit yang rutenya terhambat, bukan durasi macet seluruh game. Counter hanya disimpan dalam memori pertandingan dan direset ketika mulai lagi; tidak dikirim ke layanan luar. Laporan 14 pertandingan menyertakan counter ini dan hash sumber yang diuji.
+
+Uji combat juga memeriksa jendela sapuan, deduplikasi hit, batas cleave, kontrol saat benturan, urutan damage bersamaan, prioritas penyembuhan, reservasi posisi, batas tekanan, pose panglima, dan reset. `node game-preview/browser-test.mjs --stress --preview-only` menghasilkan pratinjau ketiga pose dan menguji batas/pembersihan node audio.
