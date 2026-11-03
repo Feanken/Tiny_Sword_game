@@ -1,0 +1,29 @@
+{
+  "sourceSha256": "3bfc5cea1dcf1238c40137babb3d12c9c6b79e999723c8827ea072ca473e0bd5",
+  "frameBoundsSha256": "c7dee516f0acaa29e6adcd50ad1456d04c404356a7ea39d189a8e826b3d7bed5",
+  "cache": {
+    "checked": 24,
+    "different": 101,
+    "pixels": 45099,
+    "frames": 467,
+    "bytes": 12551320,
+    "accountedBytes": 12551320
+  },
+  "labels": 25,
+  "visibleThreats": 6,
+  "markerCssWidthDpr1": 35.2,
+  "markerCssWidthDpr2": 35.2,
+  "checks": [
+    "no label/HUD overlap",
+    "metadata bounds valid",
+    "cache byte accounting",
+    "sprite pixel equivalence",
+    "keyboard and touch ownership",
+    "stale repeat rejection",
+    "dialog pause clock",
+    "HUD dash queue",
+    "pixel budget"
+  ],
+  "errors": [],
+  "missing": []
+}

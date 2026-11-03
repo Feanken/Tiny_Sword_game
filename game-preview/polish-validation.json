@@ -1,0 +1,44 @@
+{
+  "scope": "Player combat, visual readability, performance and stability. Upgrade rules unchanged.",
+  "hashes": {
+    "game.js": "3bfc5cea1dcf1238c40137babb3d12c9c6b79e999723c8827ea072ca473e0bd5",
+    "unit-frame-bounds.js": "c7dee516f0acaa29e6adcd50ad1456d04c404356a7ea39d189a8e826b3d7bed5",
+    "index.html": "c4d421aedbcaa667c6c5bf85c2833dc5962c3455f00b4f2eca754c331243874f",
+    "layout.css": "01c36a5a6499a4097f71d8324c3ab7afb487891efa901ebad92e1ff6a9559dca"
+  },
+  "logicSuites": [
+    "engine-test",
+    "player-combat-test",
+    "combat-test",
+    "combat-polish-test",
+    "tactics-test",
+    "team-ai-test",
+    "boss-balance-test"
+  ],
+  "completedMatches": 29,
+  "soakGameMinutes": 20,
+  "soakPauseCycles": 20,
+  "browserChecks": [
+    "full stress smoke and file offline",
+    "polish controls, layout, cache and pixels",
+    "readability screenshots and layers",
+    "soak",
+    "benchmark"
+  ],
+  "performance": {
+    "cpu": 0.4886666666716337,
+    "draw": {
+      "frames": 895,
+      "meanMs": 1.8957541898933536,
+      "p95Ms": 3.100000001490116,
+      "maxMs": 27.800000000745058
+    },
+    "frame": {
+      "frames": 879,
+      "medianMs": 16.699999999999818,
+      "p95Ms": 16.799999999999272,
+      "maxMs": 33.400000000001455
+    }
+  },
+  "ratingNote": "9.5 is the polish target, not a measured human playtest score."
+}

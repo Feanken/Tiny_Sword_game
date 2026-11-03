@@ -13,6 +13,9 @@ Angka berikut adalah penilaian internal untuk lingkup game 2D sederhana ini. Tes
 
 ## Validasi
 
+- `combat-polish-test.cjs`: input dari beberapa sumber, dash menjelang pulih, serangan di akhir dash, bonus balasan saat awal ayunan, reset/pause, delta invalid, clock simulasi yang sama untuk combat dan efek, serta penempatan label.
+- Browser `--stress --polish-only`: indikator menghindari HUD dan satu sama lain, ukuran yang konsisten pada DPR 1/2, keyboard/sentuh bersamaan, repeat setelah pause, dialog, dan anggaran resolusi Canvas.
+- Browser `--stress --soak-only`: 20 menit waktu simulasi dipercepat dengan 29 unit, 20 siklus jeda/lanjut, batas cache/efek, dan heap setelah garbage collection. Ini uji ketahanan, bukan pengganti bermain 20 menit pada perangkat nyata.
 - `player-combat-test.cjs`: frame persiapan/kontak/pemulihan, gerak yang pulih bertahap, arah yang terkunci saat kontak, bantuan sasaran yang dapat dipukul, angka damage/prioritas/overkill, tanda ancaman dan transparansi.
 - Browser `--stress --readability-only`: pratinjau frame asli, kerumunan, balasan, pepohonan/bangunan, tepi map, notifikasi ponsel, dan urutan layer tanda bahaya serta pemain.
 - `engine-test.cjs`: ekonomi, lima gelombang, tabrakan, input, komando, kondisi menang/kalah, dan replay 30/60/120 FPS.
@@ -21,7 +24,7 @@ Angka berikut adalah penilaian internal untuk lingkup game 2D sederhana ini. Tes
 - `balance-after.json`: 14 pertandingan memakai kontrol biasa, termasuk perbandingan tanpa upgrade dan tanpa dash.
 - `balance-matrix.json`: 15 pertandingan tambahan memakai dash terhadap prajurit serta panglima. Semua mode memakai bot yang sama dalam matriks ini; hasilnya bukan perkiraan tingkat kemenangan manusia.
 - Browser: kontrol desktop/sentuh, layout, suara online/offline, tiga pose panglima, ulangi/ekspedisi baru, dan 29 unit aktif.
-- Pengukuran terakhir 29 unit dengan audio aktif: CPU simulasi rata-rata 0,59 ms per langkah, render Canvas rata-rata 3,87 ms/p95 5,9 ms; interval frame median dan p95 16,7 ms. Sesi sebelumnya mencatat p95 interval 33,3 ms, sehingga hasil diperlakukan sebagai pengukuran sesi/perangkat, bukan jaminan umum. `performance.json` menyimpan angka terakhir.
+- Pengukuran akhir 29 unit dengan audio aktif: CPU simulasi rata-rata 0,49 ms/p95 1 ms; render Canvas rata-rata 1,90 ms/p95 3,1 ms; interval frame median 16,7 ms/p95 16,8 ms/maksimum 33,4 ms. Sesi pembanding mencatat render rata-rata 7,85 ms/p95 13,8 ms. Angka bergantung pada sesi/perangkat; data lengkap dan hash kode ada di `performance.json`.
 
 Tidak ada penambahan HP, uang, atau perubahan AI khusus untuk membantu bot pertandingan. Fixture performa memakai HP besar agar 29 unit tetap hidup selama pengukuran; fixture ini hanya disuntikkan oleh skrip browser pengembangan.
 
@@ -31,3 +34,7 @@ Tidak ada penambahan HP, uang, atau perubahan AI khusus untuk membantu bot perta
 - Kenney, [Impact Sounds](https://kenney.nl/assets/impact-sounds).
 
 Daftar berkas terpilih dan hash terdapat di `Audio/sources.json`. Audio dikirim bersama proyek; permainan tidak mengunduh aset dari internet.
+
+## Target pemolesan tiga fokus
+
+Combat pemain, keterbacaan visual, dan performa/kestabilan dikerjakan dengan sasaran kualitas 9,5; angka itu bukan hasil pengukuran kesenangan manusia. Bukti teknis mencakup input dari beberapa sumber, antrean/cancel dan bonus balasan, pemeriksaan tabrakan indikator/HUD serta DPR, pembandingan piksel sprite, cache LRU dengan batas 512 frame/12 MiB, tujuh suite logika, 29 pertandingan, dan sesi simulasi 20 menit. `polish-checks.json` mencatat pemeriksaan piksel/layout/kontrol, sedangkan `stability-soak.json` mencatat 20 pause/resume, 29 unit yang tetap hidup, dan perubahan heap sekitar 2,8 MiB setelah garbage collection. HP besar hanya dipasang pada fixture ketahanan. Aturan upgrade/spesialisasi tetap ditahan.

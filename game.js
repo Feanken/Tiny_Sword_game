@@ -52,8 +52,10 @@
   function seededRandom(seed){let n=seed>>>0;return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};}
   function makeEncounters(seed){
     const random=seededRandom(seed);
+    const deck=[0,1,2];for(let i=2;i>0;i--){const j=Math.floor(random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
     return waves.map((w,index)=>{
-      const style=waveStyles[Math.floor(random()*waveStyles.length)],roster=[];
+      const styleIndex=index<4?deck[Math.max(0,index-1)]:(deck[2]+1+Math.floor(random()*2))%3;
+      const style=waveStyles[styleIndex],roster=[];
       for(let i=0;i<w.count;i++)roster.push(w.types[i%w.types.length]);
       if(index>0){
         // Shuffle equal-size authored rosters, then exchange one fighter only.
@@ -63,7 +65,28 @@
         roster[0]='Warrior';
       }
       const lanes=[-1,0,1,-2,2];if(index>0)for(let i=4;i>0;i--){const j=Math.floor(random()*(i+1));[lanes[i],lanes[j]]=[lanes[j],lanes[i]];}
-      return {name:index===0?w.name:style.name,hint:index===0?'Jaga jarak, baca ayunan musuh, lalu balas.':style.hint,roster,lanes,interval:w.interval};
+      const pool=roster.slice(),ordered=[],groups=[],spawnLanes=[];
+      const take=preferred=>{let slot=-1;for(const kind of preferred){slot=pool.indexOf(kind);if(slot>=0)break;}return pool.splice(Math.max(0,slot),1)[0];};
+      while(pool.length){
+        const start=ordered.length,count=Math.min(3,pool.length),front=styleIndex===0?['Lancer','Warrior','Pawn']:['Warrior','Pawn','Lancer'];
+        for(let j=0;j<count;j++){
+          let kind;
+          if(index===0)kind=pool.shift();
+          else if(j===0)kind=take(start===0?['Warrior']:front);
+          else if(j===count-1){
+            const monks=pool.filter(k=>k==='Monk').length,needMonk=monks>=Math.ceil(pool.length/3)||random()<.6;
+            kind=take(ordered.slice(start).includes('Monk')?['Archer','Warrior','Lancer','Pawn']:needMonk?['Monk','Archer','Warrior','Lancer','Pawn']:['Archer','Monk','Warrior','Lancer','Pawn']);
+          }else kind=take(styleIndex===1&&random()<.65?['Archer','Warrior','Lancer','Pawn']:random()<.5?['Lancer','Warrior','Pawn','Archer']:['Warrior','Pawn','Lancer','Archer']);
+          ordered.push(kind);
+          const packet=groups.length,side=(packet%2?1:-1)*(random()<.5?-1:1);
+          spawnLanes.push(index===0?lanes[(start+j)%5]:styleIndex===0?[-1,0,1][(j+packet)%3]:styleIndex===1?(j===0?0:side*(j===1?2:1)):lanes[(packet+j*2)%5]);
+        }
+        const threat=ordered.slice(start).reduce((n,k)=>n+({Pawn:.7,Warrior:1,Archer:1.2,Lancer:1.3,Monk:1.4}[k]),0);
+        groups.push({start,count,threat,delay:0});
+      }
+      const average=groups.reduce((n,g)=>n+g.threat,0)/groups.length;
+      for(const g of groups)g.delay=w.interval*1.9*(index===0?1:clamp(g.threat/average,.85,1.15));
+      return {name:index===0?w.name:style.name,hint:index===0?'Jaga jarak, baca ayunan musuh, lalu balas.':style.hint,roster:ordered,lanes,spawnLanes,groups,interval:w.interval};
     });
   }
   let state = 'loading', phase = 'prepare', waveIndex = 0, waveTimer = 22, spawned = 0, spawnTimer = 0;
@@ -75,10 +98,11 @@
   const approachOffsets = Array.from({length:8},(_,i)=>({x:Math.cos(i*Math.PI/4),y:Math.sin(i*Math.PI/4)}));
   const approachSlots = new Map(), combatUnits = [];
   const engagements=new Map();
-  let combatId=0, pressureActive=0, pressureGap=0, collectingHeroDamage=false, pendingHeroDamage=null;
+  let combatId=0, pressureActive=0, pressureGap=0,rangedPressureGap=0,collectingHeroDamage=false, pendingHeroDamage=null;
   const combatStats={};
   function resetCombatStats(){
     Object.assign(combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0,allyEvades:0,allyHazardHits:0,roleIntercepts:0,repositions:0,fortressSaved:0});
+    Object.assign(combatStats,{rangedDeferrals:0,maxRangedWindups:0,oathHealing:0});
     combatStats.damageBySource={Warrior:0,Lancer:0,Archer:0,Pawn:0,boss:0,unknown:0};
   }
   resetCombatStats();
@@ -129,7 +153,8 @@
     if(waveIndex!==4||bossSpawned)return false;
     bossSpawned=true;const hp=settings().bossHp;
     boss={combatId:++combatId,x:roadEntry.x,y:405,kind:'Warrior',color:'Black',hp,maxHp:hp,facing:1,moving:false,attack:0,cooldown:1,seed:0,speed:62*settings().speed,team:'enemy',entering:true,lane:0,flankSign:1,isBoss:true,hitFlash:0,stagger:0,knockX:0,knockY:0,bossAction:null,abilityCooldown:.5,pattern:0,patternMask:0,lastPattern:-1,enraged:false};
-    enemies.push(boss);announce('Panglima Kelam','BACA TANDANYA · HINDARI · BALAS');return true;
+    enemies.push(boss);spawnTimer=Math.max(spawnTimer,difficulty==='easy'?2.2:difficulty==='hard'?1.4:1.8);
+    announce('Panglima Kelam','BACA TANDANYA · HINDARI · BALAS');return true;
   }
   function chooseBossPattern(u,target){
     if(u.patternMask===7)u.patternMask=0;
@@ -214,7 +239,7 @@
     {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash berkurang 0,25 detik per tingkat.'},
     {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan elak sempurna +6 damage dan durasi +0,5 detik per tingkat.'},
     {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kastel +80 HP, pulih 80; damage penjaga dekat kastel berkurang 2 per tingkat.'},
-    {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Kapasitas nyawa penjaga +15 dan langsung pulih 15 per tingkat.'},
+    {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Nyawa +15, pulih 15; pemulihan bekal +5 dan biarawan untukmu +2 per tingkat.'},
   ];
   function dashCooldown() { return 2.4 - ranks.wind * .25; }
   function startDash() {
@@ -266,6 +291,8 @@
   let best = 0, terrainCanvas, lastTime = 0, pausedForDialog = false, initialized = false;
   let scale = 1, cssScale = 1, cameraX = 0, cameraY = 0, viewW = W, viewH = H, overlayDirty=true;
   const spriteMetadata=new Map(),heroOutlines=new Map();
+  const unitFrames=new Map(),UNIT_FRAME_BUDGET=12*1024*1024;
+  let unitFrameBytes=0;
   const heroSprite={path:null,size:136,age:0,fps:9,facing:1,once:false};
   let waterPattern=null;
   const labelPool=Array.from({length:80},()=>({x:0,y:0,w:0,h:0,owner:null})),overlayRects=[],threatOrder=[],floaterOrder=[];
@@ -302,9 +329,10 @@
     owner.labelSlot=best;return reserveLabel(bestX,bestY,w,h,owner);
   }
   function layoutHeroMarker(){
-    const s=clamp(.8/cssScale,1,1.6),width=hero.riposte>0?66:44;
+    const s=clamp(.8/cssScale,1,1.6),width=heroCounterReady()?66:44;
     return placeLabel(hero,hero.x,hero.y-82-9*s,width*s,30*s,badgeOffsets,true);
   }
+  function heroCounterReady(){return hero.riposte>0||!!(hero.strike?.counterBonus>0&&hero.strike.hits.size===0);}
   let soundOn = false, audio, melodyTimer = 0;
   try { best = Number(localStorage.getItem('penjaga-pulau-best')) || 0; } catch { /* private/file contexts may deny storage */ }
   $('bestScore').textContent = String(best).padStart(4, '0');
@@ -573,6 +601,16 @@
     if(flashFrames.size>=32)flashFrames.delete(flashFrames.keys().next().value);
     flashFrames.set(key,white);return white;
   }
+  function unitFrame(path,frameX,info){
+    const key=path+':'+frameX;let frame=unitFrames.get(key);
+    if(frame){unitFrames.delete(key);unitFrames.set(key,frame);return frame;}
+    const bounds=window.TINY_UNIT_BOUNDS?.[path]?.[frameX/info.width]||[0,0,info.width,info.height];
+    const [left,top,width,height]=bounds,image=document.createElement('canvas');image.width=width;image.height=height;
+    image.getContext('2d').drawImage(img(path),frameX+left,top,width,height,0,0,width,height);
+    frame={image,x:left,y:top,bytes:image.width*image.height*4};
+    while(unitFrames.size>=512||unitFrameBytes+frame.bytes>UNIT_FRAME_BUDGET){const oldest=unitFrames.keys().next().value;unitFrameBytes-=unitFrames.get(oldest).bytes;unitFrames.delete(oldest);}
+    unitFrames.set(key,frame);unitFrameBytes+=frame.bytes;return frame;
+  }
   function drawSprite(path, x, y, size, time = animTime, fps = 9, facing = 1, alpha = 1, once = false, flash = false) {
     if(x+size<cameraX||x-size>cameraX+viewW||y+size<cameraY||y-size>cameraY+viewH)return;
     const im = img(path); if (!im) return;
@@ -581,6 +619,9 @@
     if (flash) {
       const white=whiteFrame(path,frameX,frame);
       ctx.drawImage(white,-width/2,-size*frame.anchorY,width,size);
+    } else if(path.startsWith('Units/')){
+      const cached=unitFrame(path,frameX,frame),ratio=size/frame.height;
+      ctx.drawImage(cached.image,-width/2+cached.x*ratio,-size*frame.anchorY+cached.y*ratio,cached.image.width*ratio,cached.image.height*ratio);
     } else ctx.drawImage(im, frameX, 0, frame.width, frame.height, -width / 2, -size * frame.anchorY, width, size);
     ctx.restore();
   }
@@ -675,20 +716,21 @@
   }
   function drawHeroMarker(){
     if(!['playing','paused'].includes(state)||hero.hp<=0)return;
-    const s=clamp(.8/cssScale,1,1.6),counter=hero.riposte>0,color=counter||hero.dash>0?'#aef8ea':hero.damageCue>0?'#ffb59d':'#f5dfa3';
+    const s=clamp(.8/cssScale,1,1.6),counter=heroCounterReady(),color=counter||hero.dash>0?'#aef8ea':hero.damageCue>0?'#ffb59d':'#f5dfa3';
     ctx.save();ctx.translate(hero.x,hero.y);
     ctx.beginPath();ctx.ellipse(0,-4,22,10,0,0,Math.PI*2);ctx.strokeStyle='#173327';ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.stroke();
     if(ranks.bastion>0&&castle.hp>0&&dist(hero,castle)<=160){ctx.fillStyle='#b5f5e4';ctx.fillRect(-3,-7,6,6);}
     if(hero.damageCue>0){ctx.save();ctx.translate(0,-24);ctx.rotate(hero.damageDirection+Math.PI);ctx.beginPath();ctx.moveTo(46,0);ctx.lineTo(32,-8);ctx.lineTo(32,8);ctx.closePath();ctx.fillStyle='#ffb59d';ctx.strokeStyle='#173327';ctx.lineWidth=3;ctx.stroke();ctx.fill();ctx.restore();}
     const marker=hero.markerLayout||layoutHeroMarker(),markerY=marker.y+9*s;
-    if(Math.abs(marker.x-hero.x)>20){ctx.beginPath();ctx.moveTo(0,-65);ctx.lineTo(marker.x-hero.x,markerY-hero.y+6*s);ctx.strokeStyle='#173327';ctx.lineWidth=3;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.stroke();}
+    const below=markerY>hero.y-45;
+    if(Math.abs(marker.x-hero.x)>20||Math.abs(markerY-(hero.y-82))>20){ctx.beginPath();ctx.moveTo(0,below?-20:-65);ctx.lineTo(marker.x-hero.x,markerY-hero.y+(below?-18:6)*s);ctx.strokeStyle='#173327';ctx.lineWidth=3;ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=1;ctx.stroke();}
     ctx.translate(marker.x-hero.x,markerY-hero.y);ctx.scale(s,s);
     const width=counter?66:44;
     ctx.fillStyle='#173327ed';ctx.fillRect(-width/2,-18,width,18);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(-width/2,-18,width,18);
     ctx.font='bold 11px Segoe UI';ctx.textAlign='center';ctx.fillStyle=color;ctx.fillText(counter?'BALASAN':'KAMU',0,-6);
     if(hero.cooldown>0){ctx.fillStyle='#ffffff26';ctx.fillRect(-width/2+2,-3,width-4,2);ctx.fillStyle=color;ctx.fillRect(-width/2+2,-3,(width-4)*clamp(1-hero.cooldown/(HERO_ATTACK.cooldown*(1-ranks.rhythm*.06)),0,1),2);}
-    ctx.beginPath();ctx.moveTo(-4,1);ctx.lineTo(4,1);ctx.lineTo(0,6);ctx.closePath();ctx.fill();
-    if(hero.hp<hero.maxHp)healthBar(0,-23,hero.hp,hero.maxHp,hero.hp/hero.maxHp<.3?'#ffb59d':'#bde6b1',width-4);
+    ctx.beginPath();ctx.moveTo(-4,below?-19:1);ctx.lineTo(4,below?-19:1);ctx.lineTo(0,below?-24:6);ctx.closePath();ctx.fill();
+    if(hero.hp<hero.maxHp)healthBar(0,below?4:-23,hero.hp,hero.maxHp,hero.hp/hero.maxHp<.3?'#ffb59d':'#bde6b1',width-4);
     ctx.restore();
   }
   function playerThreat(u){
@@ -725,6 +767,14 @@
       ctx.strokeText(f.text,r.x,r.y+size*.35);ctx.fillStyle=f.color;ctx.fillText(f.text,r.x,r.y+size*.35);
     }
     ctx.globalAlpha=1;
+  }
+  function drawBossStatus(){
+    if(!boss||boss.hp<=0)return;
+    const a=boss.bossAction,open=a?.stage==='recovery',s=clamp(.8/cssScale,1,1.5);
+    const text=open?'TERBUKA':a?.stage==='rally'?'MENGAMUK':a?.stage==='warning'?({slam:'! HANTAM',charge:'>> TERJANG',volley:'||| PANAH'}[a.type]):boss.enraged?'PANGLIMA · FASE II':'PANGLIMA · FASE I';
+    ctx.font=`bold ${11*s}px Segoe UI`;
+    const r=placeLabel(boss,boss.x,boss.y-95,ctx.measureText(text).width+8,17*s,numberOffsets);if(!r)return;
+    ctx.textAlign='center';ctx.strokeStyle='#173327';ctx.lineWidth=4;ctx.strokeText(text,r.x,r.y+4*s);ctx.fillStyle=open?'#cbffce':'#f4cc92';ctx.fillText(text,r.x,r.y+4*s);
   }
   function drawBossDanger(overlay=false){
     const a=boss?.hp>0?boss.bossAction:null;if(a?.stage!=='warning')return;
@@ -787,8 +837,7 @@
     }
     if (!u.isBoss && !isHero && u.hp < u.maxHp && (u.hitFlash>0||dist(u,hero)<240) && !playerThreat(u)) healthBar(u.x, u.y - 55, u.hp, u.maxHp, u.team === 'enemy' ? '#ef9a7a' : '#a9dda9', 35);
     if(u.isBoss){
-      const a=u.bossAction,open=a?.stage==='recovery';ctx.fillStyle=open?'#cbffce':'#f4cc92';ctx.font='bold 11px Segoe UI';ctx.textAlign='center';
-      ctx.fillText(open?'TERBUKA':a?.stage==='rally'?'MENGAMUK':a?.stage==='warning'?({slam:'! HANTAM',charge:'>> TERJANG',volley:'||| PANAH'}[a.type]):u.enraged?'PANGLIMA · FASE II':'PANGLIMA · FASE I',u.x,u.y-95);
+      const a=u.bossAction,open=a?.stage==='recovery';
       if(open){ctx.strokeStyle='#cbffce';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(u.x,u.y,35,12,0,0,Math.PI*2);ctx.stroke();}
       if(a?.stage==='rally'){ctx.strokeStyle='#ffb37b';ctx.lineWidth=3;ctx.setLineDash([5,4]);ctx.beginPath();ctx.ellipse(u.x,u.y,35+18*(1-a.time/a.duration),14,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
     }
@@ -856,6 +905,7 @@
     drawBossDanger(true);
     drawHeroOutline();
     beginLabelLayout();hero.markerLayout=layoutHeroMarker();
+    drawBossStatus();
     drawPlayerThreats();
     drawCombatNumbers();
     ctx.globalAlpha = 1;
@@ -1044,7 +1094,7 @@
     runSeed=Number.isInteger(seed)?seed>>>0:Math.floor(Math.random()*4294967296)>>>0;encounters=makeEncounters(runSeed);
     gameRandom=seededRandom(runSeed);
     for(const voice of [...soundVoices]){voice.source.stop();voice.finish();}
-    resetCombatStats();combatId=0;pressureActive=0;pressureGap=0;approachSlots.clear();engagements.clear();combatUnits.length=0;collectingHeroDamage=false;pendingHeroDamage=null;lastCombatCue.clear();
+    resetCombatStats();combatId=0;pressureActive=0;pressureGap=0;rangedPressureGap=0;approachSlots.clear();engagements.clear();combatUnits.length=0;collectingHeroDamage=false;pendingHeroDamage=null;lastCombatCue.clear();
     Object.assign(hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99,stepTimer:0,swingFacing:1,swingEmpowered:false,labelSlot:0,markerLayout:null});
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     simulationAccumulator = 0; pausedForDialog = false;toastTimer=0;$('toast').classList.remove('show');
@@ -1099,7 +1149,7 @@
   }
   function spawnEnemy() {
     const w = waves[waveIndex],plan=encounters[waveIndex],kind=plan?.roster[spawned%w.count]||w.types[spawned%w.types.length];
-    const lane = (plan?.lanes||[-1,0,1,-2,2])[spawned % 5];
+    const lane = plan?.spawnLanes?.[spawned]??(plan?.lanes||[-1,0,1,-2,2])[spawned % 5];
     const entry = { x: roadEntry.x + rand(-3, 3), y: roadEntry.y + lane * 7 };
     const baseHp = ({ Warrior: 62, Archer: 43, Lancer: 82, Monk: 48, Pawn: 38 }[kind]) + waveIndex * 9;
     const hp=Math.round(baseHp*settings().hp);
@@ -1133,7 +1183,7 @@
     if (hero.healCooldown > 0) return;
     if (hero.hp >= hero.maxHp) { notify('Tenagamu masih penuh.'); return; }
     if (food < 1) { notify('Bekal habis. Dekati domba lalu tekan E.'); return; }
-    const restored = Math.min(45, hero.maxHp - hero.hp);
+    const restored = Math.min(45+5*ranks.oath, hero.maxHp - hero.hp);combatStats.oathHealing+=Math.max(0,restored-45);
     hero.work = null;
     food--; hero.healCooldown = 1.8; hero.hp += restored; float(`+${Math.ceil(restored)}`, hero.x, hero.y, '#c6eea1', true);
     addEffect(blue('Monk', 'Heal_Effect'), hero.x, hero.y, 140, .8); tone(587, .25); updateUI();
@@ -1456,7 +1506,14 @@
     return p?{x:target.x+p.x*radius,y:target.y+p.y*radius}:target;
   }
   function mayStartMelee(u,target){
-    if(u.team!=='enemy'||target!==hero||u.kind==='Archer')return true;
+    if(u.team!=='enemy'||target!==hero)return true;
+    if(u.kind==='Archer'){
+      const bossThreat=boss?.hp>0&&['warning','charge'].includes(boss.bossAction?.stage);
+      const limit=Math.max(1,(difficulty==='easy'?1:difficulty==='hard'?3:2)-(bossThreat?1:0));
+      let active=0;for(const e of enemies)if(e!==u&&e.hp>0&&e.kind==='Archer'&&e.strike?.target===hero)active++;
+      if(active>=limit||rangedPressureGap>0){combatStats.rangedDeferrals++;return false;}
+      rangedPressureGap=difficulty==='hard'?.1:.16;combatStats.maxRangedWindups=Math.max(combatStats.maxRangedWindups,active+1);return true;
+    }
     let limit=difficulty==='easy'?2:difficulty==='hard'?4:3;
     if(boss?.hp>0&&boss.bossAction?.stage==='recovery'&&dist(hero,boss)<160)limit=difficulty==='hard'?2:1;
     if(pressureActive>=limit||pressureGap>0){combatStats.pressureDeferrals++;return false;}
@@ -1500,7 +1557,8 @@
     }
     const wounded=u.healTarget,home=u.team==='ally'?squadHome(u):u.supportHome||u;
     if(wounded&&dist(u,wounded)<140&&u.cooldown<=0&&shotClear(u,wounded)){
-      const capacity=u.team==='ally'?16:12,healed=Math.min(wounded.maxHp-wounded.hp,capacity);
+      const base=u.team==='ally'?16:12,capacity=base+(u.team==='ally'&&wounded===hero?ranks.oath*2:0),healed=Math.min(wounded.maxHp-wounded.hp,capacity);
+      if(wounded===hero)combatStats.oathHealing+=Math.max(0,healed-base);
       wounded.hp+=healed;combatStats.healingDone+=healed;combatStats.healingWasted+=capacity-healed;
       u.attack=u.attackDuration=.45;u.cooldown=u.team==='ally'?3:4.5;u.moving=false;
       addEffect(blue('Monk','Heal_Effect'),wounded.x,wounded.y,110,.7);float(`+${Math.ceil(healed)}`,wounded.x,wounded.y,'#ceefa0');return;
@@ -1574,7 +1632,7 @@
     if (u.kind === 'Archer' && d < (u.team==='ally'?110:145) && !u.strike) {
       if(u.repositionThink<=0||!u.retreatGoal){u.retreatGoal=tacticalRetreat(u,target);u.repositionThink=.24;}
       if(u.retreatGoal)steerMove(u,u.retreatGoal,dt,u.speed*.95);else u.moving=false;u.facing=target.x<u.x?-1:1;
-      if (u.cooldown <= 0) { u.attack = u.attackDuration = .72; u.cooldown = 1.6; u.strike = { timer: .31, target, range: 225 }; }
+      if (u.cooldown <= 0&&mayStartMelee(u,target)) { u.attack = u.attackDuration = .72; u.cooldown = 1.6; u.strike = { timer: .31, target, range: 225 }; }
       return;
     }
     if(u.kind==='Lancer'&&d<49&&u.cooldown>.25){const retreat=tacticalRetreat(u,target,28);if(retreat){steerMove(u,retreat,dt,u.speed*.8);u.facing=target.x<u.x?-1:1;return;}}
@@ -1598,7 +1656,7 @@
     for (const u of [hero, ...allies, ...enemies]) keepOnLand(u);
     if (castle.hp <= 0 || hero.hp <= 0) { finish(false); return; }
     updatePresentation(dt);
-    pressureGap=Math.max(0,pressureGap-dt);pressureActive=0;
+    pressureGap=Math.max(0,pressureGap-dt);rangedPressureGap=Math.max(0,rangedPressureGap-dt);pressureActive=0;
     for(const u of enemies)if(u.hp>0&&(u.strike?.target===hero&&u.kind!=='Archer'||u.isBoss&&u.bossAction?.stage==='warning'))pressureActive++;
     orderPulse=Math.max(0,orderPulse-dt);
     elapsed += dt; gatherCooldown = Math.max(0, gatherCooldown - dt); hero.cooldown = Math.max(0, hero.cooldown - dt); hero.attack = Math.max(0, hero.attack - dt); hero.invuln = Math.max(0, hero.invuln - dt);
@@ -1633,9 +1691,10 @@
     else {
       spawnTimer -= dt;
       if (spawned < waves[waveIndex].count && spawnTimer <= 0) {
-        const batch = Math.min(3, waves[waveIndex].count - spawned);
+        const group=encounters[waveIndex]?.groups?.find(g=>spawned>=g.start&&spawned<g.start+g.count);
+        const batch = Math.min(group?group.start+group.count-spawned:3, waves[waveIndex].count - spawned);
         for (let i = 0; i < batch; i++) spawnEnemy();
-        spawnTimer = waves[waveIndex].interval * 1.9*settings().interval;
+        spawnTimer = (group?.delay||waves[waveIndex].interval*1.9)*settings().interval;
       }
     }
     if(phase==='battle'&&waveIndex===4&&spawned>=Math.ceil(waves[4].count/2)&&!bossSpawned)spawnBoss();
@@ -1702,9 +1761,9 @@
 
     const cd=hero.dashCooldown||0,ready=cd<=0;
     $('dashLabel').textContent=hero.riposte>0?'Balasan siap!':ready?'Langkah Embun':`Pulih ${cd.toFixed(1)} dtk`;
-    $('dashButton').disabled=state!=='playing'||!ready;
+    $('dashButton').disabled=state!=='playing';$('dashButton').classList.toggle('cooling-down',!ready);
     $('dashFill').style.width=`${(1-cd/dashCooldown())*100}%`;
-    $('touchDash').disabled=state!=='playing'||!ready;$('touchDash').textContent=ready?'➶':cd.toFixed(1);
+    $('touchDash').disabled=state!=='playing';$('touchDash').classList.toggle('cooling-down',!ready);$('touchDash').textContent=ready?'➶':cd.toFixed(1);
     $('campButton').disabled=phase!=='prepare';$('campButton').textContent=phase!=='prepare'?'Perkemahan · jeda':campPurchase===waveIndex?'Penempaan selesai · U':'✦ Pilih upgrade · U';
 
     $('heroHealth').textContent = `${Math.ceil(hero.hp)} / ${hero.maxHp}`; $('heroHealthBar').style.width = `${hero.hp/hero.maxHp*100}%`;
@@ -1716,7 +1775,8 @@
     $('waveDetail').textContent = `${settings().name} · ${encounters[waveIndex]?.name||w.name}`;
     $('waveProgress').style.width = `${phase === 'prepare' ? (1 - waveTimer / (waveIndex === 0 ? 22 : 15)) * 100 : (spawned - enemies.filter(u=>!u.isBoss).length) / w.count * 100}%`;
     $('enemyCount').textContent = phase === 'prepare' ? `${allies.length} sekutu bersiap` : `${enemies.length + w.count - spawned+(waveIndex===4&&!bossSpawned?1:0)} musuh tersisa`;
-    $('phaseHint').textContent = phase === 'prepare' ? encounters[waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.' : 'Musuh mendekat. Rumahmu membutuhkanmu.';
+    $('phaseHint').textContent = (encounters[waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.')+(phase==='prepare'&&ranks.bastion>0?' Benteng aktif saat kamu dekat kastel.':'');
+    $('healButton').title=`Pulihkan hingga ${45+5*ranks.oath} nyawa penjaga dengan 1 bekal. Tombol Q.`;
     const cost = recruitIndex % 4 === 2 ? 55 : 40;
     $('recruitCost').textContent = `${cost} emas · ${allies.length}/8`;
     $('recruitButton').classList.toggle('unavailable', gold < cost || allies.length >= 8);
@@ -1767,7 +1827,7 @@
     $(id).showModal();
   }
   for (const id of ['helpDialog', 'galleryDialog', 'campDialog','audioDialog']) {
-    $(id).addEventListener('close', () => { if (pausedForDialog) { state = 'playing'; canvas.focus({ preventScroll: true }); } pausedForDialog = false; });
+    $(id).addEventListener('close', () => { if (pausedForDialog) { state = 'playing';clearCombatInput();canvas.focus({ preventScroll: true }); } pausedForDialog = false; });
     $(id).addEventListener('click', e => { if (e.target === $(id)) { const r = $(id).getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $(id).close(); } });
   }
   document.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => $(b.dataset.close).close()));

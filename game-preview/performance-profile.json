@@ -1,0 +1,179 @@
+{
+  "units": 29,
+  "difficulty": "hard",
+  "bossEnraged": true,
+  "bossPatterns": [
+    "charge",
+    "slam",
+    "volley"
+  ],
+  "bossResolved": [
+    "charge",
+    "slam",
+    "volley"
+  ],
+  "effects": 1,
+  "impacts": 3,
+  "fields": 11,
+  "approachTargets": 15,
+  "combat": {
+    "swings": 26,
+    "hits": 33,
+    "misses": 2,
+    "interruptions": 16,
+    "cancels": 0,
+    "bufferedInputs": 0,
+    "healingDone": 343,
+    "healingWasted": 9,
+    "stalls": 0,
+    "blockedSeconds": 0,
+    "mergedHits": 0,
+    "pressureDeferrals": 44,
+    "maxWindups": 4,
+    "damageTaken": 528,
+    "allyEvades": 13,
+    "allyHazardHits": 3,
+    "roleIntercepts": 55,
+    "repositions": 0,
+    "fortressSaved": 0,
+    "damageBySource": {
+      "Warrior": 69,
+      "Lancer": 130,
+      "Archer": 138,
+      "Pawn": 69,
+      "boss": 122,
+      "unknown": 0
+    }
+  },
+  "steps": 900,
+  "meanMs": 0.4976666666732894,
+  "p95Ms": 1,
+  "maxMs": 5.800000000745058,
+  "effectCap": 80,
+  "render": {
+    "frames": 872,
+    "medianMs": 16.699999999999818,
+    "p95Ms": 16.799999999999272,
+    "maxMs": 50.100000000000364
+  },
+  "draw": {
+    "frames": 890,
+    "meanMs": 2.2125842696746414,
+    "p95Ms": 3.399999998509884,
+    "maxMs": 28.5
+  },
+  "caches": {
+    "cssScale": 0.6938920454545454,
+    "unitFrames": 366,
+    "unitFrameBytes": 9933344,
+    "whiteFrames": 32,
+    "outlines": 13,
+    "metadata": 73,
+    "keys": [],
+    "pointers": 0,
+    "attackBuffer": 0,
+    "dashBuffer": 0,
+    "swings": 0,
+    "attack": 0,
+    "pixels": 675798
+  },
+  "costs": {
+    "cache": {
+      "hits": 29203,
+      "misses": 342
+    },
+    "danger": {
+      "calls": 1782,
+      "ms": 25.00000001117587
+    },
+    "scenery": {
+      "calls": 44550,
+      "ms": 377.6999999396503
+    },
+    "sprites": {
+      "calls": 63764,
+      "ms": 835.6000000722706
+    },
+    "units": {
+      "calls": 26730,
+      "ms": 875.4000000096858
+    },
+    "outline": {
+      "calls": 891,
+      "ms": 28.100000008940697
+    },
+    "layout": {
+      "calls": 891,
+      "ms": 9.300000008195639
+    },
+    "threats": {
+      "calls": 891,
+      "ms": 27.899999983608723
+    },
+    "numbers": {
+      "calls": 891,
+      "ms": 93.39999993890524
+    },
+    "marker": {
+      "calls": 891,
+      "ms": 35.40000004321337
+    }
+  },
+  "live": {
+    "units": 29,
+    "difficulty": "hard",
+    "bossEnraged": true,
+    "bossPatterns": [
+      "charge",
+      "slam",
+      "volley"
+    ],
+    "bossResolved": [
+      "charge",
+      "slam",
+      "volley"
+    ],
+    "effects": 1,
+    "impacts": 4,
+    "fields": 28,
+    "approachTargets": 20,
+    "combat": {
+      "swings": 0,
+      "hits": 0,
+      "misses": 0,
+      "interruptions": 0,
+      "cancels": 0,
+      "bufferedInputs": 0,
+      "healingDone": 327,
+      "healingWasted": 9,
+      "stalls": 0,
+      "blockedSeconds": 0,
+      "mergedHits": 0,
+      "pressureDeferrals": 14,
+      "maxWindups": 4,
+      "damageTaken": 523,
+      "allyEvades": 22,
+      "allyHazardHits": 4,
+      "roleIntercepts": 53,
+      "repositions": 0,
+      "fortressSaved": 0,
+      "damageBySource": {
+        "Warrior": 23,
+        "Lancer": 286,
+        "Archer": 69,
+        "Pawn": 23,
+        "boss": 122,
+        "unknown": 0
+      }
+    }
+  },
+  "audio": {
+    "decoded": 17,
+    "failed": 0,
+    "voices": 3,
+    "effectsVolume": 0.75,
+    "musicVolume": 0.25,
+    "enabled": true
+  },
+  "sourceSha256": "3bfc5cea1dcf1238c40137babb3d12c9c6b79e999723c8827ea072ca473e0bd5"
+}

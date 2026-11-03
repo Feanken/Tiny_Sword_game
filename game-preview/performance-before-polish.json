@@ -118,5 +118,5 @@
     "musicVolume": 0.25,
     "enabled": true
   },
-  "sourceSha256": "ae2f35fd4438dc3932ead2b83b880692f623446d61857514e3f4d8f2898d9603"
+  "sourceNote": "Captured from game.js before this polish. The end-of-run hash was discarded because source edits had already begun while the loaded browser session completed."
 }

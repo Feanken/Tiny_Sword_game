@@ -58,6 +58,58 @@ try {
   let renderSamples=null;const measuredDraw=draw;
   draw=()=>{const start=renderSamples?performance.now():0;measuredDraw();if(renderSamples&&renderSamples.length<1100)renderSamples.push(performance.now()-start);};
   window.__renderMeasure=(start=false)=>{if(start){renderSamples=[];return;}const samples=renderSamples.slice().sort((a,b)=>a-b);renderSamples=null;return {frames:samples.length,meanMs:samples.reduce((a,b)=>a+b,0)/samples.length,p95Ms:samples[Math.floor(samples.length*.95)],maxMs:samples.at(-1)};};
+  const renderCosts={};
+  window.__profileRender=()=>{
+    const timed=(name,fn)=>(...args)=>{const start=performance.now();fn(...args);const bucket=renderCosts[name]||(renderCosts[name]={calls:0,ms:0});bucket.calls++;bucket.ms+=performance.now()-start;};
+    drawSprite=timed('sprites',drawSprite);drawScenery=timed('scenery',drawScenery);drawUnit=timed('units',drawUnit);
+    drawHeroOutline=timed('outline',drawHeroOutline);beginLabelLayout=timed('layout',beginLabelLayout);drawCombatNumbers=timed('numbers',drawCombatNumbers);drawPlayerThreats=timed('threats',drawPlayerThreats);drawHeroMarker=timed('marker',drawHeroMarker);drawBossDanger=timed('danger',drawBossDanger);
+    const original=unitFrame;renderCosts.cache={hits:0,misses:0};unitFrame=(path,x,info)=>{renderCosts.cache[unitFrames.has(path+':'+x)?'hits':'misses']++;return original(path,x,info);};
+  };
+  window.__renderCosts=()=>renderCosts;
+  window.__polishMetrics=()=>({labels:labelPool.slice(0,labelCount).map(r=>({x:r.x,y:r.y,w:r.w,h:r.h,kind:r.owner==='hud'?'hud':r.owner===hero?'player':r.owner.team?'threat':'number'})),cssScale,unitFrames:unitFrames.size,unitFrameBytes,whiteFrames:flashFrames.size,outlines:heroOutlines.size,metadata:spriteMetadata.size,keys:[...keys],pointers:pointerBindings.size,attackBuffer:hero.attackBuffer,dashBuffer:hero.dashBuffer,swings:combatStats.swings,attack:hero.attack,pixels:canvas.width*canvas.height});
+  window.__verifyFrameCache=()=>{
+    let checked=0,different=0,pixels=0;
+    for(const path of [blue('Warrior','Attack1'),blue('Lancer','Right_Attack'),unitPath('Black','Warrior','Run'),unitPath('Black','Monk','Heal')]){
+      const info=spriteInfo(path),a=document.createElement('canvas'),b=document.createElement('canvas');a.width=b.width=220;a.height=b.height=220;
+      const ga=a.getContext('2d',{willReadFrequently:true}),gb=b.getContext('2d',{willReadFrequently:true});ga.imageSmoothingEnabled=gb.imageSmoothingEnabled=false;
+      for(let i=0;i<info.count;i++){
+        ga.clearRect(0,0,220,220);gb.clearRect(0,0,220,220);const frame=unitFrame(path,i*info.width,info),ratio=136/info.height;
+        ga.drawImage(img(path),i*info.width,0,info.width,info.height,40,40,info.width*ratio,136);
+        gb.drawImage(frame.image,40+frame.x*ratio,40+frame.y*ratio,frame.image.width*ratio,frame.image.height*ratio);
+        const pa=ga.getImageData(0,0,220,220).data,pb=gb.getImageData(0,0,220,220).data;
+        for(let p=0;p<pa.length;p+=4){if(pa[p+3]||pb[p+3])pixels++;if(pa[p]!==pb[p]||pa[p+1]!==pb[p+1]||pa[p+2]!==pb[p+2]||pa[p+3]!==pb[p+3])different++;}checked++;
+      }
+    }
+    for(const [path,record] of images)if(path.startsWith('Units/')&&record.loaded){const info=spriteInfo(path);for(let i=0;i<info.count;i++){
+      const bounds=window.TINY_UNIT_BOUNDS[path][i];if(!bounds||bounds[0]<0||bounds[1]<0||bounds[0]+bounds[2]>info.width||bounds[1]+bounds[3]>info.height)throw new Error('Invalid frame bounds: '+path);
+      unitFrame(path,i*info.width,info);
+    }}
+    return{checked,different,pixels,frames:unitFrames.size,bytes:unitFrameBytes,accountedBytes:[...unitFrames.values()].reduce((n,f)=>n+f.bytes,0)};
+  };
+  window.__exportUnitBounds=()=>{
+    const result={},scratch=document.createElement('canvas'),g=scratch.getContext('2d',{willReadFrequently:true});
+    for(const [path,record] of images){if(!path.startsWith('Units/')||!record.loaded)continue;
+      const info=spriteInfo(path),frames=[];scratch.width=info.width;scratch.height=info.height;
+      for(let i=0;i<info.count;i++){
+        g.clearRect(0,0,info.width,info.height);g.drawImage(record.image,i*info.width,0,info.width,info.height,0,0,info.width,info.height);
+        const pixels=g.getImageData(0,0,info.width,info.height).data;let l=info.width,t=info.height,r=0,b=0;
+        for(let y=0;y<info.height;y++)for(let x=0;x<info.width;x++)if(pixels[(y*info.width+x)*4+3]){l=Math.min(l,x);r=Math.max(r,x);t=Math.min(t,y);b=Math.max(b,y);}
+        frames.push(l>r?[0,0,1,1]:[l,t,r-l+1,b-t+1]);
+      }result[path]=frames;
+    }return result;
+  };
+  window.__polishReset=()=>{startGame(77);hero.x=600;hero.y=410;hero.cooldown=.1;announcementTimer=0;$('announcement').classList.remove('show');overlayDirty=true;};
+  window.__dashButtonQueue=()=>{window.__polishReset();hero.dashCooldown=.08;updateUI();$('dashButton').click();return hero.dashBuffer;};
+  window.__soak=(steps=72000)=>{
+    window.__stress(0);hero.hp=hero.maxHp=castle.hp=10000000;for(const u of [...allies,...enemies])u.hp=u.maxHp=10000000;boss.hp=4500000;
+    keys.add(' ');let pauses=0;
+    for(let i=0;i<steps;i++){
+      if(i%180===0)requestDash();update(1/60);
+      if(i%3600===3599){const before=elapsed;togglePause(true);advance(1);if(elapsed!==before)throw new Error('Paused clock advanced');togglePause(false);keys.add(' ');pauses++;}
+      if(state!=='playing')throw new Error('Soak stopped unexpectedly');
+    }
+    keys.clear();draw();return {seconds:elapsed,steps,pauses,units:enemies.length+allies.length,effects:effects.length,impacts:impacts.length,floaters:floaters.length,fields:routeFields.size,approachTargets:approachSlots.size,...window.__polishMetrics()};
+  };
   window.__stress = (runSteps=900) => {
     showTitle();setDifficulty('hard');startGame(77);phase='battle';gold=10000;
     for(let i=0;i<7;i++)recruitUnit();waveIndex=4;
@@ -94,7 +146,41 @@ try {
   assert.equal((await snapshot()).state, 'ready');
   assert.equal((await snapshot()).assetCount, 410);
   async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); try { fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); } catch { fs.writeFileSync(path.join(root,'game-preview',name.replace('.png','-run'+process.pid+'.png')),Buffer.from(r.data,'base64')); } }
-  if(process.argv.includes('--replay-only')) {
+  if(process.argv.includes('--export-bounds')) {
+    const bounds=await evaluate('window.__exportUnitBounds()');
+    fs.writeFileSync('unit-frame-bounds.js','/* Generated from original PNG alpha bounds. Regenerate: node game-preview/browser-test.mjs --stress --export-bounds */\nwindow.TINY_UNIT_BOUNDS = '+JSON.stringify(bounds)+';\n');
+    console.log('Exported exact alpha bounds for '+Object.keys(bounds).length+' unit sheets.');
+  } else if(process.argv.includes('--soak-only')) {
+    await page('HeapProfiler.collectGarbage');const before=await page('Runtime.getHeapUsage');
+    const result=await evaluate('window.__soak()');await page('HeapProfiler.collectGarbage');const after=await page('Runtime.getHeapUsage');
+    result.retainedHeapBefore=before.usedSize;result.retainedHeapAfter=after.usedSize;
+    assert.ok(result.seconds>=1199&&result.pauses===20&&result.units===29);assert.ok(result.effects<=80&&result.impacts<=60&&result.floaters<=35&&result.fields<=32&&result.approachTargets<=30&&result.whiteFrames<=32&&result.outlines<=32&&result.metadata<=410);
+    assert.ok(after.usedSize-before.usedSize<12*1024*1024,'retained JS heap stays within the soak budget');assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+    assert.ok(result.unitFrames<=512&&result.unitFrameBytes<=12*1024*1024);
+    result.sourceSha256=(await import('node:crypto')).createHash('sha256').update(fs.readFileSync('game.js')).digest('hex');
+    fs.writeFileSync('game-preview/stability-soak.json',JSON.stringify(result,null,2));console.log('20-minute fixed-step soak, 20 pause/resume cycles, bounded effects/caches/heap:',JSON.stringify({seconds:result.seconds,units:result.units,floaters:result.floaters,heapGrowth:after.usedSize-before.usedSize}));
+  } else if(process.argv.includes('--polish-only')) {
+    const cache=await evaluate('window.__verifyFrameCache()');assert.ok(cache.checked>=20&&cache.different/cache.pixels<.005,'cached crops preserve sprite pixels');assert.ok(cache.frames<=512&&cache.bytes<=12*1024*1024);assert.equal(cache.bytes,cache.accountedBytes,'cache eviction preserves the exact byte budget');
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await page('Emulation.setTouchEmulationEnabled',{enabled:true});
+    await evaluate('window.__combatReadability("crowd",.22)');await delay(80);
+    const first=await evaluate('window.__polishMetrics()'),overlap=(a,b)=>Math.abs(a.x-b.x)<(a.w+b.w)/2-1&&Math.abs(a.y-b.y)<(a.h+b.h)/2-1;
+    for(let i=0;i<first.labels.length;i++)for(let j=i+1;j<first.labels.length;j++)if(first.labels[i].kind!=='hud'||first.labels[j].kind!=='hud')assert.ok(!overlap(first.labels[i],first.labels[j]),'important indicators avoid each other and HUD');
+    const badge=first.labels.find(r=>r.kind==='player');assert.ok(badge);assert.ok(first.labels.filter(r=>r.kind==='threat').length>=4);
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:2,mobile:true});await delay(100);await evaluate('window.__combatReadability("crowd",.22)');await delay(60);
+    const second=await evaluate('window.__polishMetrics()'),badge2=second.labels.find(r=>r.kind==='player');assert.ok(Math.abs(badge.w*first.cssScale-badge2.w*second.cssScale)<1,'marker size is independent of device pixel ratio');await screenshot('polished-combat-mobile-dpr2.png');
+    await evaluate('window.__polishReset()');const button=await evaluate('(()=>{const r=document.querySelector("[data-move=right]").getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()');
+    await page('Input.dispatchKeyEvent',{type:'keyDown',key:'d'});await page('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[button]});await page('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});assert.ok((await evaluate('window.__polishMetrics()')).keys.includes('d'),'touch release preserves held keyboard');
+    await page('Input.dispatchKeyEvent',{type:'keyUp',key:'d'});assert.ok(!(await evaluate('window.__polishMetrics()')).keys.includes('d'));
+    await page('Input.dispatchKeyEvent',{type:'keyDown',key:' '});await evaluate('document.getElementById("pauseButton").click();document.getElementById("resumeButton").click()');await page('Input.dispatchKeyEvent',{type:'keyDown',key:' ',autoRepeat:true});assert.equal((await evaluate('window.__polishMetrics()')).keys.length,0,'OS repeat cannot resurrect input after pause');await page('Input.dispatchKeyEvent',{type:'keyUp',key:' '});
+    await evaluate('window.__polishReset();document.getElementById("helpButton").click()');const paused=(await snapshot()).waveTimer;await delay(150);assert.equal((await snapshot()).waveTimer,paused);await evaluate('document.getElementById("helpDialog").close()');await delay(50);assert.equal((await snapshot()).state,'playing');
+    assert.equal((await evaluate('window.__polishMetrics()')).pointers,0);
+    assert.ok(await evaluate('window.__dashButtonQueue()')>0,'the HUD button accepts the same late dash buffer as the keyboard');await delay(120);assert.ok((await snapshot()).dash.active>0);
+    await page('Emulation.setDeviceMetricsOverride',{width:1920,height:1080,deviceScaleFactor:2,mobile:false});await delay(80);assert.ok((await evaluate('window.__polishMetrics()')).pixels<2450000,'large high-density canvas has a pixel budget');
+    assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+    const hashFile=file=>(fs.readFileSync(file));const crypto=await import('node:crypto');
+    fs.writeFileSync('game-preview/polish-checks.json',JSON.stringify({sourceSha256:crypto.createHash('sha256').update(hashFile('game.js')).digest('hex'),frameBoundsSha256:crypto.createHash('sha256').update(hashFile('unit-frame-bounds.js')).digest('hex'),cache,labels:first.labels.length,visibleThreats:first.labels.filter(r=>r.kind==='threat').length,markerCssWidthDpr1:badge.w*first.cssScale,markerCssWidthDpr2:badge2.w*second.cssScale,checks:['no label/HUD overlap','metadata bounds valid','cache byte accounting','sprite pixel equivalence','keyboard and touch ownership','stale repeat rejection','dialog pause clock','HUD dash queue','pixel budget'],errors,missing},null,2));
+    console.log('Indicator collision/HUD avoidance, DPR-independent labels, pixel budget, keyboard + touch ownership, stale repeat rejection, paused dialog clock and cleanup: passed');
+  } else if(process.argv.includes('--replay-only')) {
     await evaluate('window.__resultPreview()');const original=await snapshot();assert.equal(original.runSeed,77);
     await evaluate('document.getElementById("restartButton").click()');assert.equal((await snapshot()).state,'playing');assert.equal((await snapshot()).runSeed,77);assert.deepEqual((await snapshot()).encounters,original.encounters);
     await evaluate('window.__resultPreview();document.getElementById("newRunButton").click()');assert.notEqual((await snapshot()).runSeed,77);
@@ -300,6 +386,7 @@ try {
     const stress=await evaluate('window.__stress()');
     assert.equal(stress.units,29);assert.ok(stress.meanMs<10&&stress.p95Ms<20);assert.ok(stress.approachTargets<=30);assert.ok(stress.combat.hits<=stress.combat.swings*3);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);
     await evaluate('window.__stress(0);window.__renderMeasure(true)');
+    if(process.argv.includes('--profile-render'))await evaluate('window.__profileRender()');
     stress.render=await evaluate(`new Promise(resolve=>{
       const samples=[];let start=performance.now(),last=start;
       function sample(now){if(now-start>250)samples.push(now-last);last=now;
@@ -308,11 +395,13 @@ try {
       }requestAnimationFrame(sample);
     })`);
     stress.draw=await evaluate('window.__renderMeasure()');
+    stress.caches=await evaluate('window.__polishMetrics()');delete stress.caches.labels;
+    if(process.argv.includes('--profile-render'))stress.costs=await evaluate('window.__renderCosts()');
     stress.live=await evaluate('window.__stressState()');
     stress.audio=(await snapshot()).audio;assert.equal(stress.audio.enabled,true);assert.equal(stress.audio.decoded,17);assert.ok(stress.audio.voices<=12);
     assert.equal(stress.live.units,29);assert.equal(stress.live.bossEnraged,true);assert.deepEqual([...stress.live.bossResolved].sort(),['charge','slam','volley']);assert.ok(stress.live.effects<=80&&stress.live.impacts<=60&&stress.live.fields<=32&&stress.live.approachTargets<=30);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
     stress.sourceSha256=(await import('node:crypto')).createHash('sha256').update(fs.readFileSync('game.js')).digest('hex');
-    fs.writeFileSync(path.join(root,'game-preview',process.argv.includes('--baseline')?'performance-before-polish.json':'performance.json'),JSON.stringify(stress,null,2));
+    fs.writeFileSync(path.join(root,'game-preview',process.argv.includes('--baseline')?'performance-before-polish.json':process.argv.includes('--profile-render')?'performance-profile.json':'performance.json'),JSON.stringify(stress,null,2));
     console.log('CPU + rendered-frame benchmark:',JSON.stringify(stress));
   }
   await call('Browser.close');

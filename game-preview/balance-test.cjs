@@ -20,17 +20,31 @@ function verify(results){
 if(require.main===module&&process.argv.includes('--verify')){verify(JSON.parse(fs.readFileSync('game-preview/balance-after.json','utf8')).results);process.exit(0);}
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 function simulate(strategy,mode,seed,options={}){
- const {g,snapshot}=createGame(seed,code);g.setDifficulty(mode);g.startGame(seed);
+ const {g,snapshot}=createGame(seed,options.code||code);g.setDifficulty(mode);g.startGame(seed);
  const build=options.build||['blade','wind','counter','blade','rhythm'],maxAllies=options.maxAllies??8;
- let bossArrived=null,bossEnded=null,dashes=0,upgrades=0;
+ let bossArrived=null,bossEnded=null,dashes=0,upgrades=0,fortressSeconds=0,peakEnemies=0;
+ const waveLog=[];let lastWave=-1;
  for(let frame=0;frame<36000&&g.state==='playing';frame++){
    g.keys.clear();
+   if(g.wave!==lastWave){lastWave=g.wave;waveLog.push({wave:g.wave+1,time:+g.time.toFixed(1),hp:Math.ceil(g.hero.hp),food:g.food,allies:g.allies.length,damageTaken:g.combatStats.damageTaken});}
+   peakEnemies=Math.max(peakEnemies,g.enemies.length);
+   if(g.ranks.bastion>0&&distance(g.hero,g.castle)<=160)fortressSeconds+=1/60;
+   const cleanup=options.defensive&&g.phase==='battle'&&g.spawned===[7,10,13,16,20][g.wave]&&g.enemies.length<=2&&!g.boss?.hp;
+   const defending=options.defensive&&!cleanup;
+   if(options.defensive){const order=defending?'guard':'follow';if(g.squadOrder!==order)g.setSquadOrder(order);}
    if(strategy!=='basic'&&g.phase==='prepare'&&g.buyUpgrade(build[g.wave]))upgrades++;
    const target=g.enemies.filter(e=>e.hp>0).sort((a,b)=>distance(g.hero,a)-distance(g.hero,b))[0];
    if(target){
      const dx=target.x-g.hero.x,dy=target.y-g.hero.y,d=distance(g.hero,target);
      if(d<86)g.keys.add(' ');
      if(d>65){if(Math.abs(dx)>12)g.keys.add(dx>0?'d':'a');if(Math.abs(dy)>12)g.keys.add(dy>0?'s':'w');}
+   }
+   if(defending){
+     const home={x:810,y:365},outside=distance(g.hero,g.castle)>155;
+     if(outside||!target||distance(target,g.castle)>220){
+       g.keys.delete('w');g.keys.delete('a');g.keys.delete('s');g.keys.delete('d');
+       if(distance(g.hero,home)>20){const dx=home.x-g.hero.x,dy=home.y-g.hero.y;if(Math.abs(dx)>10)g.keys.add(dx>0?'d':'a');if(Math.abs(dy)>10)g.keys.add(dy>0?'s':'w');}
+     }
    }
    const b=g.boss;
    if(b&&b.hp>0&&!b.entering&&bossArrived===null)bossArrived=g.time;
@@ -66,7 +80,7 @@ function simulate(strategy,mode,seed,options={}){
    if(g.gold>=55+reserve&&g.allies.length<maxAllies)g.recruitUnit();
    g.advance(1/60);
  }
- return {strategy,mode,seed,profile:options.name||strategy,maxAllies,build,result:g.state,seconds:+g.time.toFixed(1),heroHp:Math.ceil(g.hero.hp),castleHp:Math.ceil(g.castle.hp),bossSeconds:bossArrived===null?null:+((bossEnded??g.time)-bossArrived).toFixed(1),dashes,upgrades,...g.metrics,combat:snapshot().combat,unfinished:g.state==="playing"?snapshot():undefined};
+ return {strategy,mode,seed,profile:options.name||strategy,defensive:!!options.defensive,maxAllies,build,result:g.state,seconds:+g.time.toFixed(1),heroHp:Math.ceil(g.hero.hp),castleHp:Math.ceil(g.castle.hp),bossSeconds:bossArrived===null?null:+((bossEnded??g.time)-bossArrived).toFixed(1),dashes,upgrades,peakEnemies,fortressSeconds:+fortressSeconds.toFixed(1),waveLog,...g.metrics,combat:snapshot().combat,unfinished:g.state==="playing"?snapshot():undefined};
 }
 module.exports={simulate,verify};
 if(require.main===module){
