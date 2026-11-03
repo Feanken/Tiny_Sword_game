@@ -206,10 +206,10 @@ g.togglePause(true);assert.equal(g.setSquadOrder('follow'),false);g.togglePause(
 g.showTitle();assert.equal(g.setDifficulty('easy'),true);g.startGame();g.spawnEnemy();const easyHp=g.enemies[0].hp,easySpeed=g.enemies[0].speed;assert.equal(g.setDifficulty('hard'),false);
 g.showTitle();g.setDifficulty('hard');g.startGame();g.spawnEnemy();assert.ok(g.enemies[0].hp>easyHp&&g.enemies[0].speed>easySpeed);g.setWave(4);g.spawnBoss();assert.equal(g.boss.hp,850);
 g.showTitle();g.setDifficulty('normal');
-function bossFixture(){g.startGame();g.setWave(4);assert.equal(g.spawnBoss(),true);assert.equal(g.spawnBoss(),false,'leader spawns only once');g.allies.length=0;Object.assign(g.boss,{x:500,y:400,entering:false,abilityCooldown:0});g.hero.x=650;g.hero.y=400;return g.boss;}
+function bossFixture(){g.startGame();g.setWave(4);assert.equal(g.spawnBoss(),true);assert.equal(g.spawnBoss(),false,'leader spawns only once');g.allies.length=0;Object.assign(g.boss,{x:500,y:400,entering:false,abilityCooldown:0,patternMask:6});g.hero.x=650;g.hero.y=400;return g.boss;}
 let leader=bossFixture();g.updateBoss(leader,.016);assert.equal(leader.bossAction.type,'slam');assert.equal(g.hero.hp,100);g.updateBoss(leader,.5);assert.equal(g.hero.hp,100,'warning must not damage early');g.hero.y=570;g.updateBoss(leader,.5);assert.equal(g.hero.hp,100,'moving out avoids slam');assert.equal(leader.bossAction.stage,'recovery');
-leader=bossFixture();leader.pattern=1;g.updateBoss(leader,.016);assert.equal(leader.bossAction.type,'charge');g.updateBoss(leader,1);for(let i=0;i<28;i++)g.updateBoss(leader,1/60);assert.equal(g.hero.hp,73,'charge damages once');assert.ok(g.positionFits(leader.x,leader.y));
-leader=bossFixture();leader.pattern=2;g.updateBoss(leader,.016);g.updateBoss(leader,1);assert.equal(g.projectiles.length,3,'volley emits three arrows');
+leader=bossFixture();leader.patternMask=5;g.updateBoss(leader,.016);assert.equal(leader.bossAction.type,'charge');g.updateBoss(leader,1);for(let i=0;i<28;i++)g.updateBoss(leader,1/60);assert.equal(g.hero.hp,73,'charge damages once');assert.ok(g.positionFits(leader.x,leader.y));
+leader=bossFixture();leader.patternMask=3;g.updateBoss(leader,.016);g.updateBoss(leader,1);assert.equal(g.projectiles.length,3,'volley emits three arrows');
 leader=bossFixture();g.updateBoss(leader,.016);g.hero.dash=.2;g.hero.dashElapsed=.05;g.updateBoss(leader,1);assert.equal(g.hero.hp,100,'dash avoids leader slam');assert.ok(g.hero.riposte>0);
 leader=bossFixture();leader.hp=leader.maxHp/2;g.updateBoss(leader,.016);assert.equal(leader.enraged,true);g.hurt(leader,10,g.hero);assert.equal(leader.stagger,0,'leader cannot be stun locked');
 g.startGame();g.setWave(3);assert.equal(g.spawnBoss(),false,'leader is exclusive to final wave');
@@ -241,7 +241,7 @@ for(const fixture of [
  {from:{x:160,y:326},to:{x:240,y:326},name:'tree'},
  {from:{x:170,y:405},to:{x:104,y:405},name:'shore'},
 ]){
- const u=bossFixture();Object.assign(u,fixture.from,{pattern:1});Object.assign(g.hero,fixture.to);assert.ok(g.positionFits(u.x,u.y),'valid start at '+fixture.name);assert.ok(g.positionFits(g.hero.x,g.hero.y),'valid target at '+fixture.name);g.updateBoss(u,1/60);
+ const u=bossFixture();Object.assign(u,fixture.from,{patternMask:5});Object.assign(g.hero,fixture.to);assert.ok(g.positionFits(u.x,u.y),'valid start at '+fixture.name);assert.ok(g.positionFits(g.hero.x,g.hero.y),'valid target at '+fixture.name);g.updateBoss(u,1/60);
  const a=u.bossAction,end={x:a.chargeEnd.x,y:a.chargeEnd.y},speed=a.chargeSpeed;
  assert.ok(a.chargeEnd.distance<speed*.45,'warning is clipped by '+fixture.name);
  u.hp=u.maxHp*.4;g.updateBoss(u,.05);assert.equal(a.chargeSpeed,speed,'enrage cannot change a telegraphed speed');assert.deepEqual({x:a.chargeEnd.x,y:a.chargeEnd.y},end);
@@ -249,6 +249,6 @@ for(const fixture of [
  assert.ok(Math.hypot(u.x-end.x,u.y-end.y)<.01,'actual endpoint matches warning at '+fixture.name);
  assert.ok(g.positionFits(u.x,u.y));assert.ok(Math.abs((u.x-a.origin.x)*a.dy-(u.y-a.origin.y)*a.dx)<.001,'no sliding outside warning');
 }
-let heavy=bossFixture();heavy.pattern=1;g.updateBoss(heavy,1/60);g.spawnEnemy();Object.assign(g.enemies.at(-1),{x:heavy.x+5,y:heavy.y,entering:false,speed:0,cooldown:999});const warningOrigin={x:heavy.x,y:heavy.y};g.update(1/60);assert.deepEqual({x:heavy.x,y:heavy.y},warningOrigin,'crowd separation cannot displace a warning origin');
+let heavy=bossFixture();heavy.patternMask=5;g.updateBoss(heavy,1/60);g.spawnEnemy();Object.assign(g.enemies.at(-1),{x:heavy.x+5,y:heavy.y,entering:false,speed:0,cooldown:999});const warningOrigin={x:heavy.x,y:heavy.y};g.update(1/60);assert.deepEqual({x:heavy.x,y:heavy.y},warningOrigin,'crowd separation cannot displace a warning origin');
 heavy=bossFixture();const guardHp=heavy.hp;g.hurt(heavy,20,{team:'ally',x:450,y:400});assert.equal(heavy.hp,guardHp-11);heavy.bossAction={stage:'recovery',time:.95};g.hurt(heavy,20,{team:'ally',x:450,y:400});assert.equal(heavy.hp,guardHp-31);g.hurt(heavy,20,g.hero);assert.equal(heavy.hp,guardHp-57,'player receives the recovery window bonus');
 console.log('Persistent formation slots, vacancy reuse, clipped straight charges at buildings/trees/shore, locked rage speed, immovable warning origin and recovery damage: passed');

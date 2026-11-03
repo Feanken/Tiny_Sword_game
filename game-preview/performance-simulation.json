@@ -3,21 +3,50 @@
   "difficulty": "hard",
   "bossEnraged": true,
   "bossPatterns": [
-    "slam",
     "charge",
+    "slam",
     "volley"
   ],
   "bossResolved": [
-    "slam",
     "charge",
+    "slam",
     "volley"
   ],
   "effects": 80,
   "impacts": 60,
-  "fields": 11,
+  "fields": 12,
+  "approachTargets": 10,
+  "combat": {
+    "swings": 26,
+    "hits": 33,
+    "misses": 3,
+    "interruptions": 9,
+    "cancels": 0,
+    "bufferedInputs": 0,
+    "healingDone": 343,
+    "healingWasted": 9,
+    "stalls": 2,
+    "blockedSeconds": 0,
+    "mergedHits": 0,
+    "pressureDeferrals": 149,
+    "maxWindups": 4,
+    "damageTaken": 522,
+    "allyEvades": 31,
+    "allyHazardHits": 4,
+    "roleIntercepts": 84,
+    "repositions": 0,
+    "damageBySource": {
+      "Warrior": 92,
+      "Lancer": 182,
+      "Archer": 46,
+      "Pawn": 138,
+      "boss": 64,
+      "unknown": 0
+    }
+  },
   "steps": 900,
-  "meanMs": 1.4913333333366448,
-  "p95Ms": 3,
-  "maxMs": 6.300000000745058,
+  "meanMs": 2.0377777777798474,
+  "p95Ms": 3.100000001490116,
+  "maxMs": 6.799999998882413,
   "effectCap": 80
 }

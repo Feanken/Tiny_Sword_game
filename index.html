@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="layout.css">
   <script src="asset-manifest.js" defer></script>
+  <script src="audio-pack.js" defer></script>
   <script src="game.js" defer></script>
 </head>
 <body>
@@ -22,6 +23,7 @@
         <button id="helpButton" class="nav-button"><span aria-hidden="true">?</span> Cara main</button>
         <button id="galleryButton" class="nav-button"><span aria-hidden="true">▦</span> Galeri aset</button>
         <button id="soundButton" class="icon-button" aria-label="Nyalakan suara" aria-pressed="false" title="Suara">♪<span class="sound-off">/</span></button>
+        <button id="audioSettingsButton" class="icon-button" aria-label="Atur volume suara" title="Atur volume">☷</button>
         <button id="fullscreenButton" class="icon-button" aria-label="Layar penuh" title="Layar penuh">⛶</button>
       </nav>
     </header>
@@ -31,6 +33,7 @@
       <div class="title-side"><p>Sebuah rumah untuk dilindungi.<br>Sebuah kisah untuk dimenangkan.</p><div class="record"><span>REKOR TERBAIK</span><strong id="bestScore">0000</strong></div></div>
     </section>
 
+    <dialog id="audioDialog" class="modal audio-modal"><button class="close-button" data-close="audioDialog" aria-label="Tutup pengaturan suara">×</button><p class="eyebrow">SUARA PULAU</p><h2>Dengar setiap benturan.</h2><p id="audioStatus" role="status">Efek suara siap dimuat saat suara dinyalakan.</p><label for="effectsVolume">Efek pertempuran <output id="effectsVolumeValue">75%</output></label><input id="effectsVolume" type="range" min="0" max="100" value="75"><label for="musicVolume">Musik latar <output id="musicVolumeValue">25%</output></label><input id="musicVolume" type="range" min="0" max="100" value="25"><p>Nyalakan suara melalui tombol ♪ di menu. Pedang, panah, langkah kaki, dan peringatan memiliki suara berbeda. Tanda bahaya tetap terlihat saat suara dimatikan.</p><button class="primary-button" data-close="audioDialog">Kembali ke pulau <span>→</span></button></dialog>
     <main id="gameShell" class="game-shell">
       <div class="hud">
         <div class="hero-status"><span class="portrait" aria-hidden="true"></span><div><span class="hud-label">SANG PENJAGA</span><div class="health-track"><i id="heroHealthBar"></i></div><span class="health-number" id="heroHealth">100 / 100</span></div></div>
@@ -55,12 +58,12 @@
         <div class="world-caption" id="worldCaption"><span class="status-dot"></span> PULAU EMBUN <span>·</span> KERAJAAN BIRU</div>
 
         <section id="startScreen" class="start-screen">
-          <div class="intro-content"><p class="eyebrow light">SEBUAH PETUALANGAN PIXEL</p><h2>Rumah kecil.<br>Keberanian <em>besar.</em></h2><p class="intro-description">Musuh datang dari seberang lautan.<br>Angkat pedang, kumpulkan pasukan,<br>dan jaga kastelmu tetap berdiri.</p><div class="difficulty-picker" role="group" aria-label="Pilihan kesulitan"><button data-difficulty="easy" aria-pressed="false">Santai<small>Belajar bertahan</small></button><button data-difficulty="normal" aria-pressed="true">Normal<small>Tantangan seimbang</small></button><button data-difficulty="hard" aria-pressed="false">Sulit<small>Uji keberanian</small></button></div><p id="difficultyNote" class="difficulty-note"></p><button id="startButton" class="primary-button" disabled><span id="startLabel">Memuat pulau…</span><span aria-hidden="true">→</span></button><div class="intro-meta"><span>5 gelombang</span><i></i><span>± 5 menit</span><i></i><span>Tanpa instalasi</span></div><div class="loading-track" id="loadingTrack"><i id="loadingProgress"></i></div><p id="loadError" class="load-error" hidden></p></div>
+          <div class="intro-content"><p class="eyebrow light">SEBUAH PETUALANGAN PIXEL</p><h2>Rumah kecil.<br>Keberanian <em>besar.</em></h2><p class="intro-description">Musuh datang dari seberang lautan.<br>Angkat pedang, kumpulkan pasukan,<br>dan jaga kastelmu tetap berdiri.</p><div class="difficulty-picker" role="group" aria-label="Pilihan kesulitan"><button data-difficulty="easy" aria-pressed="false">Santai<small>Belajar bertahan</small></button><button data-difficulty="normal" aria-pressed="true">Normal<small>Tantangan seimbang</small></button><button data-difficulty="hard" aria-pressed="false">Sulit<small>Uji keberanian</small></button></div><p id="difficultyNote" class="difficulty-note"></p><button id="startButton" class="primary-button" disabled><span id="startLabel">Memuat pulau…</span><span aria-hidden="true">→</span></button><div class="intro-meta"><span>5 gelombang bervariasi</span><i></i><span>± 5 menit</span><i></i><span>Tanpa instalasi</span></div><div class="loading-track" id="loadingTrack"><i id="loadingProgress"></i></div><p id="loadError" class="load-error" hidden></p></div>
           <div class="island-label"><span>01 / PULAU EMBUN</span><small>Setiap kerajaan dimulai dari rumah.</small></div>
         </section>
 
         <section id="pauseScreen" class="center-overlay" hidden><div class="parchment"><p class="eyebrow">TARIK NAPAS SEJENAK</p><h2>Petualangan dijeda.</h2><p>Pulau ini menunggumu.</p><button id="resumeButton" class="primary-button">Lanjutkan <span>→</span></button><button id="restartPauseButton" class="text-button">Mulai dari awal</button></div></section>
-        <section id="endScreen" class="center-overlay" hidden><div class="parchment result-panel"><p class="eyebrow" id="resultEyebrow">KERAJAAN TETAP BERDIRI</p><span id="resultIcon" class="result-icon" aria-hidden="true">♜</span><h2 id="resultTitle">Pulau terselamatkan!</h2><p id="resultDescription"></p><div class="result-stats"><div><span>SKOR AKHIR</span><strong id="finalScore">0</strong></div><div><span>MUSUH DIKALAHKAN</span><strong id="finalKills">0</strong></div><div><span>GELOMBANG</span><strong id="finalWave">0 / 5</strong></div></div><button id="restartButton" class="primary-button">Main lagi <span>↻</span></button><button id="titleButton" class="text-button">Ganti kesulitan</button></div></section>
+        <section id="endScreen" class="center-overlay" hidden><div class="parchment result-panel"><p class="eyebrow" id="resultEyebrow">KERAJAAN TETAP BERDIRI</p><span id="resultIcon" class="result-icon" aria-hidden="true">♜</span><h2 id="resultTitle">Pulau terselamatkan!</h2><p id="resultDescription"></p><div class="result-stats"><div><span>SKOR AKHIR</span><strong id="finalScore">0</strong></div><div><span>MUSUH DIKALAHKAN</span><strong id="finalKills">0</strong></div><div><span>GELOMBANG</span><strong id="finalWave">0 / 5</strong></div></div><button id="restartButton" class="primary-button">Ulangi ekspedisi <span>↻</span></button><button id="newRunButton" class="text-button">Ekspedisi baru</button><p id="runLabel" class="run-label"></p><button id="titleButton" class="text-button">Ganti kesulitan</button></div></section>
 
         <div id="announcement" class="announcement" aria-live="polite"></div>
         <div id="interactionHint" class="interaction-hint" hidden><kbd>E</kbd> <span></span></div>

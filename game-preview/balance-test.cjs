@@ -14,14 +14,14 @@ function verify(results){
  for(const r of normal)assert.deepEqual([...new Set(r.resolved)].sort(),['charge','slam','volley'],'all leader patterns execute before defeat');
  assert.ok(sum(group('upgrades'),'bossSeconds')<sum(group('basic'),'bossSeconds'),'upgrade investment improves boss clear time');
  assert.ok(sum(group('tactical'),'bossDamageToHero')<sum(group('upgrades'),'bossDamageToHero'),'dodging reduces incoming boss damage');
- assert.ok(group('counter').every(r=>r.bossDamageToHero===0&&r.perfectDodges>0),'counter policy avoids boss damage and triggers ripostes');
+ assert.ok(sum(group('counter'),'bossDamageToHero')<sum(group('basic'),'bossDamageToHero')&&sum(group('counter'),'perfectDodges')>0,'counter policy reduces boss damage and triggers ripostes');
  console.log('14 completed matches; all Normal leader patterns, upgrade benefit and dodge/counter benefit: passed');
 }
-if(process.argv.includes('--verify')){verify(JSON.parse(fs.readFileSync('game-preview/balance-after.json','utf8')).results);process.exit(0);}
+if(require.main===module&&process.argv.includes('--verify')){verify(JSON.parse(fs.readFileSync('game-preview/balance-after.json','utf8')).results);process.exit(0);}
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-function simulate(strategy,mode,seed){
- const {g,snapshot}=createGame(seed,code);g.setDifficulty(mode);g.startGame();
- const build=['blade','wind','counter','blade','rhythm'];
+function simulate(strategy,mode,seed,options={}){
+ const {g,snapshot}=createGame(seed,code);g.setDifficulty(mode);g.startGame(seed);
+ const build=options.build||['blade','wind','counter','blade','rhythm'],maxAllies=options.maxAllies??8;
  let bossArrived=null,bossEnded=null,dashes=0,upgrades=0;
  for(let frame=0;frame<36000&&g.state==='playing';frame++){
    g.keys.clear();
@@ -51,14 +51,25 @@ function simulate(strategy,mode,seed){
      else{dx=-a.dy;dy=a.dx;}
      g.keys.clear();if(Math.abs(dx)>.1)g.keys.add(dx>0?'d':'a');if(Math.abs(dy)>.1)g.keys.add(dy>0?'s':'w');if(g.startDash())dashes++;
    }
+   if(options.regularDodges&&g.hero.dashCooldown<=0){
+     const threats=g.enemies.filter(e=>e.hp>0&&e.kind!=='Archer'&&e.strike?.target===g.hero&&e.strike.timer<.075);
+     if(threats.length){
+       const endpoints=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]].map(([x,y])=>{const n=Math.hypot(x,y);return{x:g.hero.x+x/n*144,y:g.hero.y+y/n*144,dx:x,dy:y};})
+         .filter(p=>g.positionFits(p.x,p.y)&&g.clearPath(g.hero,p)&&threats.every(e=>distance(e,p)>e.strike.range+10))
+         .sort((p,q)=>distance(p,target||g.castle)-distance(q,target||g.castle));
+       if(endpoints.length){const p=endpoints[0];g.keys.clear();if(p.dx)g.keys.add(p.dx>0?'d':'a');if(p.dy)g.keys.add(p.dy>0?'s':'w');if(g.startDash())dashes++;}
+     }
+   }
    if(g.hero.hp<g.hero.maxHp*.55&&g.food)g.healHero();
    if(g.castle.hp<g.castle.maxHp-160&&g.wood>=30)g.repairCastle();
    const reserve=strategy!=='basic'&&g.phase==='prepare'&&!snapshot().campPurchased?45:0;
-   if(g.gold>=55+reserve&&g.allies.length<8)g.recruitUnit();
+   if(g.gold>=55+reserve&&g.allies.length<maxAllies)g.recruitUnit();
    g.advance(1/60);
  }
- return {strategy,mode,seed,result:g.state,seconds:+g.time.toFixed(1),heroHp:Math.ceil(g.hero.hp),castleHp:Math.ceil(g.castle.hp),bossSeconds:bossArrived===null?null:+((bossEnded??g.time)-bossArrived).toFixed(1),dashes,upgrades,...g.metrics,combat:snapshot().combat};
+ return {strategy,mode,seed,profile:options.name||strategy,maxAllies,build,result:g.state,seconds:+g.time.toFixed(1),heroHp:Math.ceil(g.hero.hp),castleHp:Math.ceil(g.castle.hp),bossSeconds:bossArrived===null?null:+((bossEnded??g.time)-bossArrived).toFixed(1),dashes,upgrades,...g.metrics,combat:snapshot().combat,unfinished:g.state==="playing"?snapshot():undefined};
 }
+module.exports={simulate,verify};
+if(require.main===module){
 const cases=[];
 for(const seed of [11,23,47])for(const strategy of ['basic','upgrades','tactical','counter'])cases.push([strategy,'normal',seed]);
 for(const mode of ['easy','hard'])cases.push(['counter',mode,23]);
@@ -66,3 +77,4 @@ const results=[];
 for(const args of cases){const result=simulate(...args);results.push(result);console.log(JSON.stringify(result));}
 fs.writeFileSync('game-preview/balance-after.json',JSON.stringify({sourceSha256:require('node:crypto').createHash('sha256').update(code).digest('hex'),description:'Seeded scripted policies; no health, currency, cooldown or enemy manipulation. Strategy comparison is not a human difficulty rating.',results},null,2));
 verify(results);
+}

@@ -68,7 +68,7 @@ for(const [mode,limit] of [['easy',2],['normal',3],['hard',4]]){
 }
 
 g.showTitle();g.setDifficulty('normal');g.startGame();g.setWave(4);g.spawnBoss();const boss=g.boss;Object.assign(boss,{x:500,y:400,entering:false,abilityCooldown:0});g.hero.x=650;g.hero.y=400;
-const poses=[];for(let pattern=0;pattern<3;pattern++){boss.bossAction=null;boss.abilityCooldown=0;boss.pattern=pattern;g.updateBoss(boss,.01);poses.push(g.bossPose(boss).path);assert.ok(g.combatSounds[boss.bossAction.type]);}
+const poses=[];for(let pattern=0;pattern<3;pattern++){boss.bossAction=null;boss.abilityCooldown=0;boss.patternMask=7^(1<<pattern);boss.lastPattern=-1;g.updateBoss(boss,.01);poses.push(g.bossPose(boss).path);assert.ok(g.combatSounds[boss.bossAction.type]);}
 assert.equal(new Set(poses).size,3,'each boss warning uses a different pose');boss.bossAction.stage='recovery';boss.bossAction.time=.5;boss.bossAction.recoveryDuration=.95;assert.ok(g.bossPose(boss).path.endsWith('Warrior_Idle.png'));
 const report=g.combatStats;g.startGame();assert.equal(g.combatStats.swings,0);assert.equal(g.combatStats.damageTaken,0);assert.equal(g.approachSlots.size,0);assert.equal(g.hero.damageCue,0);
 console.log('Swept blade contacts/cap/misses, local impact poses, deterministic simultaneous damage, healer triage/cover, bounded approach slots/pressure, distinct boss poses, diagnostics and reset: passed');

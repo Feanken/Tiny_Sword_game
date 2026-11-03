@@ -9,7 +9,8 @@
   const flashFrames = new Map();
   const manifest = new Map(window.TINY_ASSETS.map(a => [a.path, a]));
   const keys = new Set();
-  const rand = (a, b) => a + Math.random() * (b - a);
+  let gameRandom=Math.random;
+  const rand = (a, b) => a + gameRandom() * (b - a);
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const unitPath = (color, kind, action) => {
@@ -27,6 +28,29 @@
     { name: 'Bayangan di dermaga', color: 'Black', count: 16, interval: 1.35, types: ['Warrior', 'Lancer', 'Archer', 'Monk'] },
     { name: 'Pertahanan terakhir', color: 'Black', count: 20, interval: 1.1, types: ['Warrior', 'Lancer', 'Archer', 'Monk', 'Pawn'] },
   ];
+  let runSeed=0,encounters=[];
+  const waveStyles=[
+    {name:'Barisan pelindung',hint:'Penombak menahan depan. Cari celah menuju pemanah.',bias:'Lancer'},
+    {name:'Sayap pemanah',hint:'Pemanah mengambil sayap. Gunakan penghalang untuk mendekat.',bias:'Archer'},
+    {name:'Serbuan bergerak',hint:'Ksatria menekan cepat. Sisakan ruang untuk menghindar.',bias:'Warrior'},
+  ];
+  function seededRandom(seed){let n=seed>>>0;return ()=>{n=(Math.imul(n,1664525)+1013904223)>>>0;return n/4294967296;};}
+  function makeEncounters(seed){
+    const random=seededRandom(seed);
+    return waves.map((w,index)=>{
+      const style=waveStyles[Math.floor(random()*waveStyles.length)],roster=[];
+      for(let i=0;i<w.count;i++)roster.push(w.types[i%w.types.length]);
+      if(index>0){
+        // Shuffle equal-size authored rosters, then exchange one fighter only.
+        for(let i=roster.length-1;i>1;i--){const j=1+Math.floor(random()*i);[roster[i],roster[j]]=[roster[j],roster[i]];}
+        const swap=roster.findIndex((kind,i)=>i>1&&kind==='Warrior');
+        if(swap>=0)roster[swap]=style.bias;
+        roster[0]='Warrior';
+      }
+      const lanes=[-1,0,1,-2,2];if(index>0)for(let i=4;i>0;i--){const j=Math.floor(random()*(i+1));[lanes[i],lanes[j]]=[lanes[j],lanes[i]];}
+      return {name:index===0?w.name:style.name,hint:index===0?'Jaga jarak, baca ayunan musuh, lalu balas.':style.hint,roster,lanes,interval:w.interval};
+    });
+  }
   let state = 'loading', phase = 'prepare', waveIndex = 0, waveTimer = 22, spawned = 0, spawnTimer = 0;
   let gold = 80, wood = 40, food = 3, score = 0, kills = 0, recruitIndex = 0;
   let elapsed = 0, animTime = 0, gatherCooldown = 0, passiveTimer = 0, uiTimer = 0, announcementTimer = 0, toastTimer = 0, shake = 0;
@@ -37,7 +61,7 @@
   let combatId=0, pressureActive=0, pressureGap=0, collectingHeroDamage=false, pendingHeroDamage=null;
   const combatStats={};
   function resetCombatStats(){
-    Object.assign(combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0});
+    Object.assign(combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0,allyEvades:0,allyHazardHits:0,roleIntercepts:0,repositions:0});
     combatStats.damageBySource={Warrior:0,Lancer:0,Archer:0,Pawn:0,boss:0,unknown:0};
   }
   resetCombatStats();
@@ -80,8 +104,18 @@
   function spawnBoss(){
     if(waveIndex!==4||bossSpawned)return false;
     bossSpawned=true;const hp=settings().bossHp;
-    boss={combatId:++combatId,x:roadEntry.x,y:405,kind:'Warrior',color:'Black',hp,maxHp:hp,facing:1,moving:false,attack:0,cooldown:1,seed:0,speed:62*settings().speed,team:'enemy',entering:true,lane:0,flankSign:1,isBoss:true,hitFlash:0,stagger:0,knockX:0,knockY:0,bossAction:null,abilityCooldown:.5,pattern:0,enraged:false};
+    boss={combatId:++combatId,x:roadEntry.x,y:405,kind:'Warrior',color:'Black',hp,maxHp:hp,facing:1,moving:false,attack:0,cooldown:1,seed:0,speed:62*settings().speed,team:'enemy',entering:true,lane:0,flankSign:1,isBoss:true,hitFlash:0,stagger:0,knockX:0,knockY:0,bossAction:null,abilityCooldown:.5,pattern:0,patternMask:0,lastPattern:-1,enraged:false};
     enemies.push(boss);announce('Panglima Kelam','BACA TANDANYA · HINDARI · BALAS');return true;
+  }
+  function chooseBossPattern(u,target){
+    if(u.patternMask===7)u.patternMask=0;
+    const d=dist(u,target),charge=traceCharge(u,(target.x-u.x)/Math.max(1,d),(target.y-u.y)/Math.max(1,d),252);
+    let clustered=0;for(const f of [hero,...allies])if(f.hp>0&&dist(f,target)<105)clustered++;
+    const scores=[(d<115?7:2)+Math.min(3,clustered),charge.distance>Math.min(d,130)?(d>115?7:2):-2,d>150&&shotClear(u,target)?8:3];
+    let selected=-1,score=-Infinity;
+    for(let i=0;i<3;i++)if(!(u.patternMask&(1<<i))){const value=scores[i]-(u.lastPattern===i?20:0);if(value>score){selected=i;score=value;}}
+    u.patternMask|=1<<selected;u.lastPattern=selected;u.pattern++;
+    return ['slam','charge','volley'][selected];
   }
   function updateBoss(u,dt){
     if(!u.enraged&&u.hp<=u.maxHp*.5){u.enraged=true;announce('Panglima mengamuk!','TEMPO MENINGKAT · TETAP BACA TANDANYA');}
@@ -114,10 +148,10 @@
     const target=dist(u,hero)>430&&dist(u,castle)<160?castle:hero;
     if(dist(u,target)>220){steerMove(u,target,dt);return;}
     if(u.abilityCooldown>0){if(dist(u,target)>100)steerMove(u,target,dt,u.speed*.65);else u.moving=false;return;}
-    const type=['slam','charge','volley'][u.pattern++%3],length=Math.max(1,dist(u,target));
+    const type=chooseBossPattern(u,target),length=Math.max(1,dist(u,target));
     u.facing=target.x<u.x?-1:1;u.moving=false;
     u.bossAction={type,stage:'warning',time:settings().warning,duration:settings().warning,target:{x:target.x,y:target.y},origin:{x:u.x,y:u.y},dx:(target.x-u.x)/length,dy:(target.y-u.y)/length,hit:new Set()};
-    combatCue(type);
+    combatCue(type,u);
     if(type==='charge'){const a=u.bossAction;a.chargeSpeed=u.enraged?650:560;a.chargeEnd=traceCharge(a.origin,a.dx,a.dy,a.chargeSpeed*.45);a.traveled=0;}
   }
   function showTitle(){
@@ -148,7 +182,7 @@
     hero.dash=.2;hero.dashCooldown=dashCooldown();hero.dashElapsed=0;hero.dashPerfect=false;
     cancelHeroSwing(false);hero.impactHold=0;hero.attackBuffer=0;hero.work=null;hero.attack=0;hero.stagger=0;hero.knockX=0;hero.knockY=0;
     if(Math.abs(dx)>.1)hero.facing=dx>0?1:-1;
-    addEffect('Particle FX/Dust_01.png',hero.x,hero.y,55);tone(360,.14,'triangle',.025,720);return true;
+    addEffect('Particle FX/Dust_01.png',hero.x,hero.y,55);if(!playSample(['cloth1.ogg','cloth2.ogg'],hero,.4,1.3,2))tone(360,.14,'triangle',.025,720);return true;
   }
   function renderCamp() {
     $('campGold').textContent=gold;
@@ -520,7 +554,7 @@
     ctx.setTransform(scale, 0, 0, scale, -cameraX * scale, -cameraY * scale);
     ctx.fillStyle = ctx.createPattern(img(terrain('Tileset/Water Background color')), 'repeat');
     ctx.fillRect(cameraX, 0, viewW, viewH);
-    if (shake > 0 && !reducedMotion) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+    if (shake > 0 && !reducedMotion) ctx.translate((Math.random()*2-1)*shake,(Math.random()*2-1)*shake);
     ctx.drawImage(terrainCanvas, 0, 0);
     // Animated white water follows each exposed shoreline tile.
     ctx.globalAlpha = .32 + Math.sin(animTime * 1.7) * .1;
@@ -621,18 +655,60 @@
     const small = document.createElement('small'); small.textContent = subtitle; $('announcement').append(small);
     $('announcement').classList.add('show'); announcementTimer = 2.5;
   }
-  function initAudio() { if (!audio) { const A = window.AudioContext || window.webkitAudioContext; if (A) audio = new A(); } if (audio?.state === 'suspended') audio.resume().catch(() => {}); }
+  const sampleBuffers=new Map(),soundVoices=new Set();let audioLoading=null,audioMaster,effectsBus,musicBus,audioFailures=0,sampleSerial=0;
+  let effectsVolume=.75,musicVolume=.25;
+  try{const saved=JSON.parse(localStorage.getItem('penjaga-audio')||'{}');if(Number.isFinite(saved.effects))effectsVolume=clamp(saved.effects,0,1);if(Number.isFinite(saved.music))musicVolume=clamp(saved.music,0,1);}catch{}
+  function initAudio() {
+    if(!audio){
+      const A=window.AudioContext||window.webkitAudioContext;if(!A)return;
+      audio=new A();audioMaster=audio.createGain();audioMaster.gain.value=soundOn?.8:0;
+      effectsBus=audio.createGain();effectsBus.gain.value=effectsVolume;musicBus=audio.createGain();musicBus.gain.value=musicVolume;
+      const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-12;limiter.knee.value=12;limiter.ratio.value=5;limiter.attack.value=.003;limiter.release.value=.15;
+      effectsBus.connect(audioMaster);musicBus.connect(audioMaster);audioMaster.connect(limiter);limiter.connect(audio.destination);
+    }
+    if(audio.state==='suspended')audio.resume().catch(()=>{});
+    if(!audioLoading){
+      $('audioStatus').textContent='Memuat efek suara…';
+      audioLoading=Promise.all(Object.entries(window.TINY_AUDIO||{}).map(async([name,data])=>{
+        try{const raw=atob(data),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);sampleBuffers.set(name,await audio.decodeAudioData(bytes.buffer));}catch{audioFailures++;}
+      })).then(()=>{$('audioStatus').textContent=sampleBuffers.size?`${sampleBuffers.size} efek suara siap · dapat dimainkan offline.`:'Efek cadangan aktif.';});
+    }
+  }
+  function trackVoice(source,gain,panner,priority){
+    const voice={source,priority,finish:null};let finished=false;activeVoices++;
+    voice.finish=()=>{if(finished)return;finished=true;activeVoices--;soundVoices.delete(voice);source.disconnect();gain.disconnect();panner?.disconnect();};
+    source.onended=voice.finish;soundVoices.add(voice);return voice;
+  }
+  function playSample(names,point=hero,volume=.5,rate=1,priority=1){
+    if(!soundOn||!audio||!names.length)return false;
+    const name=names[sampleSerial++%names.length],buffer=sampleBuffers.get(name);if(!buffer)return false;
+    if(activeVoices>=12){let victim=null;for(const v of soundVoices)if(v.priority<priority&&(!victim||v.priority<victim.priority))victim=v;if(!victim)return false;victim.source.stop();victim.finish();}
+    const source=audio.createBufferSource(),gain=audio.createGain();source.buffer=buffer;source.playbackRate.value=rate;
+    const distance=dist(point,hero);gain.gain.value=volume*clamp(1-distance/850,.15,1);
+    source.connect(gain);let panner=null;
+    if(audio.createStereoPanner){panner=audio.createStereoPanner();panner.pan.value=clamp((point.x-hero.x)/440,-.8,.8);gain.connect(panner);panner.connect(effectsBus);}else gain.connect(effectsBus);
+    trackVoice(source,gain,panner,priority);source.start();return true;
+  }
+  function updateAudioVolumes(){
+    $('effectsVolume').value=Math.round(effectsVolume*100);$('effectsVolumeValue').textContent=`${Math.round(effectsVolume*100)}%`;
+    $('musicVolume').value=Math.round(musicVolume*100);$('musicVolumeValue').textContent=`${Math.round(musicVolume*100)}%`;
+    if(audio){effectsBus.gain.setTargetAtTime(effectsVolume,audio.currentTime,.02);musicBus.gain.setTargetAtTime(musicVolume,audio.currentTime,.02);}
+    try{localStorage.setItem('penjaga-audio',JSON.stringify({effects:effectsVolume,music:musicVolume}));}catch{}
+  }
   const lastCombatCue=new Map();let activeVoices=0;
   const combatSounds={hit:[280,90,'square',.08],miss:[190,100,'triangle',.08],hurt:[150,75,'triangle',.12],dodge:[880,1320,'sine',.18],slam:[150,65,'sawtooth',.22],charge:[240,480,'triangle',.18],volley:[720,540,'sine',.18]};
-  function combatCue(type){
+  const combatSamples={hit:['impactMetal_light_000.ogg','impactMetal_light_001.ogg'],miss:['knifeSlice.ogg','knifeSlice2.ogg'],hurt:['impactSoft_medium_000.ogg'],dodge:['cloth1.ogg','cloth2.ogg'],slam:['impactMetal_heavy_000.ogg'],charge:['drawKnife1.ogg'],volley:['metalClick.ogg'],bow:['cloth2.ogg'],wood:['chop.ogg'],stone:['impactMetal_light_000.ogg'],heal:['handleCoins.ogg']};
+  function combatCue(type,point=hero){
     if(elapsed-(lastCombatCue.get(type)??-99)<.06)return;
-    lastCombatCue.set(type,elapsed);const s=combatSounds[type];if(s)tone(s[0],s[3],s[2],.025,s[1]);
+    lastCombatCue.set(type,elapsed);
+    if(playSample(combatSamples[type]||[],point,['slam','charge','volley'].includes(type)?.65:.42,type==='bow'?1.7:1,['slam','charge','volley','dodge'].includes(type)?3:1))return;
+    const s=combatSounds[type];if(s)tone(s[0],s[3],s[2],.025,s[1]);
   }
-  function tone(freq, duration = .1, type = 'sine', volume = .035, endFreq = freq) {
+  function tone(freq, duration = .1, type = 'sine', volume = .035, endFreq = freq,bus='fx') {
     if (!soundOn || !audio || activeVoices>=12) return;
     const o = audio.createOscillator(), g = audio.createGain(); o.type = type; o.frequency.setValueAtTime(freq, audio.currentTime); o.frequency.exponentialRampToValueAtTime(Math.max(1, endFreq), audio.currentTime + duration);
     g.gain.setValueAtTime(volume, audio.currentTime); g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + duration);
-    o.connect(g); g.connect(audio.destination);activeVoices++;o.onended=()=>{activeVoices--;o.disconnect();g.disconnect();};o.start(); o.stop(audio.currentTime + duration);
+    o.connect(g);g.connect(bus==='music'?musicBus:effectsBus);trackVoice(o,g,null,bus==='music'?0:1);o.start();o.stop(audio.currentTime+duration);
   }
   function move(entity, dx, dy, dt, speed) {
     const len = Math.hypot(dx, dy); entity.moving = len > .05;
@@ -694,10 +770,13 @@
     }
   }
 
-  function startGame() {
+  function startGame(seed) {
     if (!initialized) return;
+    runSeed=Number.isInteger(seed)?seed>>>0:Math.floor(Math.random()*4294967296)>>>0;encounters=makeEncounters(runSeed);
+    gameRandom=seededRandom(runSeed);
+    for(const voice of [...soundVoices]){voice.source.stop();voice.finish();}
     resetCombatStats();combatId=0;pressureActive=0;pressureGap=0;approachSlots.clear();combatUnits.length=0;collectingHeroDamage=false;pendingHeroDamage=null;lastCombatCue.clear();
-    Object.assign(hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99});
+    Object.assign(hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99,stepTimer:0});
     Object.assign(hero, { x: 788, y: 370, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
     simulationAccumulator = 0; pausedForDialog = false;toastTimer=0;$('toast').classList.remove('show');
     squadOrder='follow';boss=null;bossSpawned=false;orderPulse=0;$('squadBar').hidden=false;
@@ -721,7 +800,7 @@
   function startWave() {
     phase = 'battle'; spawned = 0; spawnTimer = .3;
     const w = waves[waveIndex];
-    announce(`Gelombang ${waveIndex + 1}`, w.name.toUpperCase());
+    announce(`Gelombang ${waveIndex + 1}`, (encounters[waveIndex]?.name||w.name).toUpperCase());
     tone(220, .25, 'triangle', .04, 330);
   }
   function finishWave() {
@@ -745,12 +824,13 @@
     $('resultTitle').textContent = won ? 'Pulau terselamatkan!' : 'Kita coba sekali lagi.';
     $('resultDescription').textContent = won ? `Panglima Kelam ditaklukkan pada mode ${settings().name}. Rumah ini masih milik kita.` : castle.hp <= 0 ? 'Kastel telah runtuh. Rekrut pasukan dan sisakan kayu untuk perbaikan.' : 'Sang penjaga kehabisan tenaga. Gunakan bekal dan tetap dekat sekutu.';
     $('finalScore').textContent = score; $('finalKills').textContent = kills; $('finalWave').textContent = `${waveIndex + 1} / 5`;
+    $('runLabel').textContent=`Ekspedisi ${runSeed.toString(36).toUpperCase().padStart(6,'0')} · ${settings().name}`;
     $('endScreen').hidden = false; $('restartButton').focus({ preventScroll: true }); updateUI();
     tone(won ? 659 : 196, .7, 'triangle', .04, won ? 880 : 98);
   }
   function spawnEnemy() {
-    const w = waves[waveIndex], kind = w.types[spawned % w.types.length];
-    const lane = [-1, 0, 1, -2, 2][spawned % 5];
+    const w = waves[waveIndex],plan=encounters[waveIndex],kind=plan?.roster[spawned%w.count]||w.types[spawned%w.types.length];
+    const lane = (plan?.lanes||[-1,0,1,-2,2])[spawned % 5];
     const entry = { x: roadEntry.x + rand(-3, 3), y: roadEntry.y + lane * 7 };
     const baseHp = ({ Warrior: 62, Archer: 43, Lancer: 82, Monk: 48, Pawn: 38 }[kind]) + waveIndex * 9;
     const hp=Math.round(baseHp*settings().hp);
@@ -809,7 +889,7 @@
     work.elapsed += dt;
     if (previousTime < work.duration * .55 && work.elapsed >= work.duration * .55) {
       addEffect('Particle FX/Dust_01.png', work.node.x, work.node.y - 8, 45, .4);
-      tone(work.node.type === 'gold' ? 660 : 190, .09, 'triangle', .025, work.node.type === 'gold' ? 420 : 110);
+      combatCue(work.node.type==='gold'?'stone':'wood',work.node);
     }
     if (work.elapsed < work.duration) return;
     const node = work.node; hero.work = null; gatherCooldown = .18;
@@ -837,6 +917,7 @@
       else if(source===hero&&open)amount=Math.max(1,Math.round(amount*1.3));
     }
     const appliedDamage = Math.min(target.hp, amount);
+    if(target.team==='ally'&&source?.isBoss)combatStats.allyHazardHits++;
     if (source === hero && target.team === 'enemy') damageDealt += appliedDamage;
     if (target === hero) damageTaken += appliedDamage;
     if(target===hero){
@@ -853,8 +934,8 @@
     float(`−${Math.ceil(appliedDamage)}`, target.x, target.y - (target === castle ? 45 : 10), target === hero ? '#ffbaa1' : '#fff1c5', true);
     if (target === hero) {
       hero.invuln = .45;hero.damageDirection=angle;hero.damageCue=.35; shake = Math.max(shake, 3); $('gameShell').classList.add('player-hit');combatCue('hurt');
-    } else if (target === castle) { shake = Math.max(shake, 2); addEffect('Particle FX/Explosion_02.png', castle.x + rand(-45, 45), castle.y - 20, 65, .35, 24); }
-    else if (source === hero) { shake = Math.max(shake, 1.5);holdImpactPose(hero);if(!hero.strike||hero.strike.hits.size===1)combatCue('hit'); }
+    } else if (target === castle) { playSample(['impactWood_heavy_000.ogg'],castle,.55,.85,2);shake = Math.max(shake, 2); addEffect('Particle FX/Explosion_02.png', castle.x + rand(-45, 45), castle.y - 20, 65, .35, 24); }
+    else if (source === hero) { shake = Math.max(shake, 1.5);holdImpactPose(hero);if(!hero.strike||hero.strike.hits.size===1)combatCue('hit',target); }
     if(target!==castle&&!target.isBoss)holdImpactPose(target);
     if (target !== castle && !target.isBoss) {
       if (target === hero) {cancelHeroSwing(true);hero.work = null;hero.attackBuffer=0;}
@@ -868,7 +949,7 @@
       releaseApproach(target);approachSlots.delete(target);
       target.dead = true; kills++; score += target.isBoss?500:25 + waveIndex * 5; gold += target.isBoss?50:6;
       addEffect('Particle FX/Explosion_01.png', target.x, target.y - 9, 75);
-      drops.push({ x: target.x, y: target.y, type: Math.random() > .7 ? 'wood' : 'gold', life: 18, value: 5 });
+      drops.push({ x: target.x, y: target.y, type: gameRandom() > .7 ? 'wood' : 'gold', life: 18, value: 5 });
       tone(320, .075, 'triangle', .02, 540);
     } else if (target.hp <= 0 && target.team === 'ally' && !target.dead) { releaseApproach(target);approachSlots.delete(target);target.dead = true; addEffect('Particle FX/Dust_02.png', target.x, target.y, 70); }
     target.hp = Math.max(0, target.hp);
@@ -926,6 +1007,7 @@
     }
   }
   function fireArrow(u, target) {
+    combatCue('bow',u);
     const origin={x:u.x,y:u.y-5},d=Math.max(1,dist(origin,target));
     projectiles.push({ ...origin, vx: (target.x - origin.x) / d * 360, vy: (target.y - origin.y) / d * 360, color: u.color, team: u.team, target, source: u, damage: u.team === 'ally' ? 17 : Math.round((10 + waveIndex * 2)*settings().damage), life: 1.4 });
   }
@@ -947,13 +1029,91 @@
     return obstacleList.every(o=>dist(source,o)<o.radius+10||segmentHit(origin,target,o,o.radius+2)>hit);
   }
   function combatTarget(u,candidates,limit) {
-    const available=candidates.filter(t=>t.hp>0&&dist(u,t)<limit);
-    const visible=u.kind==='Archer'?available.filter(t=>shotClear(u,t)):available;
-    const pool=visible.length?visible:available,closest=nearest(u,pool);
-    const current=u.combatTarget;
-    // Keep a valid opponent unless another is substantially closer.
-    u.combatTarget=current&&pool.includes(current)&&(!closest||dist(u,current)<=dist(u,closest)*1.25+12)?current:closest;
+    let best=null,bestCost=Infinity,bestVisible=null,visibleCost=Infinity,currentCost=Infinity,currentVisible=false;
+    for(const target of candidates){
+      const d=dist(u,target);if(target.hp<=0||d>=limit)continue;
+      let bias=0;
+      if(u.team){
+        if(u.kind==='Archer')bias=target.kind==='Monk'?-28:target.kind==='Archer'?-14:0;
+        else if(u.kind==='Warrior')bias=['Monk','Archer'].includes(target.kind)?-22:0;
+        else if(u.kind==='Lancer')bias=target.strike?.target?.team===u.team?-40:['Warrior','Pawn'].includes(target.kind)?-18:0;
+        if(target===u.protectTarget)bias-=55;
+      }
+      const cost=Math.max(1,d+bias),visible=u.kind!=='Archer'||shotClear(u,target);
+      if(cost<bestCost){best=target;bestCost=cost;}
+      if(visible&&cost<visibleCost){bestVisible=target;visibleCost=cost;}
+      if(target===u.combatTarget){currentCost=cost;currentVisible=visible;}
+    }
+    const chosen=bestVisible||best,cost=bestVisible?visibleCost:bestCost;
+    if(!u.combatTarget||currentCost===Infinity||currentCost>cost*1.25+12||bestVisible&&!currentVisible)u.combatTarget=chosen;
     return u.combatTarget;
+  }
+  function updateRole(u,dt){
+    u.roleThink=(u.roleThink||0)-dt;if(u.roleThink>0)return;
+    u.roleThink=.22+(u.combatId%3)*.025;u.protectTarget=null;
+    if(!['Warrior','Lancer'].includes(u.kind))return;
+    const friends=u.team==='ally'?allies:enemies,opponents=u.team==='ally'?enemies:[hero,...allies];
+    let closest=Infinity;
+    for(const f of friends)if(f.hp>0&&['Archer','Monk'].includes(f.kind)&&dist(u,f)<150){
+      for(const t of opponents)if(t.hp>0&&dist(t,f)<95&&dist(u,t)<210){const d=dist(t,f);if(d<closest){closest=d;u.protectTarget=t;}}
+    }
+  }
+  function bossDangerAt(point,padding=14){
+    const a=boss?.hp>0?boss.bossAction:null;if(!a||!['warning','charge'].includes(a.stage))return false;
+    if(a.type==='slam')return dist(point,a.target)<105+padding;
+    if(a.type==='charge')return Number.isFinite(segmentHit(a.origin,a.chargeEnd,point,36+padding));
+    const angle=Math.atan2(a.dy,a.dx);
+    for(const offset of [-.22,0,.22])if(Number.isFinite(segmentHit(a.origin,{x:a.origin.x+Math.cos(angle+offset)*500,y:a.origin.y+Math.sin(angle+offset)*500},point,20+padding)))return true;
+    return false;
+  }
+  function evadeBoss(u,dt){
+    if(u.team!=='ally')return false;
+    const a=boss?.hp>0?boss.bossAction:null;
+    if(!a||!['warning','charge'].includes(a.stage)){u.evadeAction=null;u.evadeGoal=null;return false;}
+    if(u.evadeAction!==a){u.evadeAction=a;u.evadeDelay=.1+(u.combatId%3)*.035;u.evadeGoal=null;u.evadeThink=0;u.evadedThisAction=false;}
+    u.evadeDelay-=dt;if(u.evadeDelay>0)return false;
+    const dangerous=bossDangerAt(u);
+    if(!dangerous){
+      u.evadeGoal=null;
+      if(u.evadedThisAction&&!['Archer','Monk'].includes(u.kind)){u.moving=false;return true;}
+      return false;
+    }
+    u.evadeThink=(u.evadeThink||0)-dt;
+    let needsGoal=!u.evadeGoal;
+    if(u.evadeThink<=0){u.evadeThink=.18;if(u.evadeGoal&&(!positionFits(u.evadeGoal.x,u.evadeGoal.y)||bossDangerAt(u.evadeGoal,22)||!clearPath(u,u.evadeGoal)))needsGoal=true;}
+    if(needsGoal){
+      let best=null,cost=Infinity;const anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
+      for(const radius of [48,88,128,164])for(const v of approachOffsets){
+        const p={x:u.x+v.x*radius,y:u.y+v.y*radius};
+        if(bossDangerAt(p,22)||dist(p,anchor)>leash||!positionFits(p.x,p.y)||!clearPath(u,p))continue;
+        const score=radius+dist(p,anchor)*.04;if(score<cost){cost=score;best=p;}
+      }
+      if(best&&!u.evadedThisAction){combatStats.allyEvades++;u.evadedThisAction=true;}
+      u.evadeGoal=best;u.evadeThink=.18;
+    }
+    if(!u.evadeGoal)return false;
+    u.strike=null;u.attack=0;releaseApproach(u);steerMove(u,u.evadeGoal,dt,u.speed*1.4);return true;
+  }
+  function tacticalRetreat(u,target,distance=76){
+    const angle=Math.atan2(u.y-target.y,u.x-target.x),anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
+    let best=null,score=-Infinity;
+    for(const radius of [distance,distance*.5])for(const offset of [0,.65,-.65,1.25,-1.25,Math.PI/2,-Math.PI/2]){
+      const p={x:u.x+Math.cos(angle+offset)*radius,y:u.y+Math.sin(angle+offset)*radius};
+      if(!positionFits(p.x,p.y)||!clearPath(u,p)||u.team==='ally'&&(dist(p,anchor)>leash||bossDangerAt(p)))continue;
+      const value=dist(p,target)+(shotClear(p,target)?35:0)-Math.abs(offset)*8;
+      if(value>score){score=value;best=p;}
+    }
+    return best;
+  }
+  function firingPosition(u,target){
+    const angle=Math.atan2(u.y-target.y,u.x-target.x),anchor=squadAnchor(),leash=squadOrder==='guard'?235:320;
+    let best=null,cost=Infinity;
+    for(const offset of [0,.55,-.55,1.1,-1.1]){
+      const p={x:target.x+Math.cos(angle+offset)*185,y:target.y+Math.sin(angle+offset)*185};
+      if(!positionFits(p.x,p.y)||!shotClear(p,target)||u.team==='ally'&&(dist(p,anchor)>leash||bossDangerAt(p)))continue;
+      const score=dist(u,p)+(clearPath(u,p)?0:90);if(score<cost){cost=score;best=p;}
+    }
+    return best;
   }
   function releaseApproach(u){
     const slots=approachSlots.get(u.approachTarget);
@@ -1016,8 +1176,13 @@
     if(u.healThink<=0||u.healTarget&&(u.healTarget.hp<=0||u.healTarget.hp>=u.healTarget.maxHp)){
       u.healTarget=healingTarget(u,u.team==='ally'?[hero,...allies]:enemies);u.healThink=.2;
       u.healThreat=nearest(u,u.team==='ally'?enemies:[hero,...allies],100);
+      if(u.team==='enemy'){
+        let front=null,d=Infinity;for(const f of enemies)if(f.hp>0&&!f.entering&&['Warrior','Lancer'].includes(f.kind)&&dist(u,f)<d){front=f;d=dist(u,f);}
+        if(front){const distance=Math.max(1,dist(front,hero));u.supportHome={x:front.x+(front.x-hero.x)/distance*80,y:front.y+(front.y-hero.y)/distance*80};}
+        else u.supportHome={x:620,y:410};
+      }
     }
-    const wounded=u.healTarget,home=u.team==='ally'?squadHome(u):{x:hero.x-130,y:hero.y+Math.sin(u.flankAngle||0)*90};
+    const wounded=u.healTarget,home=u.team==='ally'?squadHome(u):u.supportHome||u;
     if(wounded&&dist(u,wounded)<140&&u.cooldown<=0&&shotClear(u,wounded)){
       const capacity=u.team==='ally'?16:12,healed=Math.min(wounded.maxHp-wounded.hp,capacity);
       wounded.hp+=healed;combatStats.healingDone+=healed;combatStats.healingWasted+=capacity-healed;
@@ -1026,9 +1191,10 @@
     }
     const threat=u.healThreat;
     if(threat?.hp>0&&dist(u,threat)<80&&u.cooldown>0){
-      const d=Math.max(1,dist(u,threat)),retreat={x:u.x+(u.x-threat.x)/d*65,y:u.y+(u.y-threat.y)/d*65};
-      if(positionFits(retreat.x,retreat.y)&&(u.team!=='ally'||dist(retreat,squadAnchor())<220)){steerMove(u,retreat,dt);return;}
+      const retreat=tacticalRetreat(u,threat,65);
+      if(retreat){steerMove(u,retreat,dt);return;}
     }
+    if(wounded&&u.team==='ally'&&bossDangerAt(wounded)){u.moving=false;return;}
     if(wounded&&(!shotClear(u,wounded)||dist(u,wounded)>100))steerMove(u,wounded,dt);
     else if(!wounded&&dist(u,home)>35)steerMove(u,home,dt);
     else u.moving=false;
@@ -1045,9 +1211,11 @@
   }
   function updateUnit(u, dt) {
     u.approachThink=(u.approachThink||0)-dt;
+    u.repositionThink=(u.repositionThink||0)-dt;
     u.attack = Math.max(0, u.attack - dt); u.cooldown -= dt;
     u.chargeCooldown = (u.chargeCooldown || 0) - dt; u.charge = Math.max(0, (u.charge || 0) - dt);
     if (u.hp <= 0) return;
+    if(!u.isBoss&&!u.entering){updateRole(u,dt);if(u.stagger<=0&&evadeBoss(u,dt))return;}
     if (u.strike) {
       u.strike.timer -= dt;
       if (u.strike.timer <= 0) {
@@ -1072,25 +1240,31 @@
       updateHealer(u,dt);
       return;
     }
-    const target = u.team === 'enemy' && (u.blockedSeconds > 2 || u.stallSeconds > 3) ? castle : u.team === 'ally' ? combatTarget(u, enemies.filter(e=>dist(e,anchor)<=leash),leash+150) : combatTarget(u, [hero, ...allies], 160) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
+    const target = u.team === 'enemy' && (u.blockedSeconds > 2 || u.stallSeconds > 3) ? castle : u.team === 'ally' ? combatTarget(u, enemies.filter(e=>dist(e,anchor)<=leash),leash+150) : combatTarget(u, [hero, ...allies],u.kind==='Archer'?240:200) || (dist(u, castle) < 130 && dist(u, hero) > 420 ? castle : hero);
     if(u.approachTarget&&u.approachTarget!==target)releaseApproach(u);
     if (!target) { releaseApproach(u);if (dist(u, squadHome(u)) > 30) steerMove(u, squadHome(u), dt); else u.moving = false; return; }
     const d = dist(u, target), range = u.kind === 'Archer' ? 225 : target === castle ? 88 : u.kind === 'Lancer' ? 91 : 51;
     const blocked=u.kind==='Archer'?!shotClear(u,target):target!==castle&&d<=range&&!clearPath(u,target);
-    if(blocked){steerMove(u,target,dt);return;}
+    if(blocked){
+      if(u.kind==='Archer'&&u.repositionThink<=0){u.repositionGoal=firingPosition(u,target);u.repositionThink=.3;if(u.repositionGoal)combatStats.repositions++;}
+      steerMove(u,u.kind==='Archer'&&u.repositionGoal||target,dt);return;
+    }
     if (u.kind === 'Archer' && d < (u.team==='ally'?110:145) && !u.strike) {
-      const retreat = { x: u.x + (u.x - target.x), y: u.y + (u.y - target.y) };
-      if(u.team==='enemy'||dist(retreat,anchor)<leash)steerMove(u, retreat, dt, u.speed * .95);else u.moving=false; u.facing = target.x < u.x ? -1 : 1;
+      if(u.repositionThink<=0||!u.retreatGoal){u.retreatGoal=tacticalRetreat(u,target);u.repositionThink=.24;}
+      if(u.retreatGoal)steerMove(u,u.retreatGoal,dt,u.speed*.95);else u.moving=false;u.facing=target.x<u.x?-1:1;
       if (u.cooldown <= 0) { u.attack = u.attackDuration = .72; u.cooldown = 1.6; u.strike = { timer: .31, target, range: 225 }; }
       return;
     }
+    if(u.kind==='Lancer'&&d<49&&u.cooldown>.25){const retreat=tacticalRetreat(u,target,28);if(retreat){steerMove(u,retreat,dt,u.speed*.8);u.facing=target.x<u.x?-1:1;return;}}
     if (u.team === 'enemy' && u.kind === 'Warrior' && d > 100 && d < 250 && u.chargeCooldown <= 0) { u.charge = .65; u.chargeCooldown = 3.8; addEffect('Particle FX/Dust_01.png', u.x, u.y, 42); }
     if (d > range) {
       const aim = u.kind==='Archer'||target===castle?target:approachPoint(u,target,range);
+      if(u.team==='ally'&&u.kind!=='Archer'&&bossDangerAt(aim)){u.moving=false;return;}
       steerMove(u, canStand(aim.x, aim.y) ? aim : target, dt, u.speed * (u.charge > 0 ? 1.5 : 1));
     } else {
       u.moving = false; if (u.attack <= 0) u.facing = target.x < u.x ? -1 : 1;
       if (u.cooldown <= 0&&mayStartMelee(u,target)) {
+        if(target===u.protectTarget)combatStats.roleIntercepts++;
         u.attack = u.attackDuration = u.kind === 'Archer' ? .72 : .4; u.cooldown = u.kind === 'Archer' ? 1.6 : u.team === 'ally' ? .9 : Math.max(.85, 1.25 - waveIndex * .08);
         u.strike = { timer: u.kind === 'Archer' ? .31 : u.kind === 'Lancer' ? .24 : .2, target, range, damage: u.team === 'ally' ? 18 : Math.round(((target === castle ? 13 : u.kind === 'Lancer' ? 13 : 10) + waveIndex * 2)*settings().damage) };
       }
@@ -1124,6 +1298,7 @@
     if ((dx || dy) && hero.work) { hero.work = null; gatherCooldown = .2; }
     if((dx||dy)&&!dashing){const length=Math.hypot(dx,dy);hero.lastMoveX=dx/length;hero.lastMoveY=dy/length;}
     if (!dashing && hero.stagger <= 0) move(hero, dx, dy, dt, 185 * (hero.attack > 0 ? .55 : 1));
+    hero.stepTimer=Math.max(0,(hero.stepTimer||0)-dt);if(hero.moving&&!dashing&&hero.stepTimer<=0){playSample(['footstep_grass_000.ogg','footstep_grass_001.ogg'],hero,.16,1,0);hero.stepTimer=.32;}
     if ((keys.has(' ') || pointerAttack) && hero.work) { hero.work = null; gatherCooldown = .18; }
     updateWork(dt);
     if (keys.has(' ') || pointerAttack || hero.attackBuffer>0) heroAttack();
@@ -1161,7 +1336,7 @@
       }
       if(first){
         p.x=previous.x+(p.x-previous.x)*firstT;p.y=previous.y+(p.y-previous.y)*firstT;
-        if(first.target)hurt(first.target,p.damage,p.source);
+        if(first.target){hurt(first.target,p.damage,p.source);playSample([['Warrior','Lancer'].includes(first.target.kind)?'impactMetal_light_001.ogg':'impactSoft_medium_000.ogg'],first.target,.25,1.1,0);}else playSample(['impactWood_light_000.ogg'],p,.2,1,0);
         p.life=0;addEffect('Particle FX/Dust_01.png',p.x,p.y,32,.25);
       }
     }
@@ -1190,7 +1365,7 @@
       const node = nearestResource(); $('interactionHint').hidden = !node;
       if (node) $('interactionHint').querySelector('span').textContent = `${node.name} · tahan E`;
     }
-    if (soundOn && (melodyTimer -= dt) <= 0) { melodyTimer = 2.6; tone([262, 294, 330, 392, 440][Math.floor(elapsed / 2.6) % 5], 1.1, 'sine', .008); }
+    if (soundOn && (melodyTimer -= dt) <= 0) { melodyTimer = 2.6; tone([262, 294, 330, 392, 440][Math.floor(elapsed / 2.6) % 5], 1.1, 'sine', .025,undefined,'music'); }
   }
   function updateUI() {
     $('followButton').setAttribute('aria-pressed',String(squadOrder==='follow'));$('guardButton').setAttribute('aria-pressed',String(squadOrder==='guard'));
@@ -1212,10 +1387,10 @@
     const w = waves[waveIndex];
     $('waveCount').textContent = `${phase === 'prepare' ? waveIndex : waveIndex + 1} / 5`;
     $('waveTitle').textContent = phase === 'prepare' ? `Jeda · ${Math.max(0, Math.ceil(waveTimer))} dtk` : `Gelombang ${waveIndex + 1}`;
-    $('waveDetail').textContent = phase === 'prepare' ? `${settings().name} · Berikutnya: ${w.name}` : `${settings().name} · ${w.name}`;
+    $('waveDetail').textContent = `${settings().name} · ${encounters[waveIndex]?.name||w.name}`;
     $('waveProgress').style.width = `${phase === 'prepare' ? (1 - waveTimer / (waveIndex === 0 ? 22 : 15)) * 100 : (spawned - enemies.filter(u=>!u.isBoss).length) / w.count * 100}%`;
     $('enemyCount').textContent = phase === 'prepare' ? `${allies.length} sekutu bersiap` : `${enemies.length + w.count - spawned+(waveIndex===4&&!bossSpawned?1:0)} musuh tersisa`;
-    $('phaseHint').textContent = phase === 'prepare' ? 'U: pilih upgrade · Shift: dash menghindar.' : 'Musuh mendekat. Rumahmu membutuhkanmu.';
+    $('phaseHint').textContent = phase === 'prepare' ? encounters[waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.' : 'Musuh mendekat. Rumahmu membutuhkanmu.';
     const cost = recruitIndex % 4 === 2 ? 55 : 40;
     $('recruitCost').textContent = `${cost} emas · ${allies.length}/8`;
     $('recruitButton').classList.toggle('unavailable', gold < cost || allies.length >= 8);
@@ -1264,7 +1439,7 @@
     if (id === 'galleryDialog' && !$('galleryGrid').children.length) renderGallery();
     $(id).showModal();
   }
-  for (const id of ['helpDialog', 'galleryDialog', 'campDialog']) {
+  for (const id of ['helpDialog', 'galleryDialog', 'campDialog','audioDialog']) {
     $(id).addEventListener('close', () => { if (pausedForDialog) { state = 'playing'; canvas.focus({ preventScroll: true }); } pausedForDialog = false; });
     $(id).addEventListener('click', e => { if (e.target === $(id)) { const r = $(id).getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) $(id).close(); } });
   }
@@ -1278,6 +1453,9 @@
   $('campButton').addEventListener('click',openCamp);
   $('campReady').addEventListener('click',()=>{waveTimer=Math.min(waveTimer,3);$('campDialog').close();});
   $('helpButton').addEventListener('click', () => openDialog('helpDialog'));
+  $('audioSettingsButton').addEventListener('click',()=>{initAudio();updateAudioVolumes();openDialog('audioDialog');});
+  $('effectsVolume').addEventListener('input',()=>{effectsVolume=Number($('effectsVolume').value)/100;updateAudioVolumes();});
+  $('musicVolume').addEventListener('input',()=>{musicVolume=Number($('musicVolume').value)/100;updateAudioVolumes();});
   $('galleryButton').addEventListener('click', () => openDialog('galleryDialog'));
   let galleryObserver;
   function renderGallery() {
@@ -1307,13 +1485,14 @@
     if (!assets.length) { const empty = document.createElement('p'); empty.textContent = 'Tidak ada aset yang cocok.'; $('galleryGrid').append(empty); }
   }
   $('gallerySearch').addEventListener('input', renderGallery); $('galleryCategory').addEventListener('change', renderGallery);
-  $('startButton').addEventListener('click', startGame); $('restartButton').addEventListener('click', startGame); $('restartPauseButton').addEventListener('click', startGame);
+  $('startButton').addEventListener('click',()=>startGame());$('restartButton').addEventListener('click',()=>startGame(runSeed));$('restartPauseButton').addEventListener('click',()=>startGame(runSeed));$('newRunButton').addEventListener('click',()=>startGame());
   $('pauseButton').addEventListener('click', () => togglePause()); $('resumeButton').addEventListener('click', () => togglePause(false));
   for (const [id, action] of [['recruitButton', () => recruitUnit()], ['repairButton', repairCastle], ['healButton', healHero]]) {
     $(id).addEventListener('click', () => { action(); if (state === 'playing') canvas.focus({ preventScroll: true }); });
   }
   $('soundButton').addEventListener('click', () => {
     initAudio(); soundOn = !soundOn; $('soundButton').setAttribute('aria-pressed', String(soundOn)); $('soundButton').setAttribute('aria-label', soundOn ? 'Matikan suara' : 'Nyalakan suara');
+    if(audioMaster)audioMaster.gain.setTargetAtTime(soundOn?.8:0,audio.currentTime,.02);
     $('soundButton').querySelector('.sound-off').hidden = soundOn; if (soundOn) tone(523, .2);
   });
   $('fullscreenButton').addEventListener('click', async () => {
@@ -1352,7 +1531,7 @@
   }
 
   // Read-only state for meaningful smoke tests and inspecting an active match.
-  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
+  window.PenjagaPulau = Object.freeze({ snapshot: () => ({ runSeed,encounters:encounters.map(e=>({name:e.name,roster:[...e.roster]})),audio:{decoded:sampleBuffers.size,failed:audioFailures,voices:activeVoices,effectsVolume,musicVolume,enabled:soundOn},combat:{...combatStats,damageBySource:{...combatStats.damageBySource}},difficulty,squadOrder,boss:boss?{hp:boss.hp,maxHp:boss.maxHp,enraged:boss.enraged,action:boss.bossAction?{type:boss.bossAction.type,stage:boss.bossAction.stage,time:boss.bossAction.time}:null}:null, state, phase, wave: waveIndex + 1, waveTimer, spawned, enemies: enemies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind, isBoss:!!u.isBoss, entering: u.entering, hitFlash: u.hitFlash, stagger: u.stagger })), allies: allies.map(u => ({ x: u.x, y: u.y, hp: u.hp, kind: u.kind,formationSlot:u.formationSlot })), hero: { x: hero.x, y: hero.y, hp: hero.hp, hitFlash: hero.hitFlash, stagger: hero.stagger }, impacts: impacts.length, damageDealt, damageTaken, dash: {active:hero.dash||0,cooldown:hero.dashCooldown||0,riposte:hero.riposte||0}, upgrades:{...ranks},campPurchased:campPurchase===waveIndex, work: hero.work ? {type: hero.work.node.type, elapsed: hero.work.elapsed, duration: hero.work.duration} : null, castleHp: castle.hp, gold, wood, food, score, kills, loadedAssets: [...images.values()].filter(r => r.loaded).length, assetCount: manifest.size }) });
   setDifficulty('normal');
   resize(); preload(); requestAnimationFrame(frame);
 })();

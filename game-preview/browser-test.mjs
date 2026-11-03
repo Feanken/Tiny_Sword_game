@@ -22,10 +22,12 @@ try {
     if (m.id) { const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result); } }
     if(m.method==='Fetch.requestPaused') {
       const source=fs.readFileSync('game.js','utf8').replace('  // Read-only state for meaningful smoke tests', `
-  window.__bossPreview=(stage='warning',pattern=0)=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:540,y:410,entering:false,abilityCooldown:0,pattern});hero.x=680;hero.y=410;updateBoss(boss,1/60);boss.bossAction.stage=stage;boss.bossAction.time=stage==='warning'?boss.bossAction.duration*.5:.5;boss.bossAction.recoveryDuration=.95;announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return bossPose(boss).path;};
-  window.__audioProbe=()=>{initAudio();soundOn=true;lastCombatCue.clear();for(const name of Object.keys(combatSounds))combatCue(name);for(let i=0;i<20;i++)tone(220,.1);return activeVoices;};
+  window.__bossPreview=(stage='warning',pattern=0)=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:540,y:410,entering:false,abilityCooldown:0,pattern,patternMask:7^(1<<pattern)});hero.x=680;hero.y=410;updateBoss(boss,1/60);boss.bossAction.stage=stage;boss.bossAction.time=stage==='warning'?boss.bossAction.duration*.5:.5;boss.bossAction.recoveryDuration=.95;announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return bossPose(boss).path;};
+  window.__audioProbe=async()=>{initAudio();await audioLoading;soundOn=true;audioMaster.gain.value=.8;lastCombatCue.clear();for(const name of Object.keys(combatSamples))combatCue(name);for(let i=0;i<20;i++)tone(220,.1);return activeVoices;};
   window.__audioVoices=()=>activeVoices;
-  window.__chargePreview=()=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:730,y:250,entering:false,abilityCooldown:0,pattern:1});hero.x=940;hero.y=250;updateBoss(boss,1/60);announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return boss.bossAction.chargeEnd;};
+  window.__resultPreview=()=>{startGame(77);waveIndex=4;phase='battle';finish(true);};
+  window.__audioDetails=async()=>{initAudio();await audioLoading;return {decoded:sampleBuffers.size,failed:audioFailures,maxDuration:Math.max(...[...sampleBuffers.values()].map(b=>b.duration)),fx:effectsBus.gain.value,music:musicBus.gain.value,master:audioMaster.gain.value,clips:[...sampleBuffers].map(([name,b])=>{let peak=0,energy=0;const channel=b.getChannelData(0);for(const v of channel){peak=Math.max(peak,Math.abs(v));energy+=v*v;}return{name,duration:b.duration,peak,rms:Math.sqrt(energy/channel.length)};})};};
+  window.__chargePreview=()=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:730,y:250,entering:false,abilityCooldown:0,patternMask:5});hero.x=940;hero.y=250;updateBoss(boss,1/60);announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return boss.bossAction.chargeEnd;};
   let stressPatterns=new Set(),stressResolved=new Set();
   const originalUpdateBoss=updateBoss;
   updateBoss=(u,dt)=>{const action=u.bossAction,stage=action?.stage;originalUpdateBoss(u,dt);if(u.bossAction?.stage==='warning')stressPatterns.add(u.bossAction.type);if(stage==='warning'&&action.stage!=='warning')stressResolved.add(action.type);};
@@ -67,7 +69,26 @@ try {
   assert.equal((await snapshot()).state, 'ready');
   assert.equal((await snapshot()).assetCount, 410);
   async function screenshot(name) { const r = await page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }); try { fs.writeFileSync(path.join(root, 'game-preview', name), Buffer.from(r.data, 'base64')); } catch { fs.writeFileSync(path.join(root,'game-preview',name.replace('.png','-run'+process.pid+'.png')),Buffer.from(r.data,'base64')); } }
-  if(process.argv.includes('--combat-only')) {
+  if(process.argv.includes('--replay-only')) {
+    await evaluate('window.__resultPreview()');const original=await snapshot();assert.equal(original.runSeed,77);
+    await evaluate('document.getElementById("restartButton").click()');assert.equal((await snapshot()).state,'playing');assert.equal((await snapshot()).runSeed,77);assert.deepEqual((await snapshot()).encounters,original.encounters);
+    await evaluate('window.__resultPreview();document.getElementById("newRunButton").click()');assert.notEqual((await snapshot()).runSeed,77);
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await evaluate('window.__resultPreview()');await delay(100);await screenshot('expedition-result-mobile.png');
+    assert.ok(await evaluate('(()=>{const r=document.querySelector(".result-panel").getBoundingClientRect(),a=document.getElementById("arena").getBoundingClientRect();return r.top>=a.top&&r.bottom<=a.bottom})()'));
+    assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log('Retry preserves expedition, new expedition changes seed, mobile result actions fit: passed');
+  } else if(process.argv.includes('--audio-only')) {
+    await evaluate('document.getElementById("startButton").click();document.getElementById("audioSettingsButton").click()');assert.equal((await snapshot()).state,'paused');
+    const details=await evaluate('window.__audioDetails()');assert.equal(details.decoded,17);assert.equal(details.failed,0);assert.ok(details.clips.every(c=>c.duration>0&&c.rms>.001&&c.peak<1.1));
+    await evaluate('document.getElementById("effectsVolume").value="40";document.getElementById("effectsVolume").dispatchEvent(new Event("input"));document.getElementById("musicVolume").value="15";document.getElementById("musicVolume").dispatchEvent(new Event("input"))');await delay(120);
+    const levels=await evaluate('window.__audioDetails()');assert.ok(Math.abs(levels.fx-.4)<.01&&Math.abs(levels.music-.15)<.01);
+    await evaluate('document.getElementById("audioDialog").close();document.getElementById("soundButton").click()');await delay(60);assert.equal((await snapshot()).state,'playing');assert.equal((await snapshot()).audio.enabled,true);
+    assert.equal(await evaluate('window.__audioProbe()'),12);await delay(Math.ceil(details.maxDuration*1000)+200);assert.equal(await evaluate('window.__audioVoices()'),0);
+    await evaluate('document.getElementById("soundButton").click()');await delay(120);assert.equal((await snapshot()).audio.enabled,false);assert.ok((await evaluate('window.__audioDetails()')).master<.01);
+    await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await evaluate('document.getElementById("audioSettingsButton").click()');await delay(100);await screenshot('audio-mobile.png');assert.ok(await evaluate('document.documentElement.scrollWidth<=innerWidth'));
+    await page('Page.navigate',{url:'file:///'+root.replaceAll('\\','/')+'/index.html'});for(let i=0;i<150;i++){if(await evaluate('window.PenjagaPulau?.snapshot().state==="ready"'))break;await delay(100);}
+    await evaluate('document.getElementById("soundButton").click()');for(let i=0;i<100&&(await snapshot()).audio.decoded<17;i++)await delay(40);assert.equal((await snapshot()).audio.decoded,17,'samples decode offline through file://');
+    assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);console.log('17 downloaded effects decoded online/offline, independent volumes, mute, voice cap/release and mobile audio dialog: passed');
+  } else if(process.argv.includes('--combat-only')) {
     await evaluate('window.__combatTap(true)');
     await page('Input.dispatchKeyEvent',{type:'keyDown',key:' '});await page('Input.dispatchKeyEvent',{type:'keyUp',key:' '});await delay(180);
     assert.ok((await evaluate('window.__combatTap()')).attack>0,'released keyboard tap is buffered');
@@ -87,7 +108,7 @@ try {
     const poses=[];
     for(let pattern=0;pattern<3;pattern++){poses.push(await evaluate('window.__bossPreview("warning",'+pattern+')'));await delay(80);await screenshot(['leader-slam-pose.png','leader-charge-pose.png','leader-volley-pose.png'][pattern]);}
     assert.equal(new Set(poses).size,3,'all leader warning poses differ');
-    assert.equal(await evaluate('window.__audioProbe()'),12,'synthesized cues respect the voice budget');await delay(600);assert.equal(await evaluate('window.__audioVoices()'),0,'audio nodes release after cues');
+    assert.equal(await evaluate('window.__audioProbe()'),12,'cues respect the voice budget');const audioInfo=await evaluate('window.__audioDetails()');await delay(Math.ceil(audioInfo.maxDuration*1000)+200);assert.equal(await evaluate('window.__audioVoices()'),0,'audio nodes release after cues');
     await evaluate('window.__bossPreview("recovery")');assert.ok(await evaluate('document.getElementById("bossIntent").textContent.includes("+30%")'));
     await page('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await delay(100);await screenshot('leader-mobile-recovery.png');
     assert.ok(await evaluate('(()=>{const r=document.getElementById("bossBar").getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.bottom<=document.getElementById("arena").getBoundingClientRect().bottom})()'),'mobile leader status fits arena');
@@ -233,6 +254,7 @@ try {
   assert.deepEqual(errors, [], 'browser has no runtime exceptions'); assert.deepEqual(missing, [], 'no missing assets');
   console.log('Mobile layout + touch controls, direct file launch, zero missing assets/runtime exceptions: passed');
   } else {
+    await evaluate('document.getElementById("soundButton").click()');const sound=await evaluate('window.__audioDetails()');assert.equal(sound.decoded,17);assert.equal(sound.failed,0);
     const stress=await evaluate('window.__stress()');
     assert.equal(stress.units,29);assert.ok(stress.meanMs<10&&stress.p95Ms<20);assert.ok(stress.approachTargets<=30);assert.ok(stress.combat.hits<=stress.combat.swings*3);assert.deepEqual([...stress.bossResolved].sort(),['charge','slam','volley']);
     await evaluate('window.__stress(0)');
@@ -244,6 +266,7 @@ try {
       }requestAnimationFrame(sample);
     })`);
     stress.live=await evaluate('window.__stressState()');
+    stress.audio=(await snapshot()).audio;assert.equal(stress.audio.enabled,true);assert.equal(stress.audio.decoded,17);assert.ok(stress.audio.voices<=12);
     assert.equal(stress.live.units,29);assert.equal(stress.live.bossEnraged,true);assert.deepEqual([...stress.live.bossResolved].sort(),['charge','slam','volley']);assert.ok(stress.live.effects<=80&&stress.live.impacts<=60&&stress.live.fields<=32&&stress.live.approachTargets<=30);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
     fs.writeFileSync(path.join(root,'game-preview','performance.json'),JSON.stringify(stress,null,2));
     console.log('CPU + rendered-frame benchmark:',JSON.stringify(stress));
