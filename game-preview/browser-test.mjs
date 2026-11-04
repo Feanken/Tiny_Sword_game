@@ -1,5 +1,6 @@
 // Dependency-free Chromium smoke test over the DevTools protocol.
 import fs from 'node:fs';
+import sourceLoader from './source-loader.cjs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -21,7 +22,7 @@ try {
     const m = JSON.parse(e.data);
     if (m.id) { const p = pending.get(m.id); if (p) { pending.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result); } }
     if(m.method==='Fetch.requestPaused') {
-      const source=fs.readFileSync('game.js','utf8').replace('  // Read-only state for meaningful smoke tests', `
+      const source=sourceLoader.instrumentBootstrap(fs.readFileSync('game.js','utf8')).replace('  // Read-only state for meaningful smoke tests', `
   window.__bossPreview=(stage='warning',pattern=0)=>{startGame();waveIndex=4;phase='battle';spawned=20;enemies=[];allies=[];spawnBoss();Object.assign(boss,{x:540,y:410,entering:false,abilityCooldown:0,pattern,patternMask:7^(1<<pattern)});hero.x=680;hero.y=410;updateBoss(boss,1/60);boss.bossAction.stage=stage;boss.bossAction.time=stage==='warning'?boss.bossAction.duration*.5:.5;boss.bossAction.recoveryDuration=.95;announcementTimer=0;$('announcement').classList.remove('show');state='paused';updateUI();return bossPose(boss).path;};
   window.__audioProbe=async()=>{initAudio();await audioLoading;soundOn=true;audioMaster.gain.value=.8;lastCombatCue.clear();for(const name of Object.keys(combatSamples))combatCue(name);for(let i=0;i<20;i++)tone(220,.1);return activeVoices;};
   window.__audioVoices=()=>activeVoices;
@@ -328,11 +329,13 @@ try {
     for(const key of active)await page('Input.dispatchKeyEvent',{type:'keyUp',key});
   }
   const goldBeforeWork=(await snapshot()).gold;
+  const miningReward = await evaluate('PenjagaModules.config.GATHERING_REWARDS.gold');
   await page('Input.dispatchKeyEvent',{type:'keyDown',key:'e'});await delay(280);
   assert.equal((await snapshot()).work?.type,'gold','E starts the visible pickaxe animation');
+  assert.equal(await evaluate('document.querySelector("#interactionHint span").textContent'), `Tambang emas +${miningReward} · tahan E`);
   await screenshot('mining-animation.png');
   await page('Input.dispatchKeyEvent',{type:'keyUp',key:'e'});await delay(800);
-  assert.ok((await snapshot()).gold>=goldBeforeWork+10,'resource arrives after the animated action');
+  assert.ok((await snapshot()).gold>=goldBeforeWork+miningReward,'configured reward arrives after the animated action');
   console.log('Mining animation, progress, delayed resource reward: passed');
   // Exercise a real wave, not just the opening screen.
   console.log('Desktop controls, economy, pause/resume, guide, and gallery: passed');
@@ -406,6 +409,11 @@ try {
   assert.equal((await snapshot()).state, 'ready', 'double-click/file mode loads all game assets');
   await screenshot('mobile-start.png');
   assert.ok(await evaluate('(()=>{const b=document.getElementById("startButton").getBoundingClientRect(),a=document.getElementById("arena").getBoundingClientRect();return b.top>=a.top&&b.bottom<=a.bottom})()'),'mobile start and difficulty choices fit the intro');
+  await evaluate('document.getElementById("startButton").click()');
+  const offline = await snapshot();
+  const islandSpawn = await evaluate('PenjagaMaps.island.heroSpawn');
+  assert.equal(offline.state, 'playing', 'Map 1 starts in file mode');
+  assert.deepEqual({x: offline.hero.x, y: offline.hero.y}, islandSpawn);
 
   assert.deepEqual(errors, [], 'browser has no runtime exceptions'); assert.deepEqual(missing, [], 'no missing assets');
   console.log('Mobile layout + touch controls, direct file launch, zero missing assets/runtime exceptions: passed');

@@ -20,7 +20,7 @@ Lalu buka http://localhost:4173. Hentikan server dengan Ctrl+C. Untuk ponsel/tab
 | --- | --- |
 | WASD / panah | Bergerak |
 | Spasi / tahan klik di arena | Serangan pedang ke depan, maksimal tiga sasaran |
-| Tahan E dekat sumber daya | Pohon: +8 kayu; tambang: +10 emas; domba: +1 bekal |
+| Tahan E dekat sumber daya | Pohon memberi +8 kayu, tambang memberi emas sesuai konfigurasi, dan domba memberi +1 bekal. |
 | Shift | Dash; elak tepat waktu untuk bonus balasan |
 | U | Beli upgrade berkali-kali saat jeda, maksimal 10 tingkat per jalur |
 | F / G | Sekutu mengikuti penjaga / menjaga kastel |
@@ -53,7 +53,10 @@ Galeri di menu menampilkan **semua 410 PNG dari 56 folder aset**, termasuk varia
 
 ## Berkas game
 
-- `index.html`, `style.css`, `layout.css`, `game.js`: game HTML5 Canvas tanpa framework.
+- `index.html`, `style.css`, `layout.css`: halaman dan tampilan game HTML5 Canvas tanpa framework.
+- `game.js`: entry point; `src/runtime.js` mengomposisikan modul konfigurasi, sesi, input, combat, AI, rendering, audio, dan UI di `src/`.
+- `maps/island.js`, `maps/validate-map.js`: data map terpisah dan validator; tetap dapat dibuka melalui `file://`.
+- `docs/refactor-audit.md`, `docs/map-contract.md`, `docs/refactor-validation.md`: audit/struktur, kontrak integrasi map, dan hasil pengujian refactor.
 - `asset-manifest.js`: daftar aset untuk galeri.
 - `generate-manifest.cjs`: jalankan `node generate-manifest.cjs` setelah menambahkan PNG baru.
 - `server.mjs`: server lokal opsional tanpa dependensi.
@@ -304,4 +307,4 @@ Aturan terbaru: keenam jalur dapat dibeli berkali-kali saat jeda selama emas cuk
 
 Efek dasar per tingkat tetap berlaku. Ritme Tempur mengurangi cooldown 6% per tingkat I–V lalu 3% per tingkat VI–X, menghasilkan 0,319 detik pada tingkat 10. Persiapan/kontak tetap 0,16–0,28 detik dengan pemulihan positif. Jejak Angin mengurangi cooldown 0,25 detik per tingkat I–V lalu 0,08 detik per tingkat VI–X, menghasilkan 0,75 detik pada tingkat 10. Tidak ada cooldown negatif. Damage kastel tetap minimal satu. Tidak ada tombol kemampuan tambahan atau pembatasan tiga spesialisasi pada bonus pasif ini.
 
-`upgrade-ten-test.cjs` memeriksa 60 transaksi dalam satu jeda, harga, batas 10, ambang 4/5/6/9/10, sapuan dan balasan yang benar-benar mengenai, perlindungan kastel, kebal dash, cooldown pemulihan, serta reset. Browser `--stress --upgrade-only` memeriksa UI sampai 10/10, bonus aktif, saldo tepat, fokus keyboard, layout ponsel dan reset. Hasil mining emas 500 yang sudah dikonfigurasi pengguna dipertahankan; laporan keseimbangan terdahulu bukan ukuran keseimbangan aturan 10 tingkat ini.
+`upgrade-ten-test.cjs` memeriksa 60 transaksi dalam satu jeda, harga, batas 10, ambang 4/5/6/9/10, sapuan dan balasan yang benar-benar mengenai, perlindungan kastel, kebal dash, cooldown pemulihan, serta reset. Browser `--stress --upgrade-only` memeriksa UI sampai 10/10, bonus aktif, saldo tepat, fokus keyboard, layout ponsel dan reset. Hadiah mining dan angka pada UI mengikuti `GATHERING_REWARDS.gold` di `src/config.js`.

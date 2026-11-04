@@ -1,0 +1,4 @@
+# Local worktrees and isolated Chromium test profiles.
+.worktrees/
+game-preview/chrome-test-*/
+game-preview/refactor-balance-after.log
