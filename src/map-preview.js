@@ -37,7 +37,8 @@
     }
     function place(point) {
       if (!world.isWalkable(point.x,point.y)) throw new Error('Inspection position is not walkable.');
-      Object.assign(hero,{x:point.x,y:point.y,moving:false});
+      Object.assign(hero,{x:point.x,y:point.y,moving:false,route:[],routeTimer:0,routeTarget:null,
+        progressPosition:{x:point.x,y:point.y},progressTimer:0,stallSeconds:0});
       target=null;keys.clear();camera.follow(hero);canvas.focus({preventScroll:true});
     }
     function refreshChoices() {

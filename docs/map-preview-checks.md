@@ -71,4 +71,27 @@ node tests/menu-browser-test.mjs
 `CHROME_PATH` dapat menunjuk instalasi Chrome lain. Browser test menggunakan
 profil sementara sendiri dan DevTools; tidak memerlukan npm dependency.
 
-Laporan final dan screenshot diperbarui setelah commit map Chat 1 diintegrasikan.
+| Pemeriksaan | Hasil pada preview awal, diperiksa ulang setelah integrasi final |
+| --- | --- |
+| Kamera mandiri | 3 ukuran world × 3 aspek desktop × 3 posisi, clamp X/Y, proyeksi bolak-balik, culling dua sumbu lulus. |
+| File lokal | 1280×720 DPR 1, 1440×900 DPR 1, 1920×1080 DPR 2; Bab 1/2/3, posisi aman, benteng, wilayah terkunci, identitas objek, dan skala karakter lulus. |
+| Input | Keyboard nyata melalui DevTools, klik tanah, klik air ditolak, dan koordinat pointer diam setelah kamera bergerak. |
+| Tepi daratan | Titik walkable paling utara/selatan/barat/timur diperiksa pada tiga ukuran layar; penjaga tetap terlihat dan kamera clamp. |
+| Jembatan utara | Dua arah, 92 tick per arah pada 60 Hz, jarak akhir <5 px; tidak pernah keluar dari world.isWalkable. |
+| Jembatan barat daya | Dua arah, melewati kedua tikungan, 120 tick per arah pada 60 Hz, jarak akhir <5 px; tidak pernah keluar dari world.isWalkable. |
+| Collision | Titik air dan pusat obstacle ditolak; rute menuju pulau yang ditutup tidak dibuat. |
+| Culling | Painted + culled = objek aktif, culled >0; scenery terkunci tidak masuk daftar objek. |
+| Regresi game/menu | Keyboard desktop dan tiga viewport sentuh lulus, termasuk carry emas/keenam rank, HP, mode latihan dan ekspedisi baru. |
+
+Durasi lintasan di atas hanya garis tengah jembatan, bukan waktu perjalanan dari
+tambang ke benteng. Traversal di-render secara bertahap untuk memeriksa kamera
+ketika menyeberang. Pengukuran ramai pasukan dan gate-to-gate mengikuti laporan
+`campaign-map-traversal.md` milik Chat 1, bukan angka lintasan jembatan ini.
+
+Screenshot 1440×900 tersedia di `docs/map-preview-screenshots/`: kondisi benteng
+Bab 1/2/3, pulau utara/barat daya, dan kedua jembatan. Inspeksi visual mencakup
+perbedaan atlas, sambungan lantai, occlusion sprite, label wilayah dan arsiran.
+
+Poin playtest berikutnya: kenyamanan bidang pandang 704 px ketika bertempur dari
+beberapa arah, keterbacaan jalan di atas plank, dan overlap visual cap jembatan
+dengan bangunan benteng. Tidak ada perubahan collider untuk merapikan gambar.

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
+import http from 'node:http';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
@@ -17,7 +18,7 @@ const chrome = spawn(chromePath, ['--headless=new', '--disable-gpu', '--no-first
   '--disable-background-networking', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'],
   {windowsHide:true, stdio:'ignore'});
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-let socket;
+let socket, server;
 try {
   const portFile = path.join(profile, 'DevToolsActivePort');
   for (let i = 0; i < 150 && !fs.existsSync(portFile); i++) await delay(100);
@@ -170,8 +171,14 @@ try {
     await page('Input.dispatchKeyEvent',{type:'keyDown',key:'s',code:'KeyS'});await delay(180);
     await page('Input.dispatchKeyEvent',{type:'keyUp',key:'s',code:'KeyS'});await nextFrame();
     assert.ok((await snapshot()).hero.y>before+8);
+    const waterPoint=await evaluate(`(()=>{const {world}=__previewRuntime,c=PenjagaMapPreview.snapshot().camera,r=document.getElementById('previewCanvas').getBoundingClientRect();
+      for(let y=c.y+16;y<c.y+c.height;y+=32)for(let x=c.x+16;x<c.x+c.width;x+=32)if(!world.allFloorGeometry.contains(x,y))
+        return {x:r.left+(x-c.x)*r.width/c.width,y:r.top+(y-c.y)*r.height/c.height};})()`);
+    await page('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...waterPoint});
+    await page('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...waterPoint});
+    assert.equal((await snapshot()).target,null,'Clicking water cannot create a destination.');
 
-    const traversal=await evaluate(`(()=>{
+    const traversal=await evaluate(`(async()=>{
       const {world,session,navigation}=__previewRuntime,hero=session.hero,results=[];
       for(const region of world.regions.filter(r=>r.kind==='bridge')) {
         for(const direction of [1,-1]) {
@@ -182,6 +189,12 @@ try {
             for(let i=0;Math.hypot(hero.x-target.x,hero.y-target.y)>5&&i<1500;i++) {
               navigation.steerMove(hero,target,1/60,185);frames++;
               if(!world.isWalkable(hero.x,hero.y))throw Error('Left valid floor: '+region.id);
+              if(frames%30===0){
+                await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+                const camera=PenjagaMapPreview.snapshot().camera;
+                const expectedY=Math.max(0,Math.min(world.height-camera.height,hero.y-camera.height/2));
+                if(Math.abs(camera.y-expectedY)>.001)throw Error('Camera lost actor on bridge');
+              }
             }
             if(Math.hypot(hero.x-target.x,hero.y-target.y)>5)throw Error('Stuck on '+region.id);
           }
@@ -199,6 +212,19 @@ try {
       return results;
     })()`);
     assert.equal(traversal.length,4);
+    const edges=await evaluate(`(()=>{
+      const {world}=__previewRuntime,points=[];
+      for(const r of world.floorGeometry.rectangles)for(let y=r.y+16;y<r.y+r.height;y+=32)for(let x=r.x+16;x<r.x+r.width;x+=32)
+        if(world.isWalkable(x,y))points.push({x,y});
+      return ['x','y'].flatMap(axis=>[points.reduce((a,b)=>a[axis]<b[axis]?a:b),points.reduce((a,b)=>a[axis]>b[axis]?a:b)]);
+    })()`);
+    for(const point of edges) {
+      await evaluate('Object.assign(__previewRuntime.session.hero,'+JSON.stringify(point)+')');await nextFrame();
+      const {camera,hero}=await snapshot();
+      assert.ok(Math.abs(camera.x-Math.max(0,Math.min(2560-camera.width,hero.x-camera.width/2)))<.001);
+      assert.ok(Math.abs(camera.y-Math.max(0,Math.min(1792-camera.height,hero.y-camera.height/2)))<.001);
+      assert.ok(hero.x>=camera.x&&hero.x<=camera.x+camera.width&&hero.y>=camera.y&&hero.y<=camera.y+camera.height);
+    }
     // Closing a region must reset actor and cached route safely, and visibly darken it.
     await visit('island-southwest');
     await activate('[data-chapter="chapter-1"]',false);await nextFrame();
@@ -207,10 +233,30 @@ try {
     assert.equal(await evaluate('__previewRuntime.navigation.routeTo(__previewRuntime.session.hero,{x:448,y:1472}).length'),0);
     console.log('PASS '+width+'x'+height+' DPR '+dpr+': three chapters, safe positions, locks, scale, camera, input, culling, collision; bridge traversals '+JSON.stringify(traversal));
   }
+  // Serve the same entry point without changing the file:// implementation.
+  server=http.createServer((request,response)=>{
+    const pathname=decodeURIComponent(new URL(request.url,'http://localhost').pathname);
+    const target=path.resolve(root,'.'+pathname);
+    if(!target.startsWith(root+path.sep)||!fs.existsSync(target)||!fs.statSync(target).isFile()) {
+      response.writeHead(404);response.end();return;
+    }
+    const type={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png'}[path.extname(target)]||'application/octet-stream';
+    response.writeHead(200,{'Content-Type':type});fs.createReadStream(target).pipe(response);
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  // Draft-only preflight uses another entry path; final HTTP check uses the integrated root.
+  if(!process.env.PREVIEW_ENTRY) {
+    await page('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/preview-map.html'});
+    await waitFor('!!window.PenjagaMapPreview','HTTP preview loads');
+    await evaluate('PenjagaMapPreview.chapter("chapter-3");PenjagaMapPreview.visit("island-north")');await nextFrame();
+    assert.equal((await snapshot()).chapterId,'chapter-3');
+    assert.equal(await evaluate('location.protocol'),'http:');
+    console.log('PASS HTTP: same local entry, all assets loaded, chapter selection and safe placement.');
+  }
   assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
   await call('Browser.close');
 } finally {
-  socket?.close();chrome.kill();
+  socket?.close();chrome.kill();server?.closeAllConnections();server?.close();
   const resolved=path.resolve(profile);
   if(path.dirname(resolved)===tempRoot&&path.basename(resolved).startsWith('penjaga-map-preview-')) {
     await delay(200);fs.rmSync(resolved,{recursive:true,force:true,maxRetries:5,retryDelay:100});

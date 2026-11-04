@@ -397,7 +397,8 @@
       renderer.cameraX = renderer.camera.x;
       renderer.cameraY = renderer.camera.y;
       input.updatePointerWorld();
-      host.ctx.setTransform(renderer.scale, 0, 0, renderer.scale, -renderer.cameraX * renderer.scale, -renderer.cameraY * renderer.scale);
+      const scaleX=host.canvas.width/renderer.viewW;
+      host.ctx.setTransform(scaleX, 0, 0, renderer.scale, -renderer.cameraX * scaleX, -renderer.cameraY * renderer.scale);
       if(!renderer.waterPattern)renderer.waterPattern=host.ctx.createPattern(assetStore.img(math.terrain('Tileset/Water Background color')),'repeat');
       host.ctx.fillStyle = renderer.waterPattern;
       host.ctx.fillRect(renderer.cameraX, renderer.cameraY, renderer.viewW, renderer.viewH);
