@@ -53,6 +53,6 @@ config.footOffsets = Array.from({length:8},(_,i)=>[Math.cos(i*Math.PI/4)*23,Math
 config.combatSounds = {hit:[280,90,'square',.08],miss:[190,100,'triangle',.08],hurt:[150,75,'triangle',.12],dodge:[880,1320,'sine',.18],slam:[150,65,'sawtooth',.22],charge:[240,480,'triangle',.18],volley:[720,540,'sine',.18]};
 config.combatSamples = {hit:['impactMetal_light_000.ogg','impactMetal_light_001.ogg'],miss:['knifeSlice.ogg','knifeSlice2.ogg'],hurt:['impactSoft_medium_000.ogg'],dodge:['cloth1.ogg','cloth2.ogg'],slam:['impactMetal_heavy_000.ogg'],charge:['drawKnife1.ogg'],volley:['metalClick.ogg'],bow:['cloth2.ogg'],wood:['chop.ogg'],stone:['impactMetal_light_000.ogg'],heal:['handleCoins.ogg']};
   // Gathering amounts used by the economy and mining UI.
-  config.GATHERING_REWARDS = {wood: 8, gold: 50, food: 1};
+  config.GATHERING_REWARDS = {wood: 8, gold: 10000, food: 1};
   M.config = freeze(config);
 })(window.PenjagaModules = window.PenjagaModules || {});
