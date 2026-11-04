@@ -1,0 +1,18 @@
+# Aset fajar untuk layar judul
+
+| Berkas | Resolusi | Ukuran |
+| --- | --- | --- |
+| `dawn-desktop.webp` | 1600 × 900, 16:9 | 211.340 byte |
+| `dawn-mobile.webp` | 768 × 1024, 3:4 | 128.012 byte |
+
+Kedua aset berjumlah 339.352 byte, sekitar 331 KiB. Gambar memakai benteng biru, penjaga kecil di gerbang, cahaya fajar keemasan, dan laut biru gelap. Area kiri versi desktop sengaja gelap untuk menu HTML.
+
+Aset ini digunakan kembali dari pekerjaan `25c58a2`. Pembuatan awal memakai tool bawaan ImageGen berdasarkan deskripsi tertulis pengguna. Mockup yang disebut dalam pesan belum tersedia pada saat pengerjaan. Versi vertikal direkomposisi dari hasil desktop setelah crop potret memotong benteng. Encoding WebP memakai canvas Chrome dengan kualitas 0,94 dan resampling nearest-neighbor. PNG sumber tetap tersimpan di direktori generated_images milik sesi.
+
+## Prompt desktop
+
+Use case: stylized-concept. Asset type: production pixel-art background for an offline fantasy island defense game title menu, wide desktop 16:9, target 1920x1080. Create a cohesive, beautifully art-directed detailed pixel art scene, like a premium 16-bit indie game key art, crisp visible square pixels, restrained color palette, no blur or painterly gradients. A small blue coastal fortress on a rocky grass island occupies the RIGHT third (center around x=76%, y=57%), with stout pale stone round towers, dark blue crenellations and blue tiled roofs, blue banners. A tiny blue-cloaked guard holding a sword stands on the path beside the gate (small in scale compared to fortress). Quiet dark navy ocean in the foreground and distance. Golden dawn rays from the far-right horizon illuminate the blue fortress edges and create a warm gold reflection on the dark blue sea, hopeful early morning atmosphere. A few small clouds with pixel-stepped edges. Carefully reserve the entire LEFT 43% as very dark deep navy/teal low-detail ocean and shadowed sky with minimal visual contrast and NO bright objects, so actual HTML menu text will be legible over it. Do not put a tree or foreground silhouette across this left copy area. Horizon about 40% from top, fortress and rocky island fully in frame with margin on right and bottom. Keep fortress readable as a strong silhouette. No text, letters, numbers, titles, typography, logos, watermark, buttons, UI, HUD, decorative frames or borders anywhere. Full-bleed landscape illustration only.
+
+## Prompt vertikal
+
+Use case: compositing / stylized-concept. The supplied landscape pixel art is the edit target and the exact visual style / castle identity reference. Recompose this illustration into a PORTRAIT 3:4 mobile background, target 768x1024, with the same blue-roofed stone fortress, same tiny blue guard by its gate, same rocky grass island, dark navy blue ocean and warm golden dawn at right horizon. Preserve the castle design, blue banners, crisp visible pixels and hopeful lighting. Zoom out and center the complete fortress on the island so ALL towers, roof flag, sidewalls and tiny guard are fully visible, occupying only the middle band: fortress silhouette inside x=15%..87% of frame, tallest flag at y=26%, castle base and guard at y=65%. Rocky island bottom at y=76%. Extra sky above and ocean below are intentionally crop-safe margins. Sunrise on far right around y=42%. This portrait will be cropped to its central 65% of height for a mobile illustration panel above HTML menu buttons, so keep the entire fortress and guard safely inside y=24%..73%, and leave 13% horizontal breathing room. Do not add a new subject or any menu content. No text, typography, title, logos, numbers, watermark, buttons, UI, HUD, frames, or border anywhere. A full-bleed pixel art illustration only.
