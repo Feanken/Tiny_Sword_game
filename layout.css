@@ -1,0 +1,326 @@
+/* Gameplay layout: status above the arena, commands below, scenery unobscured. */
+.battle-status {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 28px;
+  height: 59px;
+  padding: 10px 23px;
+  background: #1d3229;
+  border-bottom: 1px solid #61764a77;
+}
+.battle-status .wave-panel {
+  position: relative;
+  inset: auto;
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  width: 45%;
+  max-width: 510px;
+  height: 35px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+.battle-status .wave-panel > div:first-child { flex-shrink: 0; }
+.battle-status .wave-panel .tiny-label { font-size: 7px; letter-spacing: 1.2px; }
+.battle-status .wave-panel strong { font-size: 18px; margin-top: 0; }
+.battle-status .wave-badge {
+  position: static;
+  flex-shrink: 0;
+  border: 1px solid #bdc78d4d;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #efdaa4;
+}
+.battle-status .wave-panel p { color: #b7c5a6; font-size: 10px; margin: 0; }
+.battle-status .wave-track {
+  position: absolute;
+  inset: auto 0 -8px;
+  height: 2px;
+  margin: 0;
+  background: #63734c44;
+}
+.entry-note { display: flex; align-items: center; gap: 10px; color: #c4d0b3; }
+.entry-note > span { font-size: 27px; color: #d5c587; }
+.entry-note strong { display: block; font-size: 8px; letter-spacing: 1.4px; }
+.entry-note small { display: block; font-size: 9px; color: #91aa90; margin-top: 2px; }
+.battle-status .score-panel {
+  position: static;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  column-gap: 11px;
+  width: 135px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  transform: none;
+}
+.battle-status .score-panel strong { font-size: 23px; line-height: 1.1; }
+.battle-status .score-panel > span:last-child { grid-column: 1 / -1; font-size: 9px; margin-top: 2px; }
+.damage-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 3;
+  box-shadow: inset 0 0 65px #df5540a8;
+  border: 2px solid #ff917a9c;
+  transition: opacity 90ms ease-out;
+}
+.is-playing .health-number { font-size: 9px; }
+.is-playing .hud-label { font-size: 9px; }
+.player-hit .damage-flash { opacity: .8; }
+.announcement {
+  top: 14px;
+  width: max-content;
+  max-width: calc(100% - 28px);
+  white-space: normal;
+  padding: 10px 23px;
+  font-size: 18px;
+  border-color: #d1d7a066;
+  box-shadow: 0 3px 15px #102b2138;
+}
+.announcement small { font-size: 8px; letter-spacing: 1.3px; margin-top: 4px; }
+.game-shell:fullscreen { min-height: 0; }
+.game-shell:fullscreen .arena { max-height: none; min-height: 0; }
+.game-shell:fullscreen .battle-status { flex-shrink: 0; }
+
+@media (min-width: 651px) {
+  .is-playing .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 1600px;
+    padding-inline: 28px;
+  }
+  .is-playing .site-header { height: 58px; flex-shrink: 0; }
+  .is-playing .page-title { padding: 11px 0 14px; flex-shrink: 0; }
+  .is-playing .page-title h1 { font-size: 30px; letter-spacing: -.8px; }
+  .is-playing .page-title .eyebrow, .is-playing .title-side > p { display: none; }
+  .is-playing .record { display: flex; align-items: center; gap: 13px; border: 0; }
+  .is-playing .record strong { font-size: 22px; }
+  .is-playing .game-shell { display: flex; flex-direction: column; flex: 1; min-height: 470px; }
+  .is-playing .arena { flex: 1; min-height: 280px; height: auto; aspect-ratio: auto; }
+  .is-playing .hud { height: 68px; flex-shrink: 0; }
+  .is-playing .command-bar { padding: 12px 22px; flex-shrink: 0; min-height: 82px; }
+  .is-playing .command { min-width: 184px; min-height: 56px; gap: 8px; padding-right: 17px; }
+  .is-playing .command strong { font-size: 11px; }
+  .is-playing .command small { font-size: 10px; }
+  .is-playing .command kbd { font-size: 8px; }
+  .is-playing .game-footer { flex-shrink: 0; min-height: 39px; padding: 10px 0; }
+}
+@media (min-width: 651px) and (max-width: 1050px) {
+  .is-playing .app { padding-inline: 18px; }
+  .is-playing .command { min-width: 145px; }
+  .is-playing .command strong { font-size: 10px; }
+  .is-playing .command small { font-size: 9px; }
+  .is-playing .mission-copy > strong { font-size: 14px; }
+  .entry-note { display: none; }
+  .battle-status .wave-panel { width: 70%; }
+}
+@media (min-width: 651px) and (max-width: 820px) {
+  .is-playing .mission-copy { display: none; }
+  .is-playing .commands { width: 100%; gap: 8px; }
+  .is-playing .command { flex: 1; }
+}
+@media (max-width: 650px) {
+  .is-playing .page-title { padding: 15px 0; }
+  .is-playing .page-title .eyebrow { display: none; }
+  .is-playing .page-title h1 { font-size: 29px; }
+  .is-playing .record > span { font-size: 5px; }
+  .is-playing .record > strong { font-size: 19px; }
+  .is-playing .arena { height: clamp(310px, calc(100dvh - 390px), 460px); aspect-ratio: auto; }
+  .is-playing .hud { height: 61px; padding-inline: 9px; gap: 7px; }
+  .is-playing .hero-status > div, .is-playing .castle-status > div { min-width: 49px; }
+  .is-playing .health-track { width: 49px; }
+  .is-playing .castle-status { padding-right: 6px; }
+  .is-playing .hud-label { font-size: 6px; letter-spacing: .4px; }
+  .is-playing .resource { min-width: 39px; }
+  .is-playing .resource img { width: 26px; height: 28px; }
+  .is-playing .resource strong { font-size: 12px; }
+  .is-playing .resource div > span { font-size: 7px; }
+  .is-playing .health-number { font-size: 7px; }
+  .is-playing .food-resource { display: flex; }
+  .is-playing .pause-button { margin-left: auto; flex-shrink: 0; width: 26px; }
+  .battle-status { height: 52px; gap: 16px; padding: 8px 12px; }
+  .battle-status .wave-panel {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: 9px;
+    row-gap: 0;
+    width: calc(100% - 92px);
+    height: 32px;
+    max-width: none;
+  }
+  .battle-status .wave-panel .tiny-label { display: none; }
+  .battle-status .wave-panel strong { font-size: 16px; line-height: 1.1; }
+  .battle-status .wave-badge { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 9px; padding: 4px 6px; }
+  .battle-status .wave-panel p { grid-column: 1; grid-row: 2; font-size: 8px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+  .battle-status .wave-track { bottom: -6px; }
+  .battle-status .score-panel { width: 76px; column-gap: 6px; }
+  .battle-status .score-panel .tiny-label { font-size: 6px; letter-spacing: .6px; }
+  .battle-status .score-panel strong { font-size: 20px; }
+  .battle-status .score-panel > span:last-child { font-size: 7px; white-space: nowrap; }
+  .entry-note { display: none; }
+  .announcement { top: 10px; font-size: 15px; padding: 8px 14px; }
+  .announcement small { font-size: 6px; letter-spacing: .8px; }
+  .is-playing .command-bar { padding: 8px; }
+  .is-playing .command { min-height: 56px; }
+  .is-playing .command > img, .is-playing .command-art { width: 27px; height: 30px; }
+  .is-playing .archer-art { background-size: 180px 30px; }
+  .is-playing .command strong { font-size: 9px; }
+  .is-playing .command small { font-size: 8px; }
+  .is-playing .game-footer { padding: 10px 0 14px; }
+  .game-shell:fullscreen .arena { height: auto; min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .damage-flash { box-shadow: inset 0 0 24px #dc69534d; }
+  .player-hit .damage-flash { opacity: .4; }
+}
+
+/* Langkah Embun and the intermission forge. */
+.camp-button { background:#b8a3611a;border:1px solid #b9bd7680;border-radius:5px;color:#efdaa0;padding:9px 15px;font:600 11px "Segoe UI",sans-serif;white-space:nowrap; }
+.camp-button:hover:enabled { background:#bba46533;border-color:#edd49a; }
+.camp-button:disabled { opacity:.5;cursor:default; }
+.dash-hud { position:absolute;left:18px;bottom:17px;width:182px;padding:9px 12px;background:#19392de8;border:1px solid #a0c2a869;border-radius:6px;box-shadow:0 4px 16px #16302730; }
+.dash-hud>span { display:flex;align-items:center;gap:9px; }
+.dash-hud strong { font:600 10px "Segoe UI",sans-serif;color:#deedcf; }
+.dash-hud kbd { color:#ddcf99;border-color:#a6b98c66;font-size:8px; }
+.dash-hud>i { display:block;height:3px;background:#0d2b21;margin-top:7px;overflow:hidden; }
+.dash-hud b { display:block;background:#b0e3ca;height:100%;width:100%; }
+.dash-hud:disabled,.dash-hud.cooling-down { cursor:default;opacity:.8; }
+.camp-modal { max-width:920px;background:radial-gradient(ellipse at top,#344a35,#192f27);color:#eee8ce;border:1px solid #c5c58977;max-height:90dvh;padding:30px; }
+.camp-modal .close-button { color:#d9dfb9; }
+.camp-heading { display:flex;align-items:center;justify-content:space-between;gap:16px; }
+.camp-heading .eyebrow { color:#c8ce96; }
+.camp-heading h2 { color:#f3e8c8;margin:6px 0 8px;font-size:36px; }
+.camp-heading p:last-child { color:#a8bea0;font-size:12px;margin:0; }
+.camp-wallet { text-align:right;flex-shrink:0; }
+.camp-wallet span { display:block;font-size:8px;letter-spacing:1.3px;color:#aec09f; }
+.camp-wallet strong { font:32px Georgia;color:#efd28b; }
+.camp-rule { background:#081d1744;color:#d8dcb9!important;border-left:2px solid #d1bd73;padding:10px 12px;margin:19px 0!important;font-size:11px!important; }
+.perk-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
+.perk-card { text-align:left;background:#304734;border:1px solid #8b9a6566;border-radius:7px;padding:15px;color:#e9e6c8;display:flex;flex-direction:column;min-height:190px;transition:background .15s,border-color .15s; }
+.perk-card:hover:enabled { background:#40543a;border-color:#e2cc88; }
+.perk-card:disabled { opacity:.5;cursor:default; }
+.perk-category { display:flex;justify-content:space-between;gap:5px;font-size:7px;letter-spacing:1.4px;color:#b2c29b; }
+.perk-category>span { color:#efd18b;letter-spacing:2px; }
+.perk-icon { font:27px Georgia;color:#edcf8d;margin:9px 0 3px; }
+.perk-card>strong { font:21px Georgia;color:#f2e6bd;margin-bottom:7px; }
+.perk-description { font-size:10px;line-height:1.65;color:#c4d0b4;flex:1; }
+.perk-price { border-top:1px solid #92a07744;margin-top:12px;padding-top:8px;font-size:10px;color:#efd293;display:flex;justify-content:space-between;gap:7px; }
+.perk-price>span { color:#b1c59e;font-size:9px; }
+.camp-feedback { color:#f2d692!important;min-height:18px;margin:12px 0 4px!important;font-size:11px!important; }
+.camp-build { border-top:1px solid #9aaf7344;padding-top:10px; }
+.camp-build>span { color:#9cb78d;font-size:7px;letter-spacing:1.5px; }
+.camp-build>p { margin:5px 0;font-size:11px;color:#d9dfba; }
+.camp-footer { display:flex;align-items:center;gap:17px;margin-top:13px; }
+.camp-footer>p { margin:0 auto 0 0;color:#9fb493;font-size:9px; }
+.camp-footer .primary-button { margin:0;min-width:180px; }
+.camp-footer .text-button { margin:0;color:#c0d0b2;white-space:nowrap; }
+@media(max-width:1050px){.battle-status .wave-panel{width:55%}.camp-button{font-size:10px;padding:8px}.camp-modal{padding:25px}}
+@media(max-width:650px){
+ .camp-button{font-size:8px;padding:7px 6px;white-space:normal;max-width:94px;line-height:1.4}
+ .battle-status{gap:10px}.battle-status .wave-panel{width:auto;flex:1;min-width:0}.battle-status .score-panel{width:67px}
+ .dash-hud{left:10px;top:10px;bottom:auto;width:145px;padding:7px 9px}.dash-hud strong{font-size:8px}
+ .touch-actions{position:relative}.touch-actions #touchDash{position:absolute;right:12px;bottom:72px;width:46px;height:46px;background:#345d4ae8;border-color:#b0d8bd;font-size:17px;font-weight:700}
+ .touch-actions #touchDash:disabled,.touch-actions #touchDash.cooling-down{font-size:12px;opacity:.75}
+ .camp-modal{padding:25px 17px 20px;width:calc(100% - 20px);max-height:94dvh}
+ .camp-heading h2{font-size:27px}.camp-heading p:last-child{font-size:10px}.camp-wallet span{font-size:6px}.camp-wallet strong{font-size:27px}
+ .perk-grid{grid-template-columns:repeat(2,1fr);gap:8px}.perk-card{padding:11px;min-height:200px}.perk-card>strong{font-size:19px}.perk-description{font-size:10px}.perk-category{font-size:6px;letter-spacing:.5px}.perk-price{font-size:9px}.perk-price>span{font-size:8px}
+ .camp-footer{flex-wrap:wrap;gap:14px}.camp-footer>p{width:100%}.camp-footer .primary-button{flex:1;min-width:150px}.camp-footer .text-button{font-size:10px}.announcement{top:70px}
+ .game-footer>div{gap:7px}
+}
+
+.camp-modal .close-button { top:8px;right:12px;line-height:1;width:30px;height:30px;padding:0; }
+
+.difficulty-picker{display:flex;gap:7px;margin:0 0 7px;max-width:350px}
+.difficulty-picker button{flex:1;min-width:0;padding:9px 10px;background:#18362bbd;border:1px solid #b2c18c66;border-radius:4px;color:#e4e9cb;text-align:left;font-size:11px}
+.difficulty-picker button[aria-pressed="true"]{background:#b9ab6b33;border-color:#edce88;color:#f5d895}
+.difficulty-picker small{display:block;font-size:7px;color:#b4c6a4;margin-top:3px;white-space:nowrap}
+.difficulty-note{font-size:9px!important;line-height:1.5;color:#c2cfb2;max-width:350px;min-height:27px;margin:0 0 15px}
+.mode-badge{color:#d9cd9e;font-size:8px;letter-spacing:1.3px;text-transform:uppercase;padding:4px 7px;border:1px solid #a6b17d44;border-radius:3px;margin-left:auto}
+.battle-status .score-panel{margin-left:0}
+.squad-bar{display:flex;align-items:center;gap:14px;background:#1c3228;padding:7px 21px;border-top:1px solid #72855266;flex-shrink:0;min-height:43px}
+.squad-label{font-size:7px;letter-spacing:1.2px;color:#adc19c}
+.squad-orders{display:flex;gap:6px}
+.squad-orders button{background:#304736;color:#afc3a6;border:1px solid #86995f55;border-radius:4px;padding:5px 10px;font-size:10px}
+.squad-orders button[aria-pressed="true"]{color:#f4dfab;border-color:#c1c481;background:#4e5c37}
+.squad-orders kbd{line-height:14px;font-size:7px;margin-right:4px}
+#squadHint{font-size:9px;color:#9fb493;margin-left:auto}
+.boss-bar{position:absolute;top:13px;right:17px;z-index:3;width:330px;max-width:calc(100% - 34px);padding:10px 13px;background:#302723eb;border:1px solid #de9c718c;border-radius:5px;pointer-events:none}
+.boss-bar>div:first-child{display:flex;justify-content:space-between;align-items:center;color:#f6d59c;font:17px Georgia;gap:12px}
+#bossValue{font:10px "Segoe UI",sans-serif;white-space:nowrap;color:#e1bb9b}
+.boss-track{height:6px;background:#101e19;margin:7px 0;overflow:hidden;border-radius:2px}
+.boss-track i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#a95448,#ebae72);transition:width .15s}
+#bossIntent{font:8px "Segoe UI",sans-serif;letter-spacing:.8px;color:#eac8a1}
+.boss-active .announcement{top:100px}
+@media(max-width:1050px){.battle-status .wave-panel{width:43%}.mode-badge{font-size:7px}#squadHint{font-size:8px}}
+@media(max-width:650px){
+ .difficulty-picker{gap:4px}.difficulty-picker button{font-size:10px;padding:7px}.difficulty-picker small{font-size:6px}
+ .difficulty-note{font-size:8px!important;min-height:25px;margin-bottom:10px}.intro-content{width:84%;top:48%}.intro-content h2{font-size:31px}.intro-description{margin-bottom:12px}.intro-content .eyebrow{margin-bottom:10px}
+ .mode-badge{display:none}.squad-bar{padding:7px 9px;gap:7px;min-height:44px}.squad-label{display:none}.squad-orders{width:100%}.squad-orders button{flex:1;padding:6px 8px;font-size:10px}#squadHint{display:none}
+ .is-playing .arena{height:clamp(310px,calc(100dvh - 434px),460px)}
+ .boss-bar{top:62px;left:10px;right:10px;width:auto;max-width:none;padding:8px 11px}.boss-bar>div:first-child{font-size:16px}.boss-active .announcement{top:150px}
+ .game-footer>div{gap:6px}
+}
+@media(min-width:651px) and (max-height:800px){.intro-content h2{font-size:30px}.intro-description{font-size:10px;margin-bottom:10px}.difficulty-picker button{padding:6px 9px}.difficulty-note{margin-bottom:8px;min-height:24px}.intro-content .light{margin-bottom:9px}}
+
+@media(max-width:650px){body:not(.is-playing) .arena{aspect-ratio:auto;height:clamp(430px,calc(100dvh - 340px),600px)}}
+.audio-modal { max-width: 440px; }
+.audio-modal label { display:flex; justify-content:space-between; margin:24px 0 10px; color:#284a3b; font-weight:600; }
+.audio-modal input[type="range"] { width:100%; accent-color:#e1c27e; cursor:pointer; }
+.audio-modal output { font-variant-numeric:tabular-nums; }
+.run-label { margin:4px 0; color:#51664c; font-size:11px; }
+.perk-milestone { display:block;margin-top:7px;padding-top:6px;border-top:1px solid #9aaf7333;font-size:9px;line-height:1.5;color:#a7ba9d; }
+.perk-milestone.active { color:#f2d692; }
+.toast { left:auto;right:17px;bottom:17px;transform:none;max-width:min(340px,calc(100% - 230px));text-align:left; }
+@media(max-width:650px){
+ .toast { top:10px;right:10px;bottom:auto;max-width:calc(100% - 175px);padding:6px 8px;font-size:9px;line-height:1.4;max-height:42px;overflow:hidden; }
+}
+@media(max-width:600px) { .site-header nav { gap:2px; } .audio-modal { width:calc(100vw - 28px); } }
+
+.arena-switch {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+}
+.arena-switch a {
+  padding: 5px 9px;
+  border: 1px solid #b2c18c88;
+  border-radius: 4px;
+  background: #18362b;
+  color: #e4e9cb;
+  font-size: 12px;
+}
+.arena-switch a[aria-current="page"] { border-color: #edce88; color: #f5d895; }
+.entry-warning {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 7px 12px;
+  border: 1px solid #edb578;
+  border-radius: 5px;
+  background: #34231a;
+  color: #ffe2ac;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+/* Leave room for the raised touch dash button even when both directions wrap. */
+@media (pointer: coarse), (max-width: 650px) { .entry-warning { bottom: 144px; } }
