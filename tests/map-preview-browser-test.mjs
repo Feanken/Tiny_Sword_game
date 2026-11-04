@@ -104,7 +104,7 @@ try {
       set(value) {art=class extends value {constructor(...args){super(...args);window.__previewArt=this;}};}
     });
   `});
-  const url = pathToFileURL(process.env.PREVIEW_ENTRY || path.join(root,'preview-map.html')).href;
+  const url = pathToFileURL(path.join(root,'preview-map.html')).href;
   const snapshot = () => evaluate('PenjagaMapPreview.snapshot()');
   const visit = id => evaluate('PenjagaMapPreview.visit('+JSON.stringify(id)+')');
   const nextFrame = () => evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
@@ -218,11 +218,12 @@ try {
         if(world.isWalkable(x,y))points.push({x,y});
       return ['x','y'].flatMap(axis=>[points.reduce((a,b)=>a[axis]<b[axis]?a:b),points.reduce((a,b)=>a[axis]>b[axis]?a:b)]);
     })()`);
+    const worldSize=await evaluate('({width:__previewRuntime.world.width,height:__previewRuntime.world.height})');
     for(const point of edges) {
       await evaluate('Object.assign(__previewRuntime.session.hero,'+JSON.stringify(point)+')');await nextFrame();
       const {camera,hero}=await snapshot();
-      assert.ok(Math.abs(camera.x-Math.max(0,Math.min(2560-camera.width,hero.x-camera.width/2)))<.001);
-      assert.ok(Math.abs(camera.y-Math.max(0,Math.min(1792-camera.height,hero.y-camera.height/2)))<.001);
+      assert.ok(Math.abs(camera.x-Math.max(0,Math.min(worldSize.width-camera.width,hero.x-camera.width/2)))<.001);
+      assert.ok(Math.abs(camera.y-Math.max(0,Math.min(worldSize.height-camera.height,hero.y-camera.height/2)))<.001);
       assert.ok(hero.x>=camera.x&&hero.x<=camera.x+camera.width&&hero.y>=camera.y&&hero.y<=camera.y+camera.height);
     }
     // Closing a region must reset actor and cached route safely, and visibly darken it.
@@ -244,15 +245,12 @@ try {
     response.writeHead(200,{'Content-Type':type});fs.createReadStream(target).pipe(response);
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  // Draft-only preflight uses another entry path; final HTTP check uses the integrated root.
-  if(!process.env.PREVIEW_ENTRY) {
-    await page('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/preview-map.html'});
-    await waitFor('!!window.PenjagaMapPreview','HTTP preview loads');
-    await evaluate('PenjagaMapPreview.chapter("chapter-3");PenjagaMapPreview.visit("island-north")');await nextFrame();
-    assert.equal((await snapshot()).chapterId,'chapter-3');
-    assert.equal(await evaluate('location.protocol'),'http:');
-    console.log('PASS HTTP: same local entry, all assets loaded, chapter selection and safe placement.');
-  }
+  await page('Page.navigate',{url:'http://127.0.0.1:'+server.address().port+'/preview-map.html'});
+  await waitFor('!!window.PenjagaMapPreview','HTTP preview loads');
+  await evaluate('PenjagaMapPreview.chapter("chapter-3");PenjagaMapPreview.visit("island-north")');await nextFrame();
+  assert.equal((await snapshot()).chapterId,'chapter-3');
+  assert.equal(await evaluate('location.protocol'),'http:');
+  console.log('PASS HTTP: same local entry, all assets loaded, chapter selection and safe placement.');
   assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
   await call('Browser.close');
 } finally {

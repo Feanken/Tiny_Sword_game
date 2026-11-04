@@ -25,6 +25,9 @@ Stat/economy dari dokumen Tahap 1 belum diaktifkan.
 
 Implementasi mengikuti `docs/map-preview-interface.md`. Sumber rancangan yang
 dibaca: `codex/campaign-design@a011682` dan `codex/campaign-economy@cf5d9bc`.
+Commit map final Chat 1 **3417255** sudah digabung melalui **5aecb71**. Seluruh
+berkas yang diperlukan preview tersedia di branch `codex/campaign-map-view`;
+halaman dan screenshot final tidak merujuk ke worktree Chat 1.
 
 | Berkas | Tanggung jawab / kontrak |
 | --- | --- |
@@ -64,6 +67,8 @@ Jalankan dari root worktree dengan Node 24 dan Chrome desktop:
 
 ```powershell
 node tests/camera-test.cjs
+node tests/campaign-map-test.mjs
+node tests/campaign-browser-test.mjs
 node tests/map-preview-browser-test.mjs --screenshots docs/map-preview-screenshots
 node tests/menu-browser-test.mjs
 ```
@@ -71,10 +76,15 @@ node tests/menu-browser-test.mjs
 `CHROME_PATH` dapat menunjuk instalasi Chrome lain. Browser test menggunakan
 profil sementara sendiri dan DevTools; tidak memerlukan npm dependency.
 
-| Pemeriksaan | Hasil pada preview awal, diperiksa ulang setelah integrasi final |
+Hasil pemeriksaan akhir pada 4 November 2026, setelah integrasi commit 3417255:
+
+| Pemeriksaan | Hasil |
 | --- | --- |
 | Kamera mandiri | 3 ukuran world × 3 aspek desktop × 3 posisi, clamp X/Y, proyeksi bolak-balik, culling dua sumbu lulus. |
 | File lokal | 1280×720 DPR 1, 1440×900 DPR 1, 1920×1080 DPR 2; Bab 1/2/3, posisi aman, benteng, wilayah terkunci, identitas objek, dan skala karakter lulus. |
+| HTTP lokal | Entry point dan aset yang sama dimuat; pilihan Bab 3 dan penempatan aman utara lulus. |
+| Kontrak World di browser | Suite Chat 1 lulus pada file:// dan HTTP: tiga kondisi topologi, query lantai, dan invalidasi. |
+| Suite map headless | Dijalankan ulang pada branch gabungan: 1.929 pemeriksaan, 422 traversal (44 jembatan + 378 entry), 132 perpindahan guard, traffic dua arah, dan 13 definisi invalid ditolak; lulus. |
 | Input | Keyboard nyata melalui DevTools, klik tanah, klik air ditolak, dan koordinat pointer diam setelah kamera bergerak. |
 | Tepi daratan | Titik walkable paling utara/selatan/barat/timur diperiksa pada tiga ukuran layar; penjaga tetap terlihat dan kamera clamp. |
 | Jembatan utara | Dua arah, 92 tick per arah pada 60 Hz, jarak akhir <5 px; tidak pernah keluar dari world.isWalkable. |
@@ -82,6 +92,8 @@ profil sementara sendiri dan DevTools; tidak memerlukan npm dependency.
 | Collision | Titik air dan pusat obstacle ditolak; rute menuju pulau yang ditutup tidak dibuat. |
 | Culling | Painted + culled = objek aktif, culled >0; scenery terkunci tidak masuk daftar objek. |
 | Regresi game/menu | Keyboard desktop dan tiga viewport sentuh lulus, termasuk carry emas/keenam rank, HP, mode latihan dan ekspedisi baru. |
+
+Suite browser selesai dengan **nol exception JavaScript dan nol aset gagal dimuat**.
 
 Durasi lintasan di atas hanya garis tengah jembatan, bukan waktu perjalanan dari
 tambang ke benteng. Traversal di-render secara bertahap untuk memeriksa kamera
@@ -91,6 +103,16 @@ ketika menyeberang. Pengukuran ramai pasukan dan gate-to-gate mengikuti laporan
 Screenshot 1440×900 tersedia di `docs/map-preview-screenshots/`: kondisi benteng
 Bab 1/2/3, pulau utara/barat daya, dan kedua jembatan. Inspeksi visual mencakup
 perbedaan atlas, sambungan lantai, occlusion sprite, label wilayah dan arsiran.
+
+| Screenshot | Tautan |
+| --- | --- |
+| Kondisi Bab 1 | [Benteng](map-preview-screenshots/chapter-1-fortress.png) |
+| Kondisi Bab 2 | [Benteng](map-preview-screenshots/chapter-2-fortress.png) |
+| Kondisi Bab 3 | [Benteng](map-preview-screenshots/chapter-3-fortress.png) |
+| Bukit Utara | [Pulau](map-preview-screenshots/chapter-3-island-north.png) |
+| Pesisir Barat Daya | [Pulau](map-preview-screenshots/chapter-3-island-southwest.png) |
+| Sambungan utara | [Jembatan](map-preview-screenshots/chapter-3-bridge-north.png) |
+| Sambungan barat daya | [Jembatan dan tikungan](map-preview-screenshots/chapter-3-bridge-southwest.png) |
 
 Poin playtest berikutnya: kenyamanan bidang pandang 704 px ketika bertempur dari
 beberapa arah, keterbacaan jalan di atas plank, dan overlap visual cap jembatan
