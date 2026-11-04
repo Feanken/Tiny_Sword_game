@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Fixture menu · Penjaga Pulau</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../layout.css">
+  <link rel="stylesheet" href="../menu.css">
+  <style>html, body { margin: 0; background: #071b2b; }</style>
+</head>
+<body>
+  <section id="startScreen" aria-label="Menu Penjaga Pulau">
+    <div class="menu-main">
+      <p class="eyebrow">PENJAGA PULAU</p>
+      <h1>Jaga Pulau<br>Sampai Fajar</h1>
+      <p>Satu pulau. Sebuah rumah.<br>Pertahankan sampai cahaya pertama.</p>
+      <div class="menu-actions">
+        <button class="primary-button" id="previewPrepare">Mulai Ekspedisi <span aria-hidden="true">→</span></button>
+        <button type="button">Latihan Map 2 <span aria-hidden="true">↗</span></button>
+        <button type="button">Pengaturan <span aria-hidden="true">♪</span></button>
+        <button type="button">Cara Main <span aria-hidden="true">?</span></button>
+      </div>
+      <button type="button" class="menu-secondary">Galeri Aset</button>
+    </div>
+    <div class="menu-setup" hidden>
+      <p class="eyebrow">PERSIAPAN PENJAGA</p>
+      <h2>Siapkan keberanian.</h2>
+      <p>Pilih tantangan sebelum berangkat.</p>
+      <fieldset>
+        <legend>Kesulitan</legend>
+        <div class="difficulty-picker">
+          <button aria-pressed="false">Santai<small>Belajar bertahan</small></button>
+          <button aria-pressed="true">Normal<small>Tantangan seimbang</small></button>
+          <button aria-pressed="false">Sulit<small>Uji keberanian</small></button>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend><label for="previewArena">Pulau tujuan</label></legend>
+        <select id="previewArena"><option>Pulau Embun</option><option>Pulau Dua Arah · Latihan</option></select>
+      </fieldset>
+      <div class="menu-actions">
+        <button class="primary-button">Jaga pulau <span aria-hidden="true">→</span></button>
+        <button id="previewBack" type="button">Kembali ke menu <span aria-hidden="true">←</span></button>
+      </div>
+    </div>
+  </section>
+  <script>
+    // Fixture navigation only. Chat 2 owns production HTML and menu behavior.
+    const main = document.querySelector('.menu-main');
+    const setup = document.querySelector('.menu-setup');
+    document.getElementById('previewPrepare').onclick = () => {
+      main.hidden = true;
+      setup.hidden = false;
+      setup.querySelector('button').focus();
+    };
+    document.getElementById('previewBack').onclick = () => {
+      setup.hidden = true;
+      main.hidden = false;
+      document.getElementById('previewPrepare').focus();
+    };
+    document.querySelectorAll('[aria-pressed]').forEach(button => {
+      button.onclick = () => document.querySelectorAll('[aria-pressed]').forEach(option =>
+        option.setAttribute('aria-pressed', String(option === button)));
+    });
+  </script>
+</body>
+</html>

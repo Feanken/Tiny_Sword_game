@@ -1,0 +1,346 @@
+/* Load after style.css and layout.css. Every rule belongs to the title screen. */
+#startScreen {
+  --menu-ivory: #fff3d5;
+  --menu-muted: #becbd0;
+  --menu-gold: #ebc078;
+  --menu-night: #071b2b;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(340px, 44%) minmax(0, 1fr);
+  align-items: center;
+  min-block-size: 100vh;
+  min-block-size: 100svh;
+  overflow: auto;
+  isolation: isolate;
+  color: var(--menu-ivory);
+  background: var(--menu-night) url("assets/menu/dawn-desktop.webp") right center / cover no-repeat;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+
+#startScreen,
+#startScreen * {
+  box-sizing: border-box;
+}
+
+#startScreen[hidden],
+#startScreen [hidden] {
+  display: none !important;
+}
+
+#startScreen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(90deg, #0416258c, #04162520 44%, transparent 63%);
+}
+
+#startScreen :is(.menu-main, .menu-setup) {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: 640px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 88px);
+}
+
+#startScreen :is(.menu-main, .menu-setup) > :first-child {
+  margin-block-start: 0;
+}
+
+#startScreen .eyebrow {
+  color: var(--menu-gold);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .22em;
+  line-height: 1.6;
+  margin-block-end: 18px;
+}
+
+#startScreen .menu-main :is(h1, h2),
+#startScreen .menu-setup > :is(h1, h2) {
+  color: var(--menu-ivory);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(44px, 4.5vw, 78px);
+  font-weight: 400;
+  letter-spacing: -.035em;
+  line-height: 1.04;
+  margin: 0 0 24px;
+  text-wrap: balance;
+  text-shadow: 0 3px 20px #00122180;
+}
+
+#startScreen .menu-main :is(h1, h2) em {
+  color: inherit;
+  font-style: normal;
+}
+
+#startScreen .menu-main p:not(.eyebrow),
+#startScreen .menu-setup p:not(.eyebrow) {
+  color: var(--menu-muted);
+  max-inline-size: 35ch;
+  margin: 0 0 26px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+#startScreen .menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  inline-size: 100%;
+  max-inline-size: 340px;
+}
+
+#startScreen .menu-actions :is(button, a) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  inline-size: 100%;
+  min-inline-size: 0;
+  min-block-size: 50px;
+  padding: 13px 18px;
+  border: 1px solid #71828e;
+  border-radius: 5px;
+  background: #0a2338ee;
+  color: var(--menu-ivory);
+  font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 2px 0 #00000038;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+#startScreen .menu-actions :is(button, a):hover {
+  background: #17374d;
+  border-color: #dfd2b8;
+  transform: none;
+}
+
+#startScreen .menu-actions :is(.primary-button, [data-primary], #startButton) {
+  background: var(--menu-gold);
+  border-color: #ffdf9c;
+  border-block-end: 3px solid #b68137;
+  color: #162433;
+  box-shadow: 0 4px 18px #00000030;
+}
+
+#startScreen .menu-actions :is(.primary-button, [data-primary], #startButton):hover {
+  background: #f8d796;
+}
+
+#startScreen .menu-actions :is(button, a):active {
+  transform: translateY(1px);
+}
+
+#startScreen .menu-actions :is(button, a):disabled,
+#startScreen .menu-actions [aria-disabled="true"] {
+  opacity: .55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#startScreen .menu-secondary {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  margin-block-start: 8px;
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+  color: var(--menu-muted);
+  font: 500 12px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+#startScreen .menu-secondary:hover {
+  color: var(--menu-ivory);
+  text-decoration: underline;
+}
+
+#startScreen :is(button, a, input, select, summary):focus-visible {
+  outline: 3px solid var(--menu-ivory);
+  outline-offset: 5px;
+  box-shadow: 0 0 0 7px var(--menu-night);
+}
+
+#startScreen .menu-setup > :is(h1, h2) {
+  font-size: clamp(32px, 3vw, 50px);
+}
+
+#startScreen .menu-setup fieldset {
+  min-inline-size: 0;
+  margin: 0 0 24px;
+  padding: 0;
+  border: 0;
+}
+
+#startScreen .menu-setup legend,
+#startScreen .menu-setup label {
+  color: var(--menu-ivory);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#startScreen .menu-setup legend {
+  margin-block-end: 10px;
+}
+
+#startScreen .menu-setup select {
+  inline-size: 100%;
+  min-block-size: 48px;
+  padding: 10px 12px;
+  border: 1px solid #71828e;
+  border-radius: 4px;
+  background: #0a2338;
+  color: var(--menu-ivory);
+  font: inherit;
+}
+
+#startScreen .difficulty-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#startScreen .difficulty-picker button {
+  min-block-size: 46px;
+  padding: 10px 12px;
+  border: 1px solid #71828e;
+  border-radius: 4px;
+  background: #0a2338;
+  color: var(--menu-ivory);
+}
+
+#startScreen .difficulty-picker button[aria-pressed="true"] {
+  border-color: var(--menu-gold);
+  background: #28404c;
+  color: #ffe0a5;
+}
+
+#startScreen .difficulty-picker small {
+  display: block;
+  margin-block-start: 3px;
+  font-size: 10px;
+}
+
+#startScreen .difficulty-note {
+  margin-block: 12px;
+  min-block-size: 0;
+  font-size: 12px !important;
+}
+
+#startScreen .loading-track {
+  inline-size: min(100%, 340px);
+  margin-block-start: 18px;
+  background: #304759;
+}
+
+#startScreen .loading-track i {
+  background: var(--menu-gold);
+}
+
+#startScreen .load-error {
+  color: #ffcca8;
+}
+
+@media (max-width: 900px) {
+  #startScreen {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(min-content, 1fr);
+    align-items: start;
+    background-image: none;
+  }
+
+  #startScreen::before {
+    position: relative;
+    inset: auto;
+    grid-column: 1;
+    grid-row: 1;
+    z-index: 0;
+    display: block;
+    inline-size: 100%;
+    block-size: clamp(220px, 36svh, 340px);
+    background: url("assets/menu/dawn-mobile.webp") center 54% / cover no-repeat;
+    -webkit-mask-image: linear-gradient(#000 87%, transparent);
+    mask-image: linear-gradient(#000 87%, transparent);
+  }
+
+  #startScreen :is(.menu-main, .menu-setup) {
+    grid-row: 2;
+    align-self: start;
+    max-inline-size: 480px;
+    padding: 12px 28px max(30px, env(safe-area-inset-bottom));
+  }
+
+  #startScreen .eyebrow {
+    margin-block-end: 12px;
+    font-size: 10px;
+    letter-spacing: .18em;
+  }
+
+  #startScreen .menu-main :is(h1, h2) {
+    margin-block-end: 16px;
+    font-size: clamp(36px, 9vw, 48px);
+    line-height: 1.08;
+  }
+
+  #startScreen .menu-main p:not(.eyebrow),
+  #startScreen .menu-setup p:not(.eyebrow) {
+    margin-block-end: 20px;
+    font-size: 13px;
+  }
+
+  #startScreen .menu-actions {
+    max-inline-size: none;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 700px) {
+  #startScreen::before {
+    block-size: clamp(210px, 34svh, 240px);
+  }
+}
+
+@media (min-width: 901px) and (max-height: 600px) {
+  #startScreen {
+    background-position: right top;
+  }
+
+  #startScreen :is(.menu-main, .menu-setup) {
+    padding-block: 24px;
+  }
+
+  #startScreen .menu-main :is(h1, h2) {
+    font-size: 44px;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  #startScreen::before {
+    background-image: url("assets/menu/dawn-desktop.webp");
+    background-position: center;
+    background-size: contain;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #startScreen .menu-actions :is(button, a) {
+    transition: none;
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  #startScreen :is(button, a, input, select, summary):focus-visible {
+    outline-color: Highlight;
+  }
+}
