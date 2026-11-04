@@ -8,11 +8,13 @@
   const defaults = { footRadius: 23, footSamples: 8, obstaclePadding: 10, overlapTolerance: .01 };
   const collision = map => ({ ...defaults, ...map.collision });
   function onLand(map, x, y) {
+    if(map?.version===2)return root.PenjagaFloor.createFloor(map).contains(x,y);
     if (!finite(x) || !finite(y) || !map?.tileSize) return false;
     const b = map.landBounds, row = map.rows?.[Math.floor(y / map.tileSize)];
     return !!b && !!row && x > b.left && x < b.right && y > b.top && y < b.bottom && Math.floor(x / map.tileSize) >= row[0] && Math.floor(x / map.tileSize) <= row[1];
   }
   function canStand(map, x, y) {
+    if(map?.version===2)return root.PenjagaFloor.createFloor(map).canStand(x,y);
     if (!onLand(map, x, y)) return false;
     const c = collision(map);
     if (!Number.isInteger(c.footSamples) || c.footSamples < 1 || c.footSamples > 64) return false;
@@ -30,10 +32,12 @@
     ];
   }
   function positionFits(map, x, y) {
+    if(map?.version===2)return root.PenjagaFloor.createFloor(map).positionFits(x,y,map.obstacles);
     const c = collision(map);
     return canStand(map, x, y) && (map.obstacles || baselineObstacles(map)).every(o => object(o) && Math.hypot(x - o.x, y - o.y) >= o.radius + c.obstaclePadding - c.overlapTolerance);
   }
   function validateMap(map) {
+    if(map?.version===2)return validateCampaignMap(map);
     const errors = [];
     const fail = (code, at, message) => errors.push({ code, at, message });
     const shape = (ok, at, message) => { if (!ok) fail('INVALID_DATA', at, message); return !!ok; };
@@ -185,6 +189,216 @@
       if (d.kind !== 'jetty') { string(d.asset, `${at}.asset`); positive(d.width, `${at}.width`); }
     });
     return { valid: errors.length === 0, errors };
+  }
+  function validateCampaignMap(map) {
+    const errors=[],fail=(code,at,message)=>errors.push({code,at,message});
+    const check=(ok,at,message)=>{if(!ok)fail('INVALID_DATA',at,message);return !!ok;};
+    const point=p=>object(p)&&finite(p.x)&&finite(p.y);
+    const positive=n=>finite(n)&&n>0;
+    const text=s=>typeof s==='string'&&s.trim().length>0;
+    const ids=new Set();
+    const identity=(id,at)=>{if(!text(id))fail('INVALID_DATA',at,'Expected a nonempty identity.');else if(ids.has(id))fail('DUPLICATE_ID',at,id);else ids.add(id);};
+    identity(map.id,'id');check(text(map.name),'name','Expected name.');
+    for(const key of ['width','height','tileSize'])check(positive(map[key])&&Number.isInteger(map[key]),key,'Expected positive integer.');
+    const c=collision(map);
+    if(map.collision!==undefined)check(object(map.collision),'collision','Expected collision profile object.');
+    check(positive(c.footRadius)&&Number.isInteger(c.footSamples)&&c.footSamples>0&&c.footSamples<=64&&
+      finite(c.obstaclePadding)&&c.obstaclePadding>=0&&finite(c.overlapTolerance)&&c.overlapTolerance>=0&&c.overlapTolerance<=c.obstaclePadding,
+      'collision','Invalid footprint or obstacle padding.');
+    check(!!root.PenjagaFloor,'geometry','Load maps/floor-geometry.js first.');
+    check(Array.isArray(map.regions)&&map.regions.length>0,'regions','Expected regions.');
+    const regions=new Map(list(map.regions).filter(object).map(r=>[r.id,r]));
+    list(map.regions).forEach((r,i)=>{
+      const at='regions['+i+']';if(!check(object(r),at,'Expected region.'))return;
+      identity(r.id,at+'.id');
+      if(r.kind==='island'){
+        const b=r.localBounds,o=r.origin;
+        check(point(o)&&o.x>=0&&o.y>=0&&o.x%map.tileSize===0&&o.y%map.tileSize===0,at+'.origin','Expected tile-aligned origin.');
+        check(object(b)&&['left','right','top','bottom'].every(k=>finite(b[k]))&&b.left>=0&&b.top>=0&&
+          b.left<b.right&&b.top<b.bottom&&point(o)&&o.x+b.right<=map.width&&o.y+b.bottom<=map.height,at+'.localBounds','Invalid clipping bounds.');
+        if(check(object(r.maskRows)&&Object.keys(r.maskRows).length>0,at+'.maskRows','Expected row mask.')){
+          for(const [row,spans] of Object.entries(r.maskRows)){
+            let previous=-1;
+            check(/^(0|[1-9]\d*)$/.test(row)&&Array.isArray(spans)&&spans.length>0,at+'.maskRows.'+row,'Invalid row.');
+            for(const span of list(spans)){
+              const valid=Array.isArray(span)&&span.length===2&&span.every(Number.isInteger)&&span[0]>=0&&span[0]<=span[1]&&span[0]>previous&&
+                point(o)&&o.x+(span[1]+1)*map.tileSize<=map.width&&o.y+(Number(row)+1)*map.tileSize<=map.height;
+              check(valid,at+'.maskRows.'+row,'Expected ordered, disjoint inclusive spans inside world.');
+              if(valid)previous=span[1];
+            }
+          }
+        }
+      }else if(r.kind==='bridge'){
+        check(positive(r.width),at+'.width','Expected positive width.');
+        check(Array.isArray(r.connects)&&r.connects.length===2&&new Set(r.connects).size===2&&r.connects.every(id=>regions.get(id)?.kind==='island'),
+          at+'.connects','Bridge must connect two islands.');
+        if(check(Array.isArray(r.centerline)&&r.centerline.length>=2,at+'.centerline','Expected centerline.')){
+          r.centerline.forEach((p,j)=>{
+            check(point(p),at+'.centerline['+j+']','Expected point.');
+            if(j&&point(p)&&point(r.centerline[j-1])){
+              const a=r.centerline[j-1];
+              check((a.x===p.x)!==(a.y===p.y),at+'.centerline['+j+']','Expected nonzero orthogonal segment.');
+            }
+            if(point(p))check(p.x-r.width/2>=0&&p.y-r.width/2>=0&&p.x+r.width/2<map.width&&p.y+r.width/2<map.height,
+              at+'.centerline['+j+']','Bridge surface must stay inside world.');
+          });
+        }
+      }else fail('INVALID_DATA',at+'.kind','Expected island or bridge.');
+    });
+    for(const key of [...collections,'roads','paths','enemySpawns','obstacles','decorations','initialAllies','gates','guardPoints'])
+      check(Array.isArray(map[key]),key,'Expected array.');
+    check(object(map.objectIds)&&object(map.objectRegions),'objectIds','Expected source identities and owners.');
+    check(object(map.previewChapters),'previewChapters','Expected three preview conditions.');
+    if(errors.length)return {valid:false,errors};
+    const floor=root.PenjagaFloor.createFloor(map);
+    const worldPoint=(p,at)=>{
+      if(!check(point(p)&&p.x>=0&&p.x<map.width&&p.y>=0&&p.y<map.height,at,'Point outside world.'))return;
+      if(!floor.contains(p.x,p.y))fail('OUTSIDE_LAND',at,'Point outside floor union.');
+    };
+    const sources=new Map();
+    for(const key of collections){
+      const names=map.objectIds[key];
+      if(!check(Array.isArray(names)&&names.length===map[key].length,'objectIds.'+key,'IDs must align with collection.'))continue;
+      map[key].forEach((item,i)=>{
+        const at=key+'['+i+']',tuple=key==='rocks'||key==='bushes';
+        identity(names[i],'objectIds.'+key+'['+i+']');
+        sources.set(names[i],{key,item});
+        check(regions.get(map.objectRegions[names[i]])?.kind==='island','objectRegions.'+names[i],'Unknown island owner.');
+        if(!check(tuple?Array.isArray(item)&&item.length===3:object(item),at,'Invalid object.'))return;
+        const p=tuple?{x:item[0],y:item[1]}:item;
+        worldPoint(p,at);
+        const owner=regions.get(map.objectRegions[names[i]]);
+        if(owner?.kind==='island'&&!root.PenjagaFloor.createFloor(map,[owner.id]).contains(p.x,p.y))fail('OUTSIDE_REGION',at,'Source is outside its owner island.');
+        if(tuple||key==='trees'||key==='goldNodes')check(Number.isInteger(tuple?item[2]:item.variant)&&(tuple?item[2]:item.variant)>=1&&(tuple?item[2]:item.variant)<=4,at+'.variant','Invalid variant.');
+        if(['trees','goldNodes','buildings'].includes(key))check(positive(item.radius),at+'.radius','Invalid radius.');
+        if(key==='trees')check(positive(item.size)&&finite(item.seed)&&typeof item.resource==='boolean',at,'Invalid tree.');
+        if(key==='buildings'){check(text(item.name)&&text(item.color)&&positive(item.width),at,'Invalid building.');worldPoint({x:item.x,y:item.cy},at+'.collider');}
+        if(key==='sheep'){worldPoint({x:item.originX,y:item.originY},at+'.origin');check(finite(item.seed)&&finite(item.cooldown)&&item.cooldown>=0,at,'Invalid sheep.');}
+        if(key==='villagers')check(text(item.tool)&&text(item.type)&&[-1,1].includes(item.facing),at,'Invalid villager.');
+      });
+    }
+    for(const key of ['roads','paths','enemySpawns','obstacles','decorations','initialAllies','gates','guardPoints'])
+      map[key].forEach((item,i)=>{if(check(object(item),key+'['+i+']','Expected object.'))identity(item.id,key+'['+i+'].id');});
+    if(errors.length)return {valid:false,errors};
+    if(!check(object(map.fortress),'fortress','Expected fortress reference.'))return {valid:false,errors};
+    identity(map.fortress.id,'fortress.id');
+    check(sources.get(map.fortress.buildingId)?.key==='buildings','fortress.buildingId','Unknown fortress building.');
+    const colliders=new Set();
+    map.obstacles.forEach((o,i)=>{
+      if(!object(o))return;
+      const at='obstacles['+i+']',source=sources.get(o.sourceId);
+      worldPoint(o,at);check(positive(o.radius),at+'.radius','Invalid radius.');
+      if(!source||!['trees','goldNodes','buildings'].includes(source.key))fail('MISSING_REFERENCE',at+'.sourceId','Unknown collidable source.');
+      else{
+        const s=source.item;
+        if(o.x!==s.x||o.y!==(source.key==='trees'?s.y-4:source.key==='buildings'?s.cy:s.y)||o.radius!==s.radius)fail('COLLIDER_MISMATCH',at,'Collider must match its visual source.');
+        if(colliders.has(o.sourceId))fail('DUPLICATE_REFERENCE',at,'Source has two colliders.');
+        colliders.add(o.sourceId);
+      }
+    });
+    for(const [id,s] of sources)if(['trees','goldNodes','buildings'].includes(s.key)&&!colliders.has(id))fail('MISSING_COLLIDER',id,'Missing source collider.');
+    if(errors.length)return {valid:false,errors};
+    const stand=(f,obstacles,p,jitter,at)=>{
+      if(!check(point(p)&&object(jitter)&&['x','y'].every(k=>Array.isArray(jitter[k])&&jitter[k].length===2&&jitter[k].every(finite)&&jitter[k][0]<=jitter[k][1]),at,'Invalid standing region.'))return;
+      const box={left:p.x+jitter.x[0],right:p.x+jitter.x[1],top:p.y+jitter.y[0],bottom:p.y+jitter.y[1]};
+      let grounded=f.coversRect(box);
+      for(let i=0;grounded&&i<c.footSamples;i++){
+        const a=i*Math.PI*2/c.footSamples,dx=Math.cos(a)*c.footRadius,dy=Math.sin(a)*c.footRadius;
+        grounded=f.coversRect({left:box.left+dx,right:box.right+dx,top:box.top+dy,bottom:box.bottom+dy});
+      }
+      if(!grounded)fail('OUTSIDE_LAND',at,'Standing footprint leaves active floor.');
+      if(obstacles.some(o=>Math.hypot(Math.max(box.left,Math.min(box.right,o.x))-o.x,Math.max(box.top,Math.min(box.bottom,o.y))-o.y)<o.radius+c.obstaclePadding-c.overlapTolerance))
+        fail('BLOCKED_POSITION',at,'Standing region overlaps collider.');
+    };
+    const zero={x:[0,0],y:[0,0]};
+    for(const key of ['heroSpawn','roadEntry','squadGuard'])stand(floor,map.obstacles,map[key],zero,key);
+    stand(floor,map.obstacles,map.allySpawn,map.allySpawnJitter,'allySpawn');
+    if(check(point(map.allyHome)&&finite(map.allyHome.width)&&map.allyHome.width>=0&&finite(map.allyHome.height)&&map.allyHome.height>=0,'allyHome','Invalid home.'))
+      stand(floor,map.obstacles,map.allyHome,{x:[0,map.allyHome.width],y:[0,map.allyHome.height]},'allyHome');
+    worldPoint(map.castle,'castle');
+    for(const key of ['heroFacing','allyFacing'])check([-1,1].includes(map[key]),key,'Invalid facing.');
+    map.initialAllies.forEach((a,i)=>check(a.spawn==='allySpawn'&&['Pawn','Warrior','Archer','Lancer','Monk'].includes(a.kind)&&typeof a.free==='boolean','initialAllies['+i+']','Invalid initial ally.'));
+    const paths=new Map(map.paths.map(p=>[p.id,p])),roads=new Set(map.roads.map(r=>r.id)),guards=new Map(map.guardPoints.map(g=>[g.id,g])),gates=new Map(map.gates.map(g=>[g.id,g]));
+    const required=(p,at)=>check(Array.isArray(p.requiredRegionIds)&&p.requiredRegionIds.length>0&&new Set(p.requiredRegionIds).size===p.requiredRegionIds.length&&p.requiredRegionIds.every(id=>regions.has(id)),at,'Unknown/duplicate required region.');
+    map.guardPoints.forEach((g,i)=>{
+      check(regions.has(g.regionId)&&text(g.label),'guardPoints['+i+']','Invalid guard point.');
+      stand(floor,map.obstacles,g.position,zero,'guardPoints['+i+']');
+      if(g.requiredRegionIds)required(g,'guardPoints['+i+'].requiredRegionIds');
+    });
+    check(guards.has(map.defaultGuardPointId),'defaultGuardPointId','Unknown default guard point.');
+    map.gates.forEach((g,i)=>{
+      check(regions.has(g.regionId)&&guards.has(g.guardPointId),'gates['+i+']','Unknown gate region/guard.');
+      stand(floor,map.obstacles,g.position,zero,'gates['+i+']');
+    });
+    map.roads.forEach((r,i)=>check(Array.isArray(r.points)&&r.points.length>=2&&r.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(finite)),'roads['+i+']','Invalid visual road.'));
+    map.paths.forEach((p,i)=>{
+      const at='paths['+i+']';required(p,at+'.requiredRegionIds');
+      check(roads.has(p.roadId)&&gates.has(p.gateId),at,'Unknown road/gate.');
+      check(point(p.entryLaneOffset)&&point(p.exitLaneOffset)&&positive(p.exitRadius)&&text(p.warningLabel),at,'Invalid entry/exit profile.');
+      if(check(Array.isArray(p.points)&&p.points.length>=2,at+'.points','Expected path.'))p.points.forEach((v,j)=>stand(floor,map.obstacles,v,zero,at+'.points['+j+']'));
+      const end=Array.isArray(p.points)?p.points.at(-1):undefined,gate=gates.get(p.gateId);
+      if(point(end)&&gate&&point(gate.position))check(end.x===gate.position.x&&end.y===gate.position.y,at+'.gateId','Gate must be at path endpoint.');
+    });
+    const spawnKeys=new Set();
+    map.enemySpawns.forEach((s,i)=>{
+      const at='enemySpawns['+i+']',p=paths.get(s.pathId),key=s.role+'/'+s.pathId;
+      check(['wave','boss'].includes(s.role)&&!spawnKeys.has(key),at,'Duplicate/invalid role/path entry.');spawnKeys.add(key);
+      if(!p){fail('MISSING_PATH',at,'Unknown path.');return;}
+      check(point(s)&&s.x===p.points?.[0]?.x&&s.y===p.points?.[0]?.y,at,'Entry must match first waypoint.');
+      check(Array.isArray(s.lanes)&&s.lanes.length>0&&s.lanes.every(Number.isInteger)&&new Set(s.lanes).size===s.lanes.length,at+'.lanes','Invalid lanes.');
+    });
+    for(const p of map.paths)for(const role of ['wave','boss'])check(spawnKeys.has(role+'/'+p.id),'enemySpawns','Missing '+role+' entry for '+p.id);
+    const expected=[
+      ['island-main'],
+      ['island-main','island-north','bridge-north'],
+      ['island-main','island-north','island-southwest','bridge-north','bridge-southwest']
+    ];
+    check(Object.keys(map.previewChapters).length===3,'previewChapters','Only the three cumulative conditions are supported.');
+    check(regions.size===expected[2].length&&expected[2].every(id=>regions.has(id)),'regions','Expected exactly the five campaign regions.');
+    expected.forEach((set,i)=>{
+      const value=map.previewChapters['chapter-'+(i+1)];
+      check(Array.isArray(value)&&value.length===set.length&&new Set(value).size===set.length&&set.every(id=>value.includes(id)),'previewChapters.chapter-'+(i+1),'Expected cumulative campaign region set.');
+    });
+    for(const r of map.regions.filter(r=>r.kind==='bridge')){
+      const endpoints=[r.centerline[0],r.centerline.at(-1)];
+      check(r.connects.every(id=>endpoints.some(p=>root.PenjagaFloor.createFloor(map,[id]).canStand(p.x,p.y))),'regions.'+r.id,'Bridge ends must overlap both island footprints.');
+    }
+    if(errors.length)return {valid:false,errors};
+    for(const [chapter,openIds] of Object.entries(map.previewChapters)){
+      const f=root.PenjagaFloor.createFloor(map,openIds),open=new Set(openIds);
+      const obstacles=map.obstacles.filter(o=>open.has(map.objectRegions[o.sourceId]));
+      for(const key of ['heroSpawn','squadGuard'])stand(f,obstacles,map[key],zero,chapter+'.'+key);
+      stand(f,obstacles,map.allySpawn,map.allySpawnJitter,chapter+'.allySpawn');
+      stand(f,obstacles,map.allyHome,{x:[0,map.allyHome.width],y:[0,map.allyHome.height]},chapter+'.allyHome');
+      const fits=(x,y)=>f.positionFits(x,y,obstacles);
+      const clear=(a,b)=>f.segmentFits(a,b,obstacles);
+      // Reachability uses the same 32px nodes and four-neighbour edges as runtime.
+      const cols=Math.ceil(map.width/32),rows=Math.ceil(map.height/32);
+      const nodes=Array.from({length:cols*rows},(_,i)=>({x:i%cols*32+16,y:Math.floor(i/cols)*32+16}));
+      const walk=nodes.map(p=>fits(p.x,p.y)),seen=new Set(),queue=[];
+      const link=p=>nodes.findIndex((n,i)=>walk[i]&&Math.hypot(n.x-p.x,n.y-p.y)<=48&&clear(p,n));
+      const start=link(map.heroSpawn);
+      if(start>=0){seen.add(start);queue.push(start);}
+      for(let head=0;head<queue.length;head++){
+        const i=queue[head];
+        for(const j of [i-cols,i+cols,i%cols?i-1:-1,i%cols<cols-1?i+1:-1])
+          if(j>=0&&j<nodes.length&&walk[j]&&!seen.has(j)&&clear(nodes[i],nodes[j])){seen.add(j);queue.push(j);}
+      }
+      const reachable=p=>{const i=link(p);return i>=0&&seen.has(i);};
+      check(start>=0&&reachable(map.squadGuard)&&Math.hypot(map.squadGuard.x-map.castle.x,map.squadGuard.y-map.castle.y)<100,chapter,'Castle approach is unreachable.');
+      for(const g of map.guardPoints)if(open.has(g.regionId)&&(g.requiredRegionIds||[]).every(id=>open.has(id)))check(reachable(g.position),chapter+'.'+g.id,'Guard point is unreachable.');
+      for(const s of map.enemySpawns){
+        const p=paths.get(s.pathId);if(!p.requiredRegionIds.every(id=>open.has(id)))continue;
+        for(const lane of s.lanes){
+          const points=p.points.map((v,j)=>({x:v.x+lane*(j===0?p.entryLaneOffset.x:j===p.points.length-1?p.exitLaneOffset.x:0),y:v.y+lane*(j===0?p.entryLaneOffset.y:j===p.points.length-1?p.exitLaneOffset.y:0)}));
+          stand(f,obstacles,points[0],s.jitter,chapter+'.'+s.id+'.lane('+lane+')');
+          stand(f,obstacles,points.at(-1),zero,chapter+'.'+s.id+'.exit('+lane+')');
+          for(let j=1;j<points.length;j++)check(clear(points[j-1],points[j]),chapter+'.'+s.id+'.segment('+j+','+lane+')','Waypoint segment crosses water/collider.');
+          check(reachable(points[0]),chapter+'.'+s.id,'No route to castle approach.');
+        }
+      }
+    }
+    return {valid:errors.length===0,errors};
   }
   function assertValidMap(map) {
     const report = validateMap(map);

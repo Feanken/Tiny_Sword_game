@@ -24,6 +24,9 @@ Map 1/Map 2 existing tetap bisa dimuat dengan urutan script lamanya.
 - `world.floorGeometry`: snapshot lantai **aktif**, immutable.
 - `world.allFloorGeometry`: seluruh pulau/jembatan, untuk pratinjau wilayah terkunci.
 - Keduanya menyediakan `rectangles` dan `contains(x,y)`.
+- `floorGeometry.segmentFits(a,b,world.activeObstacles)` memeriksa seluruh segmen
+  beserta footprint dan collider, bukan sampling titik berjarak tetap. World,
+  validator dan navigation memakai geometri lantai yang sama.
 - Rectangle: `{x,y,width,height,regionId,kind:'island'|'bridge'}`, koordinat global.
   Rectangle boleh overlap: render sebagai union/path fill, bukan outline per rectangle.
 - `contains` memeriksa lantai saja. `world.isWalkable(x,y)` juga memeriksa footprint
@@ -34,6 +37,12 @@ Map 1/Map 2 existing tetap bisa dimuat dengan urutan script lamanya.
 - `world.isRegionActive(id)` memeriksa unlock. `world.activeRegionIds` adalah array
   immutable. `world.objectRegions[sourceId]` menentukan wilayah suatu objek.
   `world.isObjectActive(sourceId)` digunakan untuk filtering interaksi/scenery.
+- `world.allCollections` menyimpan array seluruh objek sebelum filtering. Sidecar
+  `objectIds[collection][i]` mengacu pada array ini. `world.trees`, goldNodes,
+  buildings, dan koleksi runtime lainnya hanya memuat objek aktif. Jangan memakai
+  indeks array aktif untuk mencari ID pada sidecar seluruh dunia.
+- Map v2 tidak mempunyai rows/landBounds v1. Gunakan floorGeometry untuk terrain,
+  coastline dan bridge; jangan membuat rows fallback yang mengisi laut antarpulau.
 
 ## Mengganti bab untuk preview
 
@@ -63,11 +72,27 @@ Navigation otomatis rebuild graph ketika mendapat event itu: cache reverse route
 rute/target aktor, approach slots dan engagement reservations dibuang. Aktor yang
 berada di lantai yang ditutup oleh preview dikembalikan ke posisi valid; tidak
 dibiarkan di air. Perubahan preview dilakukan di antara tick simulasi.
+Preview harus menghentikan/reset scheduler wave terlebih dahulu bila akan menutup
+jalur yang mempunyai keberangkatan tertunda. API geometri ini tidak mereset director,
+wallet atau progres boss. Pemakaian normal kampanye hanya membuka wilayah pada
+boundary bab; kontrol maju/mundur adalah fasilitas inspeksi Chat 2.
 
 `world.entryPaths`, `waveSpawns`, `bossSpawns` (Map keyed by pathId) dan
 `wavePathIds` memuat jalur aktif. `world.bossSpawn` tetap alias kompatibilitas ke
 boss spawn jalur pertama. `world.path(id)` / `world.guardPoint(id)` mengembalikan
 definisi aktif atau undefined. Gate/guard point memakai ID dari kontrak kampanye.
+Guard utara/barat daya mempunyai requiredRegionIds tambahan agar pilihan titik
+jaga dapat mengikuti arah yang telah dibuka, meskipun posisinya di pulau utama.
+`world.allEntryPaths`, allWaveSpawns dan allBossSpawns tersedia untuk menggambar
+jalur terkunci. `navigation.dispose()` melepas listener jika preview dibuang.
+
+## Penyesuaian terhadap sketsa Tahap 1
+
+World tetap 2560×1792 dan benteng tetap (1613,950). Pulau utama diperlebar ke
+localBounds (64,1280,64,768); mask final berada pada definisi map. Collider bangunan
+dan pohon ditata ulang di tepi arena. Dua jembatan memakai lebar 160 px, dengan
+centerline yang sama seperti sketsa. Tambang barat daya dipindah ke (384,1600)
+agar lane spawn tidak memotong collidernya. ID sumber tetap sama.
 
 ## Batas kepemilikan
 
