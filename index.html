@@ -9,6 +9,7 @@
   <link rel="icon" href="Terrain/Resources/Gold/Gold%20Resource/Gold_Resource.png">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="layout.css">
+  <link rel="stylesheet" href="menu.css">
   <script src="asset-manifest.js" defer></script>
   <script src="audio-pack.js" defer></script>
   <script src="unit-frame-bounds.js" defer></script>
@@ -26,6 +27,7 @@
   <script src="src/navigation.js" defer></script>
   <script src="src/renderer.js" defer></script>
   <script src="src/ui.js" defer></script>
+  <script src="src/menu.js" defer></script>
   <script src="src/director.js" defer></script>
   <script src="src/lifecycle.js" defer></script>
   <script src="src/upgrading.js" defer></script>
@@ -40,7 +42,7 @@
 </head>
 <body>
   <div class="app">
-    <header class="site-header">
+    <header id="siteHeader" class="site-header" hidden>
       <a class="brand" href="./index.html" aria-label="Penjaga Pulau, beranda">
         <span class="brand-mark" aria-hidden="true">♜</span><span>PENJAGA PULAU<small>A TINY SWORDS ADVENTURE</small></span>
       </a>
@@ -53,14 +55,14 @@
       </nav>
     </header>
 
-    <section class="page-title">
+    <section id="pageHeading" class="page-title" hidden>
       <div><p class="eyebrow"><span class="status-dot"></span> PETUALANGAN KECIL, KEBERANIAN BESAR</p><h1>Penjaga Pulau<span>.</span></h1></div>
       <div class="title-side"><p>Sebuah rumah untuk dilindungi.<br>Sebuah kisah untuk dimenangkan.</p><div class="record"><span>REKOR TERBAIK</span><strong id="bestScore">0000</strong></div></div>
     </section>
 
     <dialog id="audioDialog" class="modal audio-modal"><button class="close-button" data-close="audioDialog" aria-label="Tutup pengaturan suara">×</button><p class="eyebrow">SUARA PULAU</p><h2>Dengar setiap benturan.</h2><p id="audioStatus" role="status">Efek suara siap dimuat saat suara dinyalakan.</p><label for="effectsVolume">Efek pertempuran <output id="effectsVolumeValue">75%</output></label><input id="effectsVolume" type="range" min="0" max="100" value="75"><label for="musicVolume">Musik latar <output id="musicVolumeValue">25%</output></label><input id="musicVolume" type="range" min="0" max="100" value="25"><p>Nyalakan suara melalui tombol ♪ di menu. Pedang, panah, langkah kaki, dan peringatan memiliki suara berbeda. Tanda bahaya tetap terlihat saat suara dimatikan.</p><button class="primary-button" data-close="audioDialog">Kembali ke pulau <span>→</span></button></dialog>
     <main id="gameShell" class="game-shell">
-      <div class="hud">
+      <div id="gameHud" class="hud" hidden>
         <div class="hero-status"><span class="portrait" aria-hidden="true"></span><div><span class="hud-label">SANG PENJAGA</span><div class="health-track"><i id="heroHealthBar"></i></div><span class="health-number" id="heroHealth">100 / 100</span></div></div>
         <div class="castle-status"><span class="castle-symbol" aria-hidden="true">♜</span><div><span class="hud-label">KASTEL BIRU</span><div class="health-track castle-track"><i id="castleHealthBar"></i></div><span class="health-number" id="castleHealth">500 / 500</span></div></div>
         <div class="resource" title="Emas untuk merekrut pasukan"><img src="Terrain/Resources/Gold/Gold%20Resource/Gold_Resource.png" alt=""><div><span>EMAS</span><strong id="goldCount">80</strong></div></div>
@@ -82,13 +84,38 @@
         <div class="damage-flash" aria-hidden="true"></div>
         <div class="world-caption" id="worldCaption"><span class="status-dot"></span> <span id="worldName">PULAU EMBUN</span> <span>·</span> KERAJAAN BIRU</div>
 
-        <section id="startScreen" class="start-screen">
-          <nav class="arena-switch" aria-label="Pilih arena">
-            <a id="mapIslandLink" href="./index.html">Map 1</a>
-            <a id="mapCrossroadsLink" href="./index.html?map=crossroads">Map 2 · Latihan</a>
-          </nav>
-          <div class="intro-content"><p class="eyebrow light">SEBUAH PETUALANGAN PIXEL</p><h2>Rumah kecil.<br>Keberanian <em>besar.</em></h2><p class="intro-description">Musuh datang dari seberang lautan.<br>Angkat pedang, kumpulkan pasukan,<br>dan jaga kastelmu tetap berdiri.</p><div class="difficulty-picker" role="group" aria-label="Pilihan kesulitan"><button data-difficulty="easy" aria-pressed="false">Santai<small>Belajar bertahan</small></button><button data-difficulty="normal" aria-pressed="true">Normal<small>Tantangan seimbang</small></button><button data-difficulty="hard" aria-pressed="false">Sulit<small>Uji keberanian</small></button></div><p id="difficultyNote" class="difficulty-note"></p><button id="startButton" class="primary-button" disabled><span id="startLabel">Memuat pulau…</span><span aria-hidden="true">→</span></button><div class="intro-meta"><span>5 gelombang per arena</span><i></i><span>2 arena ekspedisi</span><i></i><span>Tanpa instalasi</span></div><div class="loading-track" id="loadingTrack"><i id="loadingProgress"></i></div><p id="loadError" class="load-error" hidden></p></div>
-          <div class="island-label"><span id="islandTitle">01 / PULAU EMBUN</span><small>Setiap kerajaan dimulai dari rumah.</small></div>
+        <section id="startScreen" class="start-screen" aria-label="Menu Penjaga Pulau">
+          <div class="menu-main" aria-labelledby="menuTitle">
+            <p class="eyebrow light">SEBUAH PETUALANGAN TINY SWORDS</p>
+            <h2 id="menuTitle">Penjaga <em>Pulau</em></h2>
+            <p class="menu-subtitle">Satu penjaga. Dua pulau. Sebuah rumah untuk dilindungi.</p>
+            <nav class="menu-actions" aria-label="Menu utama">
+              <button id="menuExpeditionButton" class="primary-button">Mulai Ekspedisi <span aria-hidden="true">→</span></button>
+              <button id="menuPracticeButton">Latihan Map 2 <span aria-hidden="true">↗</span></button>
+              <button id="menuSettingsButton">Pengaturan</button>
+              <button id="menuHelpButton">Cara Main</button>
+            </nav>
+            <button id="menuGalleryButton" class="menu-secondary">Galeri Aset</button>
+          </div>
+          <section class="menu-setup" aria-labelledby="menuSetupTitle" hidden>
+            <p id="menuSetupEyebrow" class="eyebrow light">EKSPEDISI DUA PULAU</p>
+            <h2 id="menuSetupTitle">Siapkan perjalananmu.</h2>
+            <p id="menuSetupRoute" class="menu-route">Pulau Embun → Pulau Dua Arah</p>
+            <p id="menuSetupSummary" class="intro-description">Taklukkan lima gelombang di setiap pulau. Emas dan keenam jalur upgrade dibawa ke pulau berikutnya.</p>
+            <div class="difficulty-picker" role="group" aria-label="Pilihan kesulitan">
+              <button data-difficulty="easy" aria-pressed="false">Santai<small>Belajar bertahan</small></button>
+              <button data-difficulty="normal" aria-pressed="true">Normal<small>Tantangan seimbang</small></button>
+              <button data-difficulty="hard" aria-pressed="false">Sulit<small>Uji keberanian</small></button>
+            </div>
+            <p id="difficultyNote" class="difficulty-note"></p>
+            <div class="menu-actions">
+              <button id="startButton" class="primary-button" disabled><span id="startLabel">Memuat pulau…</span><span aria-hidden="true">→</span></button>
+              <button id="menuBackButton" class="text-button">Kembali</button>
+            </div>
+            <div class="loading-track" id="loadingTrack"><i id="loadingProgress"></i></div>
+            <p id="loadError" class="load-error" role="status" hidden></p>
+          </section>
+          <div class="island-label" hidden><span id="islandTitle">01 / PULAU EMBUN</span><small>Setiap kerajaan dimulai dari rumah.</small></div>
         </section>
 
         <section id="pauseScreen" class="center-overlay" hidden><div class="parchment"><p class="eyebrow">TARIK NAPAS SEJENAK</p><h2>Petualangan dijeda.</h2><p>Pulau ini menunggumu.</p><button id="resumeButton" class="primary-button">Lanjutkan <span>→</span></button><button id="restartPauseButton" class="text-button">Mulai dari awal</button></div></section>
@@ -103,7 +130,7 @@
       </div>
 
       <div id="squadBar" class="squad-bar" hidden><span class="squad-label">PERINTAH SEKUTU</span><div class="squad-orders" role="group" aria-label="Perintah untuk seluruh sekutu"><button id="followButton" aria-pressed="true"><kbd>F</kbd> Ikuti penjaga</button><button id="guardButton" aria-pressed="false"><kbd>G</kbd> Jaga kastel</button></div><span id="squadHint"></span></div>
-      <div class="command-bar">
+      <div id="commandBar" class="command-bar" hidden>
         <div class="mission-copy"><span class="tiny-label">MISIMU SEDERHANA</span><strong>Lindungi kastel. Jaga harapan.</strong><span id="phaseHint">Bertahan selama 5 gelombang serangan.</span></div>
         <div class="commands">
           <button class="command" id="recruitButton" title="Rekrut pasukan bergantian: pemanah, penombak, biarawan, ksatria. Tombol 1."><span class="command-art archer-art"></span><span><strong>Rekrut pasukan</strong><small id="recruitCost">40 emas</small></span><kbd>1</kbd></button>
@@ -122,7 +149,7 @@
       </dialog>
     </main>
 
-    <footer class="game-footer"><div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Bergerak</span><span><kbd>SPASI</kbd> Serang</span><span><kbd>SHIFT</kbd> Dash</span><span><kbd>E</kbd> Kumpulkan</span><span><kbd>U</kbd> Upgrade</span><span><kbd>F / G</kbd> Sekutu</span><span><kbd>P</kbd> Jeda</span></div><span class="asset-credit">Dibuat dengan aset <strong>Tiny Swords</strong> <span>✦</span></span></footer>
+    <footer id="gameFooter" class="game-footer" hidden><div><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Bergerak</span><span><kbd>SPASI</kbd> Serang</span><span><kbd>SHIFT</kbd> Dash</span><span><kbd>E</kbd> Kumpulkan</span><span><kbd>U</kbd> Upgrade</span><span><kbd>F / G</kbd> Sekutu</span><span><kbd>P</kbd> Jeda</span></div><span class="asset-credit">Dibuat dengan aset <strong>Tiny Swords</strong> <span>✦</span></span></footer>
   </div>
 
   <dialog id="helpDialog" class="modal"><button class="close-button" data-close="helpDialog" aria-label="Tutup panduan">×</button><p class="eyebrow">BUKU SAKU SANG PENJAGA</p><h2>Pulau ini membutuhkanmu.</h2><p>Lindungi Kastel Biru dari <strong>5 gelombang</strong>. Kamu menang jika gelombang terakhir habis. Permainan berakhir jika nyawamu atau kastel habis.</p><div class="guide-grid"><div><kbd>W A S D</kbd><strong>Jelajahi pulau</strong><p>Atau gunakan tombol panah. Dekati pohon, tambang emas, dan domba.</p></div><div><kbd>SPASI / KLIK</kbd><strong>Ayunkan pedang</strong><p>Tahan untuk menyerang berulang, hingga tiga musuh di depanmu. Gerakmu kembali cepat setelah ayunan mengenai. Gunakan dash untuk membatalkan serangan jika perlu menghindar.</p></div><div><kbd>E</kbd><strong>Kumpulkan bekal</strong><p>Tahan dekat sumber daya: pohon memberi kayu, tambang memberi emas, domba memberi bekal.</p></div><div><kbd>1 · 2 · Q</kbd><strong>Siapkan pertahanan</strong><p>Rekrut bantuan, perbaiki kastel, atau makan bekal. Biarawan sekutu juga menyembuhkanmu.</p></div></div><p class="guide-tip"><strong>Shift: Langkah Embun.</strong> Dash ke arah gerak (atau arah terakhir). Kebal pada awal dash; jika pukulan berhasil dielakkan, serangan berikutnya mendapat bonus selama 2 detik. Cooldown dasar 2,4 detik. Ketukan sesaat sebelum dash siap akan dijalankan ketika pulih. <strong>U: Perkemahan.</strong> Saat jeda, beli upgrade berkali-kali selama emas cukup; setiap jalur maksimal sepuluh tingkat, dengan bonus tambahan pada tingkat 5 dan 10. Waktu berhenti saat memilih.</p><p class="guide-tip"><strong>F / G: perintah sekutu.</strong> Ikuti penjaga untuk bergerak bersama, atau jaga kastel agar pasukan bertahan di halamannya. Pemanah dan biarawan tetap menjalankan perannya. Pada gelombang terakhir, Panglima Kelam muncul dari jalan barat: hindari tanda lingkaran, jalur terjangan, dan kipas panah. Garda meredam serangan sekutu; saat ia pulih, damage pedangmu +30%. Mode kesulitan dipilih sebelum mulai; rekornya terpisah.</p><p class="guide-tip">Awasi dermaga dan jalan di barat: musuh masuk berkelompok, lalu menyebar mengejarmu. Tanda ! dalam lingkaran berarti persiapan pukulan ke arahmu; segitiga berarti bidikan panah. Bergeraklah untuk menghindarinya. Label BALASAN menandai bonus elak yang siap dipakai. Singgah di kastel saat jeda untuk memulihkan nyawa.</p><button class="primary-button" data-close="helpDialog">Mengerti, siap menjaga <span>→</span></button></dialog>

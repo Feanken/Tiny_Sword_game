@@ -152,7 +152,6 @@
       ui.attach = function () {
     host.$('gameShell').dataset.map = world.id;
     const crossroads = world.id === 'crossroads';
-    host.$(crossroads ? 'mapCrossroadsLink' : 'mapIslandLink').setAttribute('aria-current', 'page');
     if (crossroads) {
       host.$('worldName').textContent = world.name.toUpperCase();
       host.$('islandTitle').textContent = '02 / ' + world.name.toUpperCase();

@@ -2,16 +2,21 @@
 (() => {
   'use strict';
   const M = window.PenjagaModules;
-  const practice = new URLSearchParams(location.search).get('map') === 'crossroads';
-  const expedition = practice ? null : new M.Expedition();
-  const initialMap = practice ? 'crossroads' : 'island';
+  const practiceLink = new URLSearchParams(location.search).get('map') === 'crossroads';
+  const expedition = new M.Expedition();
 
-  async function launch(mapId, {request = null, seed, difficulty = 'normal', previous} = {}) {
+  async function launch(mapId, {mode = 'expedition', request = null, seed, difficulty = 'normal', previous, autoStart = false} = {}) {
     const runtime = M.createRuntime({map: window.PenjagaMaps[mapId]});
     const {audio, host, input, lifecycle, renderer, session, simulation, ui} = runtime;
+    const menu = M.createMainMenu(runtime);
     const continueButton = host.$('continueButton');
     const restartButton = host.$('restartButton');
-    const startGame = lifecycle.startGame;
+    const lifecycleStart = lifecycle.startGame;
+    const startGame = (seed, carry) => {
+      lifecycleStart(seed, carry);
+      menu.showArena();
+    };
+    const showTitle = lifecycle.showTitle;
     const finish = lifecycle.finish;
     let arena = request;
     let nextArena = null;
@@ -35,24 +40,43 @@
       host.$('startButton').disabled = true;
       host.$('startLabel').textContent = 'Memuat pulau…';
       host.$('endScreen').hidden = true;
-      host.$('mapIslandLink').removeAttribute('aria-current');
-      host.$('mapCrossroadsLink').removeAttribute('aria-current');
       host.$('worldName').textContent = runtime.world.name.toUpperCase();
       host.$('islandTitle').textContent = (mapId === 'island' ? '01 / ' : '02 / ') + runtime.world.name.toUpperCase();
       lifecycle.showTitle();
       session.state = 'loading';
     }
 
-    if (expedition && mapId !== initialMap) {
-      lifecycle.showTitle = () => launch(initialMap, {difficulty: session.difficulty, previous: runtime});
-    }
+    lifecycle.showTitle = function () {
+      if (mode === 'expedition' && mapId !== 'island') {
+        return launch('island', {difficulty: session.difficulty, previous: runtime});
+      }
+      nextArena = null;
+      arena = null;
+      continueButton.hidden = true;
+      showTitle();
+      menu.showMain();
+    };
 
     lifecycle.startGame = function (requestedSeed) {
       if (!session.initialized) return;
-      if (expedition && mapId !== initialMap && session.state !== 'paused') {
-        return launch(initialMap, {request: expedition.startNew(), seed: requestedSeed, difficulty: session.difficulty, previous: runtime});
+      if (session.state === 'ready') {
+        const selected = menu.selectedMode;
+        const target = selected === 'practice' ? 'crossroads' : 'island';
+        if (selected !== mode || target !== mapId) {
+          return launch(target, {
+            mode: selected,
+            request: selected === 'expedition' ? expedition.startNew() : null,
+            seed: requestedSeed,
+            difficulty: session.difficulty,
+            previous: runtime,
+            autoStart: true
+          });
+        }
       }
-      if (expedition && (mapId === initialMap && session.state !== 'paused')) arena = expedition.startNew();
+      if (mode === 'expedition' && mapId !== 'island' && session.state !== 'paused') {
+        return launch('island', {request: expedition.startNew(), seed: requestedSeed, difficulty: session.difficulty, previous: runtime});
+      }
+      if (mode === 'expedition' && mapId === 'island' && session.state !== 'paused') arena = expedition.startNew();
       nextArena = null;
       continueButton.hidden = true;
       restartButton.hidden = false;
@@ -90,15 +114,22 @@
     renderer.attach();
     M.installInspection(runtime);
     ui.setDifficulty(difficulty);
+    host.$('gameShell').dataset.mode = mode;
+    restartButton.textContent = mode === 'practice' ? 'Ulangi latihan' : 'Ulangi ekspedisi';
+    host.$('newRunButton').textContent = mode === 'practice' ? 'Latihan baru' : 'Ekspedisi baru';
+    host.$('titleButton').textContent = 'Menu utama';
+    menu.showMain();
+    if (practiceLink && !previous) menu.showSetup('practice');
     renderer.resize();
     simulation.frameId = requestAnimationFrame(simulation.frame);
     await runtime.assets.preload();
-    if (request && session.initialized) {
+    menu.ready();
+    if ((request || autoStart) && session.initialized) {
       continueButton.hidden = true;
       restartButton.hidden = false;
-      startGame(seed, request.carry);
+      startGame(seed, request?.carry);
     }
   }
 
-  launch(initialMap);
+  launch(practiceLink ? 'crossroads' : 'island', {mode: practiceLink ? 'practice' : 'expedition'});
 })();
