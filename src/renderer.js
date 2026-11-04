@@ -1,7 +1,9 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installRenderer = function ({renderer, host, world, config, math, assets: assetStore, ui, session, upgrading, navigation, ai, combat}) {
+  M.installRenderer = function ({renderer, host, world, config, math, assets: assetStore, ui, session, upgrading, navigation, ai, combat, input}) {
+    renderer.camera = new M.Camera2D(world.width, world.height);
+    renderer.screenToWorld = (x, y) => renderer.camera.screenToWorld(x, y, host.canvas.getBoundingClientRect());
     renderer.reserveLabel = function reserveLabel(x,y,w,h,owner){
       if(renderer.labelCount>=renderer.labelPool.length)return null;
       const r=renderer.labelPool[renderer.labelCount++];Object.assign(r,{x,y,w,h,owner});return r;
@@ -99,7 +101,12 @@
       if(rect.width<=0||rect.height<=0)return;
       const dpr = Math.max(1,Math.min(window.devicePixelRatio || 1,2,Math.sqrt(2400000/(rect.width*rect.height))));
       host.canvas.width = Math.round(rect.width * dpr); host.canvas.height = Math.round(rect.height * dpr);
-      renderer.scale = host.canvas.height / world.height;renderer.cssScale=rect.height/world.height;renderer.viewH = world.height;renderer.viewW = host.canvas.width / renderer.scale;renderer.overlayDirty=true;
+      renderer.camera.resize(rect.width, rect.height);
+      renderer.scale = host.canvas.height / renderer.camera.height;
+      renderer.cssScale = rect.height / renderer.camera.height;
+      renderer.viewH = renderer.camera.height;
+      renderer.viewW = renderer.camera.width;
+      renderer.overlayDirty = true;
       host.ctx.imageSmoothingEnabled = false;
     };
 
@@ -163,7 +170,7 @@
     };
 
     renderer.drawScenery = function drawScenery(item){
-      if(item.x+210<renderer.cameraX||item.x-210>renderer.cameraX+renderer.viewW)return;
+      if(!renderer.camera.intersects(item.x-210,item.y-300,420,340))return;
       const s=item.source;
       if(item.type==='tree')renderer.drawSprite(item.path,s.x,s.y,s.size,session.animTime+s.seed,5,1,renderer.sceneryCoversHero(s.x,s.y,s.size*(s.variant<3?.75:1),s.size)?.32:1);
       else if(item.type==='gold')renderer.drawImageAt(item.path,s.x,s.y,64);
@@ -277,7 +284,7 @@
     renderer.drawPlayerThreats = function drawPlayerThreats(){
       if(!['playing','paused'].includes(session.state))return;
       const s=math.clamp(.8/renderer.cssScale,1,1.6);renderer.threatOrder.length=0;
-      for(const u of session.enemies)if(renderer.playerThreat(u)&&u.x>renderer.cameraX-30&&u.x<renderer.cameraX+renderer.viewW+30)renderer.threatOrder.push(u);
+      for(const u of session.enemies)if(renderer.playerThreat(u)&&renderer.camera.intersects(u.x-30,u.y-180,60,210))renderer.threatOrder.push(u);
       renderer.threatOrder.sort((a,b)=>a.strike.timer-b.strike.timer||a.combatId-b.combatId);
       for(const u of renderer.threatOrder){if(u.labelAction!==u.strike){u.labelAction=u.strike;u.labelSlot=0;}const threat=renderer.playerThreat(u),r=renderer.placeLabel(u,u.x,u.y-66,20*s,28*s,config.threatOffsets);if(!r)continue;
         if(Math.abs(r.x-u.x)>8||Math.abs(r.y-(u.y-66))>8){host.ctx.beginPath();host.ctx.moveTo(u.x,u.y-49);host.ctx.lineTo(r.x,r.y+12*s);host.ctx.strokeStyle='#173327';host.ctx.lineWidth=3;host.ctx.stroke();host.ctx.strokeStyle='#ffd6a0';host.ctx.lineWidth=1;host.ctx.stroke();}
@@ -290,7 +297,7 @@
     };
 
     renderer.drawCombatNumbers = function drawCombatNumbers(){
-      renderer.floaterOrder.length=0;for(const f of session.floaters)if(f.x>=renderer.cameraX-50&&f.x<=renderer.cameraX+renderer.viewW+50)renderer.floaterOrder.push(f);
+      renderer.floaterOrder.length=0;for(const f of session.floaters)if(renderer.camera.intersects(f.x-50,f.y-80,100,100))renderer.floaterOrder.push(f);
       renderer.floaterOrder.sort((a,b)=>b.priority-a.priority||b.life-a.life);
       let minor=0;
       for(const f of renderer.floaterOrder){
@@ -343,7 +350,7 @@
     };
 
     renderer.drawUnit = function drawUnit(u, isHero = false) {
-      if(!isHero&&(u.x+190<renderer.cameraX||u.x-190>renderer.cameraX+renderer.viewW))return;
+      if(!isHero&&!renderer.camera.intersects(u.x-190,u.y-200,380,240))return;
       if(!isHero){
         host.ctx.save();host.ctx.translate(u.x,u.y-3);host.ctx.strokeStyle=u.team==='enemy'?'#ffc49b':'#b8e5df';host.ctx.lineWidth=1.5;
         host.ctx.beginPath();if(u.team==='enemy'){host.ctx.moveTo(-6,0);host.ctx.lineTo(0,6);host.ctx.lineTo(6,0);}else host.ctx.ellipse(0,0,7,3,0,0,Math.PI*2);host.ctx.stroke();host.ctx.restore();
@@ -386,18 +393,20 @@
     renderer.draw = function draw() {
       host.ctx.setTransform(1, 0, 0, 1, 0, 0); host.ctx.clearRect(0, 0, host.canvas.width, host.canvas.height);
       if (!session.initialized) { host.ctx.fillStyle = '#4c9cab'; host.ctx.fillRect(0, 0, host.canvas.width, host.canvas.height); return; }
-      renderer.cameraX = renderer.viewW >= world.width ? (world.width - renderer.viewW) / 2 : math.clamp((session.state === 'ready' ? 790 : session.hero.x) - renderer.viewW / 2, 0, world.width - renderer.viewW);
-      renderer.cameraY = 0;
+      renderer.camera.follow(session.state === 'ready' ? world.heroSpawn : session.hero);
+      renderer.cameraX = renderer.camera.x;
+      renderer.cameraY = renderer.camera.y;
+      input.updatePointerWorld();
       host.ctx.setTransform(renderer.scale, 0, 0, renderer.scale, -renderer.cameraX * renderer.scale, -renderer.cameraY * renderer.scale);
       if(!renderer.waterPattern)renderer.waterPattern=host.ctx.createPattern(assetStore.img(math.terrain('Tileset/Water Background color')),'repeat');
       host.ctx.fillStyle = renderer.waterPattern;
-      host.ctx.fillRect(renderer.cameraX, 0, renderer.viewW, renderer.viewH);
+      host.ctx.fillRect(renderer.cameraX, renderer.cameraY, renderer.viewW, renderer.viewH);
       if (session.shake > 0 && !renderer.reducedMotion) host.ctx.translate((Math.random()*2-1)*session.shake,(Math.random()*2-1)*session.shake);
       host.ctx.drawImage(renderer.terrainCanvas, 0, 0);
       // Animated white water follows each exposed shoreline tile.
       host.ctx.globalAlpha = .32 + Math.sin(session.animTime * 1.7) * .1;
       const foam = assetStore.img(math.terrain('Tileset/Water Foam'));
-      if(foam){const frame=Math.floor(session.animTime*7)%16;for(const [x,y] of renderer.shoreTiles)if(x+64>=renderer.cameraX&&x<=renderer.cameraX+renderer.viewW)host.ctx.drawImage(foam,frame*192+64,128,64,64,x,y,64,28);}
+      if(foam){const frame=Math.floor(session.animTime*7)%16;for(const [x,y] of renderer.shoreTiles)if(renderer.camera.intersects(x,y,64,28))host.ctx.drawImage(foam,frame*192+64,128,64,64,x,y,64,28);}
       host.ctx.globalAlpha = 1;
       [[98, 284, 1], [1216, 510, 2], [360, 659, 3], [1160, 156, 4]].forEach(([x, y, i]) => renderer.drawImageAt(math.terrain(`Decorations/Rocks in the Water/Water Rocks_0${i}`), x, y, 65));
       const duck = assetStore.img(math.terrain('Decorations/Rubber Duck/Rubber duck'));
@@ -514,9 +523,9 @@
 
     renderer.cameraY = 0;
 
-    renderer.viewW = world.width;
+    renderer.viewW = renderer.camera.width;
 
-    renderer.viewH = world.height;
+    renderer.viewH = renderer.camera.height;
 
     renderer.overlayDirty = true;
 

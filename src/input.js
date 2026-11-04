@@ -14,7 +14,16 @@
       this.attached = false;
     }
   };
-  M.installInput = function ({input, session, combat, host, ui, ai, economy}) {
+  M.installInput = function ({input, session, combat, host, ui, ai, economy, renderer}) {
+    input.pointerScreen = null;
+    input.pointerWorld = null;
+    input.updatePointerWorld = function () {
+      if (input.pointerScreen) input.pointerWorld = renderer.screenToWorld(input.pointerScreen.x, input.pointerScreen.y);
+    };
+    const trackPointer = event => {
+      input.pointerScreen = {x:event.clientX, y:event.clientY};
+      input.updatePointerWorld();
+    };
     input.syncInputKey = function syncInputKey(key){
       if(input.keyboardKeys.has(key)||[...input.pointerBindings.values()].includes(key))input.keys.add(key);else input.keys.delete(key);
     };
@@ -68,9 +77,11 @@
     input.listen(window, 'blur', () => { input.clearCombatInput(); if (session.state === 'playing') ui.togglePause(true); });
     input.listen(document, 'visibilitychange', () => { if (document.hidden && session.state === 'playing') ui.togglePause(true); });
     input.listen(host.canvas, 'pointerdown',e=>{
+      trackPointer(e);
       if(e.pointerType!=='mouse'||e.button!==0||session.state!=='playing')return;
       host.canvas.focus({preventScroll:true});host.canvas.setPointerCapture(e.pointerId);input.pointerInput(e.pointerId,' ',true);combat.requestAttack();
     });
+    input.listen(host.canvas, 'pointermove', trackPointer);
     for(const event of ['pointerup','pointercancel','lostpointercapture'])input.listen(host.canvas, event,e=>input.pointerInput(e.pointerId,null,false));
     for(const b of document.querySelectorAll('[data-move]'))input.bindTouchControl(b,{up:'w',left:'a',down:'s',right:'d'}[b.dataset.move]);
     input.bindTouchControl(host.$('touchAttack'),' ');

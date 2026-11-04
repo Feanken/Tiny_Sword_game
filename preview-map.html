@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atlas Tiga Pulau · Penjaga Pulau</title>
+  <link rel="icon" href="Terrain/Resources/Gold/Gold%20Resource/Gold_Resource.png">
+  <link rel="stylesheet" href="preview-map.css">
+  <script src="src/config.js" defer></script>
+  <script src="maps/island.js" defer></script>
+  <script src="maps/floor-geometry.js" defer></script>
+  <script src="maps/campaign-islands.js" defer></script>
+  <script src="maps/validate-map.js" defer></script>
+  <script src="src/world/world.js" defer></script>
+  <script src="src/session.js" defer></script>
+  <script src="src/math.js" defer></script>
+  <script src="src/navigation.js" defer></script>
+  <script src="src/camera.js" defer></script>
+  <script src="src/map-preview-renderer.js" defer></script>
+  <script src="src/map-preview.js" defer></script>
+</head>
+<body>
+  <header>
+    <div><span class="eyebrow">PENJAGA PULAU · ATLAS DESKTOP</span><h1>Tiga pulau, satu benteng.</h1></div>
+    <a href="index.html">Kembali ke game →</a>
+  </header>
+  <main>
+    <section class="map-scene" aria-label="Pratinjau map tiga pulau">
+      <canvas id="previewCanvas" tabindex="0" aria-label="Jelajahi dengan WASD atau panah. Klik tanah untuk berjalan."></canvas>
+      <div id="loadStatus" class="loading" role="status">Memuat pulau…</div>
+      <div id="regionBadge" class="region-badge">Pulau Embun</div>
+    </section>
+    <aside aria-label="Kontrol preview">
+      <p class="eyebrow">KONDISI WILAYAH</p>
+      <nav class="chapters" aria-label="Pilih kondisi bab">
+        <button data-chapter="chapter-1" aria-pressed="true">Bab 1</button>
+        <button data-chapter="chapter-2" aria-pressed="false">Bab 2</button>
+        <button data-chapter="chapter-3" aria-pressed="false">Bab 3</button>
+      </nav>
+      <label for="regionSelect">Tinjau wilayah</label>
+      <select id="regionSelect"></select>
+      <button id="visitRegion">Ke titik aman</button>
+      <button id="resetPosition" class="secondary">Kembali ke benteng</button>
+      <div class="castle-status"><span>BENTENG BIRU</span><strong id="castleHealth">500 / 500 HP</strong><meter id="castleMeter" min="0" max="500" value="500">500 HP</meter></div>
+      <canvas id="previewMinimap" width="240" height="168" aria-label="Peta seluruh pulau, posisi penjaga, dan area kamera"></canvas>
+      <p class="legend"><i></i>Terbuka <i class="locked"></i>Terkunci <i class="hero"></i>Penjaga</p>
+      <p id="chapterStatus" role="status">Bab 1 · satu pulau terbuka</p>
+      <p class="help">WASD / panah untuk berjalan.<br>Klik tanah untuk menuju titik itu.<br>Pilih bab untuk membuka atau menutup wilayah.</p>
+      <output id="coordinateReadout">Posisi penjaga</output>
+      <output id="mouseReadout">Arahkan mouse ke map</output>
+    </aside>
+  </main>
+  <footer><span id="viewReadout">Kamera mengikuti penjaga</span><span>Preview eksplorasi · geometri dan collision aktif</span></footer>
+</body>
+</html>
