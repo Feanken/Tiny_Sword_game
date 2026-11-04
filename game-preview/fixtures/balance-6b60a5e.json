@@ -1,0 +1,1589 @@
+{
+  "sourceSha256": "3f82e648306911100bd1be0b2eb2ed79e1e1bf31977a3879d752e43408906894",
+  "description": "Seeded scripted policies; no health, currency, cooldown or enemy manipulation. Strategy comparison is not a human difficulty rating.",
+  "results": [
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 11,
+      "profile": "basic",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 155.4,
+      "heroHp": 97,
+      "castleHp": 500,
+      "bossSeconds": 16.1,
+      "dashes": 0,
+      "upgrades": 0,
+      "peakEnemies": 7,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 4,
+          "damageTaken": 10
+        },
+        {
+          "wave": 3,
+          "time": 57.3,
+          "hp": 100,
+          "food": 5,
+          "allies": 7,
+          "damageTaken": 10
+        },
+        {
+          "wave": 4,
+          "time": 85.5,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 10
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 10
+        }
+      ],
+      "bossHeroDamage": 516,
+      "bossAllyDamage": 146,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "bossDamageToHero": 146,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 89,
+        "hits": 171,
+        "misses": 1,
+        "interruptions": 7,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 190,
+        "healingWasted": 14,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 3,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 192,
+        "allyEvades": 17,
+        "allyHazardHits": 4,
+        "roleIntercepts": 97,
+        "repositions": 1,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 46,
+          "boss": 146,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 11,
+      "profile": "upgrades",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 147.3,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 8,
+      "dashes": 0,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.3,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.6,
+          "hp": 100,
+          "food": 6,
+          "allies": 7,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 432,
+      "bossAllyDamage": 218,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "bossDamageToHero": 73,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 78,
+        "hits": 166,
+        "misses": 4,
+        "interruptions": 3,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 106,
+        "healingWasted": 2,
+        "stalls": 8,
+        "blockedSeconds": 0,
+        "mergedHits": 1,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 114,
+        "allyEvades": 8,
+        "allyHazardHits": 3,
+        "roleIntercepts": 65,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 21,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 73,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 11,
+      "profile": "tactical",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 148.3,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 9,
+      "dashes": 3,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.3,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.6,
+          "hp": 100,
+          "food": 6,
+          "allies": 7,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 462,
+      "bossAllyDamage": 188,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 80,
+        "hits": 163,
+        "misses": 3,
+        "interruptions": 3,
+        "cancels": 2,
+        "bufferedInputs": 0,
+        "healingDone": 88,
+        "healingWasted": 8,
+        "stalls": 9,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 41,
+        "allyEvades": 17,
+        "allyHazardHits": 4,
+        "roleIntercepts": 68,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 21,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 11,
+      "profile": "counter",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 150.2,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 10.9,
+      "dashes": 4,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.3,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.6,
+          "hp": 100,
+          "food": 6,
+          "allies": 7,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 470,
+      "bossAllyDamage": 180,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge",
+        "slam"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge",
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 2,
+      "combat": {
+        "swings": 82,
+        "hits": 165,
+        "misses": 5,
+        "interruptions": 2,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 108,
+        "healingWasted": 16,
+        "stalls": 8,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 20,
+        "allyEvades": 18,
+        "allyHazardHits": 4,
+        "roleIntercepts": 72,
+        "repositions": 3,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 23,
+      "profile": "basic",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 155.2,
+      "heroHp": 95,
+      "castleHp": 500,
+      "bossSeconds": 15.6,
+      "dashes": 0,
+      "upgrades": 0,
+      "peakEnemies": 8,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.6,
+          "hp": 100,
+          "food": 4,
+          "allies": 4,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.3,
+          "hp": 100,
+          "food": 5,
+          "allies": 7,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.9,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.7,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 504,
+      "bossAllyDamage": 146,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "bossDamageToHero": 146,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 92,
+        "hits": 171,
+        "misses": 4,
+        "interruptions": 8,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 224,
+        "healingWasted": 28,
+        "stalls": 7,
+        "blockedSeconds": 0,
+        "mergedHits": 2,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 256,
+        "allyEvades": 20,
+        "allyHazardHits": 3,
+        "roleIntercepts": 106,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 1,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 0,
+          "Archer": 36,
+          "Pawn": 64,
+          "boss": 146,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 23,
+      "profile": "upgrades",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 145.7,
+      "heroHp": 95,
+      "castleHp": 500,
+      "bossSeconds": 6.3,
+      "dashes": 0,
+      "upgrades": 8,
+      "peakEnemies": 7,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.1,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.7,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 461,
+      "bossAllyDamage": 213,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley"
+      ],
+      "bossDamageToHero": 46,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 73,
+        "hits": 153,
+        "misses": 3,
+        "interruptions": 2,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 88,
+        "healingWasted": 0,
+        "stalls": 4,
+        "blockedSeconds": 0,
+        "mergedHits": 1,
+        "pressureDeferrals": 0,
+        "maxWindups": 2,
+        "damageTaken": 66,
+        "allyEvades": 10,
+        "allyHazardHits": 4,
+        "roleIntercepts": 76,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 46,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 23,
+      "profile": "tactical",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 146.6,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 7.2,
+      "dashes": 3,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.1,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.7,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 515,
+      "bossAllyDamage": 159,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 75,
+        "hits": 157,
+        "misses": 2,
+        "interruptions": 2,
+        "cancels": 3,
+        "bufferedInputs": 0,
+        "healingDone": 82,
+        "healingWasted": 6,
+        "stalls": 3,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 20,
+        "allyEvades": 10,
+        "allyHazardHits": 4,
+        "roleIntercepts": 73,
+        "repositions": 1,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 23,
+      "profile": "counter",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 146.8,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 6.5,
+      "dashes": 2,
+      "upgrades": 8,
+      "peakEnemies": 7,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.1,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.7,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.5,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 533,
+      "bossAllyDamage": 153,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 75,
+        "hits": 157,
+        "misses": 2,
+        "interruptions": 2,
+        "cancels": 2,
+        "bufferedInputs": 0,
+        "healingDone": 92,
+        "healingWasted": 8,
+        "stalls": 4,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 20,
+        "allyEvades": 14,
+        "allyHazardHits": 5,
+        "roleIntercepts": 78,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "basic",
+      "mode": "normal",
+      "seed": 47,
+      "profile": "basic",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 151.9,
+      "heroHp": 82,
+      "castleHp": 500,
+      "bossSeconds": 12.3,
+      "dashes": 0,
+      "upgrades": 0,
+      "peakEnemies": 7,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.8,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.5,
+          "hp": 100,
+          "food": 5,
+          "allies": 7,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 86.3,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 116.2,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 471,
+      "bossAllyDamage": 191,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley"
+      ],
+      "bossDamageToHero": 73,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 86,
+        "hits": 170,
+        "misses": 1,
+        "interruptions": 8,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 184,
+        "healingWasted": 28,
+        "stalls": 5,
+        "blockedSeconds": 0,
+        "mergedHits": 2,
+        "pressureDeferrals": 4,
+        "maxWindups": 2,
+        "damageTaken": 198,
+        "allyEvades": 9,
+        "allyHazardHits": 3,
+        "roleIntercepts": 98,
+        "repositions": 1,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 10,
+          "Lancer": 105,
+          "Archer": 0,
+          "Pawn": 10,
+          "boss": 73,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "upgrades",
+      "mode": "normal",
+      "seed": 47,
+      "profile": "upgrades",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 145.9,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 6.3,
+      "dashes": 0,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.1,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.9,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.8,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 450,
+      "bossAllyDamage": 200,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley"
+      ],
+      "bossDamageToHero": 46,
+      "perfectDodges": 0,
+      "combat": {
+        "swings": 77,
+        "hits": 164,
+        "misses": 3,
+        "interruptions": 2,
+        "cancels": 0,
+        "bufferedInputs": 0,
+        "healingDone": 64,
+        "healingWasted": 0,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 1,
+        "pressureDeferrals": 2,
+        "maxWindups": 1,
+        "damageTaken": 66,
+        "allyEvades": 7,
+        "allyHazardHits": 5,
+        "roleIntercepts": 68,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 46,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "tactical",
+      "mode": "normal",
+      "seed": 47,
+      "profile": "tactical",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 148.2,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 8.1,
+      "dashes": 3,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.1,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.9,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.8,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 526,
+      "bossAllyDamage": 124,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 82,
+        "hits": 161,
+        "misses": 4,
+        "interruptions": 3,
+        "cancels": 3,
+        "bufferedInputs": 0,
+        "healingDone": 84,
+        "healingWasted": 24,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 2,
+        "maxWindups": 2,
+        "damageTaken": 41,
+        "allyEvades": 10,
+        "allyHazardHits": 5,
+        "roleIntercepts": 69,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 21,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "counter",
+      "mode": "normal",
+      "seed": 47,
+      "profile": "counter",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 146.8,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 6.3,
+      "dashes": 2,
+      "upgrades": 8,
+      "peakEnemies": 6,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.3,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 20
+        },
+        {
+          "wave": 3,
+          "time": 57.1,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 20
+        },
+        {
+          "wave": 4,
+          "time": 85.9,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 20
+        },
+        {
+          "wave": 5,
+          "time": 115.8,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 20
+        }
+      ],
+      "bossHeroDamage": 528,
+      "bossAllyDamage": 134,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge"
+      ],
+      "resolved": [
+        "slam",
+        "volley"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 79,
+        "hits": 164,
+        "misses": 3,
+        "interruptions": 2,
+        "cancels": 2,
+        "bufferedInputs": 0,
+        "healingDone": 88,
+        "healingWasted": 16,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 2,
+        "maxWindups": 2,
+        "damageTaken": 20,
+        "allyEvades": 13,
+        "allyHazardHits": 5,
+        "roleIntercepts": 76,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 20,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "counter",
+      "mode": "easy",
+      "seed": 23,
+      "profile": "counter",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 152.5,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 3.8,
+      "dashes": 1,
+      "upgrades": 8,
+      "peakEnemies": 5,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.5,
+          "hp": 100,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 0
+        },
+        {
+          "wave": 3,
+          "time": 58.7,
+          "hp": 100,
+          "food": 5,
+          "allies": 6,
+          "damageTaken": 0
+        },
+        {
+          "wave": 4,
+          "time": 89.3,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 0
+        },
+        {
+          "wave": 5,
+          "time": 121.2,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 0
+        }
+      ],
+      "bossHeroDamage": 331,
+      "bossAllyDamage": 149,
+      "patterns": [
+        "slam"
+      ],
+      "resolved": [
+        "slam"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 1,
+      "combat": {
+        "swings": 61,
+        "hits": 127,
+        "misses": 3,
+        "interruptions": 0,
+        "cancels": 1,
+        "bufferedInputs": 0,
+        "healingDone": 59,
+        "healingWasted": 33,
+        "stalls": 2,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 0,
+        "maxWindups": 1,
+        "damageTaken": 0,
+        "allyEvades": 6,
+        "allyHazardHits": 2,
+        "roleIntercepts": 50,
+        "repositions": 0,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 0,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    },
+    {
+      "strategy": "counter",
+      "mode": "hard",
+      "seed": 23,
+      "profile": "counter",
+      "defensive": false,
+      "maxAllies": 8,
+      "build": [
+        "blade",
+        "wind",
+        "counter",
+        "blade",
+        "rhythm"
+      ],
+      "result": "won",
+      "seconds": 143.7,
+      "heroHp": 100,
+      "castleHp": 500,
+      "bossSeconds": 11.4,
+      "dashes": 5,
+      "upgrades": 8,
+      "peakEnemies": 7,
+      "fortressSeconds": 0,
+      "waveLog": [
+        {
+          "wave": 1,
+          "time": 0,
+          "hp": 100,
+          "food": 3,
+          "allies": 1,
+          "damageTaken": 0
+        },
+        {
+          "wave": 2,
+          "time": 30.6,
+          "hp": 99,
+          "food": 4,
+          "allies": 3,
+          "damageTaken": 26
+        },
+        {
+          "wave": 3,
+          "time": 55.9,
+          "hp": 100,
+          "food": 5,
+          "allies": 5,
+          "damageTaken": 26
+        },
+        {
+          "wave": 4,
+          "time": 82.3,
+          "hp": 100,
+          "food": 6,
+          "allies": 8,
+          "damageTaken": 26
+        },
+        {
+          "wave": 5,
+          "time": 109.8,
+          "hp": 100,
+          "food": 7,
+          "allies": 8,
+          "damageTaken": 26
+        }
+      ],
+      "bossHeroDamage": 537,
+      "bossAllyDamage": 313,
+      "patterns": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley"
+      ],
+      "resolved": [
+        "slam",
+        "volley",
+        "charge",
+        "slam",
+        "volley"
+      ],
+      "bossDamageToHero": 0,
+      "perfectDodges": 2,
+      "combat": {
+        "swings": 95,
+        "hits": 195,
+        "misses": 6,
+        "interruptions": 2,
+        "cancels": 4,
+        "bufferedInputs": 0,
+        "healingDone": 142,
+        "healingWasted": 26,
+        "stalls": 1,
+        "blockedSeconds": 0,
+        "mergedHits": 0,
+        "pressureDeferrals": 2,
+        "maxWindups": 2,
+        "damageTaken": 26,
+        "allyEvades": 14,
+        "allyHazardHits": 6,
+        "roleIntercepts": 91,
+        "repositions": 9,
+        "fortressSaved": 0,
+        "rangedDeferrals": 0,
+        "maxRangedWindups": 0,
+        "oathHealing": 0,
+        "damageBySource": {
+          "Warrior": 0,
+          "Lancer": 0,
+          "Archer": 0,
+          "Pawn": 26,
+          "boss": 0,
+          "unknown": 0
+        }
+      }
+    }
+  ]
+}

@@ -53,7 +53,10 @@ Galeri di menu menampilkan **semua 410 PNG dari 56 folder aset**, termasuk varia
 
 ## Berkas game
 
-- `index.html`, `style.css`, `layout.css`, `game.js`: game HTML5 Canvas tanpa framework.
+- `index.html`, `style.css`, `layout.css`: halaman dan tampilan game HTML5 Canvas tanpa framework.
+- `game.js`: entry point; `src/runtime.js` mengomposisikan modul konfigurasi, sesi, input, combat, AI, rendering, audio, dan UI di `src/`.
+- `maps/island.js`, `maps/validate-map.js`: data map terpisah dan validator; tetap dapat dibuka melalui `file://`.
+- `docs/refactor-audit.md`, `docs/map-contract.md`, `docs/refactor-validation.md`: audit/struktur, kontrak integrasi map, dan hasil pengujian refactor.
 - `asset-manifest.js`: daftar aset untuk galeri.
 - `generate-manifest.cjs`: jalankan `node generate-manifest.cjs` setelah menambahkan PNG baru.
 - `server.mjs`: server lokal opsional tanpa dependensi.

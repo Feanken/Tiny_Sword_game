@@ -14,7 +14,7 @@ const assets = JSON.parse(assetText.slice(assetText.indexOf('['), assetText.last
 const window = { TINY_ASSETS: assets, devicePixelRatio: 1, addEventListener() {} };
 const testStorage = new Map();
 const sandbox = { window, document, console, matchMedia: () => ({ matches: false }), ResizeObserver: class { observe() {} }, localStorage: { getItem: key => testStorage.get(key) || null, setItem: (key,value) => testStorage.set(key,String(value)) }, requestAnimationFrame() {}, setTimeout() {} };
-const source = fs.readFileSync('game.js', 'utf8').replace('resize(); preload(); requestAnimationFrame(frame);', `
+const source = require('./source-loader.cjs').loadGameSource().replace('resize(); preload(); requestAnimationFrame(frame);', `
   initialized = true; state = 'ready';
   window.test = { setDifficulty, showTitle, settings, setSquadOrder, squadAnchor, squadHome, spawnBoss, updateBoss, traceCharge, setWave(n){waveIndex=n;},get boss(){return boss;},startGame, startDash, buyUpgrade, ranks, finishWave, setGold(n){gold=n;}, advance, togglePause, routeTo, routeFields, navNodes, navComponent, navigationStats, obstacleList, update, startWave, spawnEnemy, spriteFrame, canStand, positionFits, clearPath, steerMove, segmentHit, move, updateUnit, updateReaction, gather, heroAttack, fireArrow, recruitUnit, repairCastle, healHero, hurt, keys, hero, castle,
     get enemies() { return enemies; }, get allies() { return allies; }, get state() { return state; },
@@ -40,7 +40,7 @@ function finishWork() { for(let i=0;i<70;i++) g.update(1/60); }
 g.hero.x=196;g.hero.y=319;const startingWood=g.wood;g.gather();
 assert.ok(g.hero.work);assert.equal(g.wood,startingWood,'no resources before animation completes');
 g.gather();assert.equal(g.wood,startingWood);finishWork();assert.equal(g.wood,startingWood+8);
-g.hero.x=571;g.hero.y=534;const startingGold=g.gold;g.gather();finishWork();assert.equal(g.gold,startingGold+Number(fs.readFileSync('game.js','utf8').match(/node.type === 'gold'\) \{ gold \+= (\d+)/)[1]));
+g.hero.x=571;g.hero.y=534;const startingGold=g.gold;g.gather();finishWork();assert.equal(g.gold,startingGold+50);
 g.hero.x=1014;g.hero.y=298;const startingFood=g.food;g.gather();finishWork();assert.equal(g.food,startingFood+1);
 g.hero.x=196;g.hero.y=319;g.gather();g.keys.add('d');g.update(.1);g.keys.clear();assert.equal(g.hero.work,null,'moving cancels work');assert.equal(g.wood,startingWood+8);
 g.update(.3);g.gather();g.hurt(g.hero,1,{x:100,y:319});assert.equal(g.hero.work,null,'damage cancels work');g.hero.invuln=0;g.hero.stagger=0;
