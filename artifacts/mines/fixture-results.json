@@ -1,0 +1,75 @@
+{
+  "result": "PASS",
+  "checks": 976,
+  "profiles": {
+    "standard": [
+      25,
+      35,
+      45
+    ],
+    "userTestingOverride": 10000
+  },
+  "costs": [
+    150,
+    250
+  ],
+  "quota": 20,
+  "passive": {
+    "period": 6,
+    "stages": [
+      0,
+      6,
+      16
+    ],
+    "tickLimit": 50
+  },
+  "collision": [
+    {
+      "stage": "rock",
+      "componentCount": 1,
+      "traversals": []
+    },
+    {
+      "stage": "outpost",
+      "componentCount": 1,
+      "traversals": [
+        {
+          "id": "bridge-north",
+          "direction": 1,
+          "frames": 113
+        },
+        {
+          "id": "bridge-north",
+          "direction": -1,
+          "frames": 113
+        }
+      ]
+    },
+    {
+      "stage": "mine-house",
+      "componentCount": 1,
+      "traversals": [
+        {
+          "id": "bridge-north",
+          "direction": 1,
+          "frames": 113
+        },
+        {
+          "id": "bridge-north",
+          "direction": -1,
+          "frames": 113
+        },
+        {
+          "id": "bridge-southwest",
+          "direction": 1,
+          "frames": 111
+        },
+        {
+          "id": "bridge-southwest",
+          "direction": -1,
+          "frames": 111
+        }
+      ]
+    }
+  ]
+}

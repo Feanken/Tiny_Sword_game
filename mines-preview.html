@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Operasi Tambang · Fixture Penjaga Pulau</title><link rel="icon" href="Terrain/Resources/Gold/Gold%20Resource/Gold_Resource.png"><link rel="stylesheet" href="mines.css">
+<script src="src/config.js" defer></script><script src="maps/island.js" defer></script><script src="maps/floor-geometry.js" defer></script>
+<script src="maps/campaign-islands.js" defer></script><script src="maps/validate-map.js" defer></script><script src="src/world/world.js" defer></script>
+<script src="src/math.js" defer></script><script src="src/navigation.js" defer></script><script src="src/camera.js" defer></script>
+<script src="src/map-preview-renderer.js" defer></script><script src="src/mines.js" defer></script><script src="src/mine-visual.js" defer></script>
+<script src="src/mine-panel.js" defer></script><script src="src/mines-integration.js" defer></script><script src="src/mines-preview.js" defer></script></head>
+<body class="mines-preview"><header class="mines-preview-header"><div><small>PENJAGA PULAU · FIXTURE EKONOMI</small><h1>Satu operasi, tiga tingkat.</h1></div><a href="index.html">Kembali ke game</a></header>
+<main class="mines-preview-layout"><section class="mine-scene" aria-label="Arena pengujian tambang">
+<canvas id="mineCanvas" tabindex="0" aria-label="WASD untuk berjalan, tahan E untuk mining, M membuka panel, P untuk pause."></canvas>
+<div class="mine-scene-caption"><strong id="mineStageCaption">Memuat tambang…</strong><span id="mineChapterCaption"></span><span id="mineProfileCaption"></span></div>
+<div id="mineWork" class="mine-work" hidden>MENAMBANG · <span id="mineWorkLabel"></span><progress id="mineWorkProgress" max="0.9" value="0"></progress></div>
+<output id="mineHint" class="mine-scene-label">Memuat aset lokal…</output></section>
+<aside class="mine-fixture" aria-label="Kontrol fixture bab"><p><strong>Fixture bab untuk playtest desktop.</strong><br>Bab 1/2/3 menyimulasikan progres; tidak menjalankan kampanye 15 gelombang.</p>
+<label for="mineProfile">Profil (mengulang fixture)</label><select id="mineProfile"><option value="standard">Standar · 25 / 35 / 45</option><option value="user-testing">Testing pengguna · override dari config</option></select>
+<p id="mineProfileBadge" class="mine-profile-badge"></p><div class="mine-wallet"><span>EMAS</span><strong id="mineGold">80</strong></div>
+<nav aria-label="Fixture masuk bab"><button data-mine-chapter="chapter-1">Bab 1</button><button data-mine-chapter="chapter-2">Bab 2</button><button data-mine-chapter="chapter-3">Bab 3</button></nav>
+<label for="mineNode">Kunjungi node aktif</label><select id="mineNode"></select><button id="mineVisit">Ke titik mining aman</button>
+<div id="minePanelMount"></div><button id="minePause">Jeda · P</button><button id="mineReset">Ekspedisi fixture baru</button><hr>
+<p><kbd>WASD</kbd> / panah: bergerak<br><kbd>E</kbd> tahan: mining 0,9 detik<br><kbd>M</kbd> panel: biaya &amp; pembelian<br><kbd>P</kbd> pause</p>
+<p id="mineQuotaReadout"></p><p id="minePassiveReadout"></p><output id="mineFeedback" role="status"></output>
+<p class="minor">Bangunan berubah langsung setelah dibeli. Kuota 20 dibagi antar-node aktif. Peningkatan tidak mengisi kuota. Produksi hanya memakai waktu simulasi aktif.</p>
+</aside></main></body></html>
