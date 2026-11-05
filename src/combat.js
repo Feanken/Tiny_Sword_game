@@ -104,26 +104,30 @@
 
     combat.heroAttack = function heroAttack() {
       if (session.state !== 'playing' || session.hero.cooldown > 0 || session.hero.stagger > 0 || session.hero.dash > 0) return;
+      const angle=input.updateAim();
       session.hero.attackBuffer = 0;
       session.hero.work = null;
       session.hero.cooldown=upgrading.attackCooldown();
       session.hero.attack=session.hero.attackDuration=Math.min(config.HERO_ATTACK.duration,session.hero.cooldown);
-      const direction=Number(input.keys.has('d')||input.keys.has('arrowright'))-Number(input.keys.has('a')||input.keys.has('arrowleft'));
-      if(direction)session.hero.facing=direction>0?1:-1;
-      const target=combat.heroAttackTarget();
-      if(target)session.hero.facing=target.x<session.hero.x?-1:1;
+      const target=combat.heroAttackTarget(angle);
       session.hero.swingFacing=session.hero.facing;session.hero.swingEmpowered=session.hero.riposte>0;session.hero.missCue=0;
       session.hero.strike = { elapsed:0, facing:session.hero.facing, target, hits:new Set(),counterBonus:session.hero.riposte>0?upgrading.counterBonus():0 };
+      Object.defineProperty(session.hero.strike,'angle',{value:angle,enumerable:true});
+      session.hero.swingAngle=angle;
       session.combatStats.swings++;
       audio.tone(380, .1, 'triangle', .018, 110);
     };
 
-    combat.heroAttackTarget = function heroAttackTarget(){
+    combat.heroAttackOrigin = () => ({x:session.hero.x,y:session.hero.y});
+    combat.heroAttackAngle = () => session.hero.strike?.angle ?? session.hero.swingAngle;
+
+    combat.heroAttackTarget = function heroAttackTarget(angle=session.hero.aimAngle){
       let target=null,cost=Infinity;
+      const origin=combat.heroAttackOrigin();
       for(const e of session.enemies){
         if(e.hp<=0)continue;
-        const facing=e.x<session.hero.x?-1:1,d=math.dist(session.hero,e),score=d+(facing===session.hero.facing?0:12);
-        if(d>config.SWING.reach+config.SWING.radius||score>=cost||!combat.swingContact({facing},e,config.SWING.start,config.SWING.end))continue;
+        const forward=(e.x-origin.x)*Math.cos(angle)+(e.y-origin.y)*Math.sin(angle),d=math.dist(origin,e),score=d+(forward>=0?0:12);
+        if(d>config.SWING.reach+config.SWING.radius||score>=cost||!combat.swingContact({angle},e,config.SWING.start,config.SWING.end))continue;
         target=e;cost=score;
       }
       return target;
@@ -149,11 +153,12 @@
     };
 
     combat.swingContact = function swingContact(strike,target,previous,current){
-      const dx=(target.x-session.hero.x)*strike.facing,dy=target.y-session.hero.y,d2=dx*dx+dy*dy;
+      const origin=combat.heroAttackOrigin(),x=target.x-origin.x,y=target.y-origin.y;
+      const dx=x*Math.cos(strike.angle)+y*Math.sin(strike.angle),dy=-x*Math.sin(strike.angle)+y*Math.cos(strike.angle),d2=x*x+y*y;
       if(dx < -12||d2>(config.SWING.reach+config.SWING.radius)**2)return false;
       const angle=Math.atan2(dy,dx),padding=Math.asin(Math.min(1,config.SWING.radius/Math.max(1,Math.sqrt(d2))));
       const from=combat.swingAngle(previous),to=combat.swingAngle(current);
-      return angle+padding>=from&&angle-padding<=to&&navigation.clearPath(session.hero,target);
+      return angle+padding>=from&&angle-padding<=to&&navigation.clearPath(origin,target);
     };
 
     combat.updateHeroSwing = function updateHeroSwing(dt){

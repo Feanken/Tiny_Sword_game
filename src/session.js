@@ -7,7 +7,7 @@
         world: world,
         gameRandom: Math.random,
         castle: { ...world.castle, hp: 500, maxHp: 500 },
-        hero: { ...world.heroSpawn, hp: 100, maxHp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0 },
+        hero: { ...world.heroSpawn, hp: 100, maxHp: 100, facing: 1, aimAngle: 0, swingAngle: 0, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0 },
         runSeed: 0,
         encounters: [],
         state: 'loading',
@@ -65,7 +65,7 @@
       const world = this.world;
       this.combatId=0;this.pressureActive=0;this.pressureGap=0;this.rangedPressureGap=0;this.approachSlots.clear();this.engagements.clear();this.combatUnits.length=0;this.collectingHeroDamage=false;this.pendingHeroDamage=null;
       Object.assign(this.hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99,stepTimer:0,swingFacing:1,swingEmpowered:false,labelSlot:0,markerLayout:null});
-      Object.assign(this.hero, { x: world.heroSpawn.x, y: world.heroSpawn.y, hp: 100, facing: 1, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
+      Object.assign(this.hero, { x: world.heroSpawn.x, y: world.heroSpawn.y, hp: 100, facing: 1, aimAngle: 0, swingAngle: 0, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
       this.simulationAccumulator = 0;
       this.squadOrder='follow';this.boss=null;this.bossSpawned=false;this.orderPulse=0;
       this.hero.maxHp=100;this.castle.maxHp=500;this.campPurchase=-1;for(const id in this.ranks)this.ranks[id]=0;this.dashTrail=[];
