@@ -210,8 +210,9 @@
       const age=combat.heroAttackAge();
       if(age>=config.SWING.end&&session.hero.moving)return {path:math.blue('Warrior','Run'),age:age-config.SWING.end,fps:11,once:false};
       const path=math.blue('Warrior','Attack1'),count=renderer.spriteFrame(path).count;
-      // The original sheet has two anticipation frames, one contact and one recovery.
-      const contact=Math.max(1,count-2),frame=age<config.SWING.start?Math.min(contact-1,Math.floor(age/config.SWING.start*contact)):age<config.SWING.end?contact:count-1;
+      // Contact/recovery frames bake in a horizontal slash. Keep the clean poses
+      // upright and let the world-space sweep represent the actual strike.
+      const clean=Math.min(2,count),frame=age<config.SWING.start?Math.min(clean-1,Math.floor(age/config.SWING.start*clean)):age<config.SWING.end?clean-1:0;
       return {path,age:frame,fps:1,once:true};
     };
 
@@ -220,18 +221,38 @@
     };
 
     renderer.drawHeroSwing = function drawHeroSwing(){
-      if(session.hero.attack<=0&&session.hero.missCue<=0)return;
-      const age=combat.heroAttackAge(),windup=age<config.SWING.start,active=age<config.SWING.end;
-      if(!windup&&!active&&age>config.SWING.end+.08&&session.hero.missCue<=0)return;
-      host.ctx.save();host.ctx.translate(session.hero.x,session.hero.y-23);host.ctx.scale(session.hero.swingFacing||session.hero.facing,1);host.ctx.lineCap='round';
-      const end=combat.swingAngle(age),from=windup?-config.SWING.angle:Math.max(-config.SWING.angle,end-.95);
-      host.ctx.globalAlpha=session.hero.missCue>0?.4:windup?.28+.3*age/config.SWING.start:active?1:Math.max(0,1-(age-config.SWING.end)/.08);
-      if(windup||session.hero.missCue>0)host.ctx.setLineDash([3,7]);
-      host.ctx.beginPath();host.ctx.arc(0,0,config.SWING.reach,from,windup||session.hero.missCue>0?config.SWING.angle:end);
-      host.ctx.strokeStyle='#173327';host.ctx.lineWidth=7;host.ctx.stroke();
-      host.ctx.strokeStyle=session.hero.missCue>0?'#dfdfcf':session.hero.swingEmpowered?'#aef8ea':'#fff1c5';host.ctx.lineWidth=windup?2:3.5;host.ctx.stroke();
-      if(!windup&&active){host.ctx.setLineDash([]);host.ctx.fillStyle=session.hero.swingEmpowered?'#aef8ea':'#fff5d8';host.ctx.beginPath();host.ctx.arc(Math.cos(end)*config.SWING.reach,Math.sin(end)*config.SWING.reach,4,0,Math.PI*2);host.ctx.fill();}
-      host.ctx.restore();
+      renderer.lastSwingVisual=null;
+      if(!['playing','paused'].includes(session.state)||session.hero.hp<=0||
+        (session.hero.attack<=0&&session.hero.missCue<=0)||!combat.heroAttackAngle)return;
+      renderer.lastSwingVisual=M.AimVisual.drawSwing(host.ctx,{
+        origin:combat.heroAttackOrigin(),angle:combat.heroAttackAngle(),age:combat.heroAttackAge(),
+        start:config.SWING.start,end:config.SWING.end,halfAngle:config.SWING.angle,
+        reach:config.SWING.reach,radius:config.SWING.radius,
+        empowered:session.hero.swingEmpowered,missCue:session.hero.missCue
+      });
+    };
+
+    renderer.aimVisual = function aimVisual(){
+      if(!['playing','paused'].includes(session.state)||session.hero.hp<=0||session.hero.work||
+        !Number.isFinite(session.hero.aimAngle)||document.querySelector('dialog[open]'))return null;
+      return {origin:combat.heroAttackOrigin(),angle:session.hero.aimAngle,
+        reach:config.SWING.reach,radius:config.SWING.radius,cssScale:renderer.cssScale,paused:session.state==='paused'};
+    };
+
+    renderer.drawAimIndicator = function drawAimIndicator(){
+      renderer.lastAimVisual=renderer.aimVisual();
+      if(renderer.lastAimVisual)M.AimVisual.drawIndicator(host.ctx,renderer.lastAimVisual);
+    };
+
+    renderer.reserveAimIndicator = function reserveAimIndicator(){
+      const visual=renderer.aimVisual();if(!visual)return;
+      const r=M.AimVisual.indicatorBounds(visual);
+      renderer.reserveLabel(r.x,r.y,r.w,r.h,'aim-indicator');
+    };
+
+    renderer.heroFacing = function heroFacing(){
+      renderer.heroBodyFacing=M.AimVisual.facing(session.hero.aimAngle,renderer.heroBodyFacing??session.hero.facing);
+      return renderer.heroBodyFacing;
     };
 
     renderer.drawHeroSprite = function drawHeroSprite(path,size,age,fps,facing,once=false){
@@ -350,16 +371,17 @@
     };
 
     renderer.drawUnit = function drawUnit(u, isHero = false) {
+      const facing=isHero?renderer.heroFacing():u.facing;
       if(!isHero&&!renderer.camera.intersects(u.x-190,u.y-200,380,240))return;
       if(!isHero){
         host.ctx.save();host.ctx.translate(u.x,u.y-3);host.ctx.strokeStyle=u.team==='enemy'?'#ffc49b':'#b8e5df';host.ctx.lineWidth=1.5;
         host.ctx.beginPath();if(u.team==='enemy'){host.ctx.moveTo(-6,0);host.ctx.lineTo(0,6);host.ctx.lineTo(6,0);}else host.ctx.ellipse(0,0,7,3,0,0,Math.PI*2);host.ctx.stroke();host.ctx.restore();
       }
-      if(isHero&&session.hero.dash>0){renderer.drawHeroSprite(math.blue('Warrior','Run'),136,session.hero.dashElapsed,14,u.facing);return;}
+      if(isHero&&session.hero.dash>0){renderer.drawHeroSprite(math.blue('Warrior','Run'),136,session.hero.dashElapsed,14,facing);return;}
       if (isHero && session.hero.work) {
         const work = session.hero.work, progress = math.clamp(work.elapsed / work.duration, 0, 1);
         const action = work.node.type === 'wood' ? 'Interact Axe' : work.node.type === 'gold' ? 'Interact Pickaxe' : 'Idle Meat';
-        renderer.drawHeroSprite(math.blue('Pawn',action),136,work.elapsed,renderer.spriteInfo(math.blue('Pawn',action)).count/work.duration,u.facing,true);
+        renderer.drawHeroSprite(math.blue('Pawn',action),136,work.elapsed,renderer.spriteInfo(math.blue('Pawn',action)).count/work.duration,facing,true);
         renderer.healthBar(u.x, u.y - 63, progress, 1, '#eed18b', 49);
         host.ctx.fillStyle = '#fff1c5'; host.ctx.font = 'bold 10px Segoe UI'; host.ctx.textAlign = 'center';
         host.ctx.fillText(work.node.type === 'wood' ? 'MENEBANG' : work.node.type === 'gold' ? 'MENAMBANG' : 'MENGAMBIL BEKAL', u.x, u.y - 72);
@@ -373,8 +395,8 @@
       const pose=u.isBoss?renderer.bossPose(u):isHero&&u.attack>0?renderer.heroPose():null;
       const path=pose?.path||math.unitPath(color,kind,action),age=pose?pose.age:u.impactHold>0?u.impactAge:u.attack>0?(u.attackDuration||.4)-u.attack:(u.animTime||0);
       const fps=pose?pose.fps:u.attack>0?renderer.spriteFrame(path).count/(u.attackDuration||.4):9,once=pose?pose.once:u.attack>0;
-      if(isHero)renderer.drawHeroSprite(path,size,age,fps,u.facing,once);else renderer.drawSprite(path,u.x,u.y,size,age,fps,u.facing,alpha,once);
-      if (u.hitFlash > 0) renderer.drawSprite(path,u.x,u.y,size,age,fps,u.facing,Math.min(.92,u.hitFlash/.15),once,true);
+      if(isHero)renderer.drawHeroSprite(path,size,age,fps,facing,once);else renderer.drawSprite(path,u.x,u.y,size,age,fps,facing,alpha,once);
+      if (u.hitFlash > 0) renderer.drawSprite(path,u.x,u.y,size,age,fps,facing,Math.min(.92,u.hitFlash/.15),once,true);
       if (!isHero && u.attack > 0 && age > .07 && age < .29 && !['Archer', 'Monk'].includes(kind)) {
         host.ctx.save(); host.ctx.translate(u.x, u.y - 23); host.ctx.scale(u.facing, 1);
         host.ctx.strokeStyle = u.team === 'enemy' ? '#ffc49ba8' : '#d4f5ddb0';
@@ -454,7 +476,7 @@
       renderer.drawHeroSwing();
       renderer.drawBossDanger(true);
       renderer.drawHeroOutline();
-      renderer.beginLabelLayout();session.hero.markerLayout=renderer.layoutHeroMarker();
+      renderer.beginLabelLayout();renderer.reserveAimIndicator();session.hero.markerLayout=renderer.layoutHeroMarker();
       renderer.drawBossStatus();
       renderer.drawPlayerThreats();
       renderer.drawCombatNumbers();
@@ -472,6 +494,7 @@
         host.ctx.globalAlpha = 1;
       }
       renderer.drawHeroMarker();
+      renderer.drawAimIndicator();
     };
 
     renderer.addEffect = function addEffect(path, x, y, size = 90, life = .55, fps = 14) { if(session.effects.length>=80)session.effects.shift(); session.effects.push({ path, x, y, size, life, time: 0, fps }); };

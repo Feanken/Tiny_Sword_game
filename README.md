@@ -10,6 +10,11 @@ Klik dua kali **Mainkan.cmd** atau buka **index.html** di browser. Seluruh aset 
 
 Folder gambar dipertahankan karena dipakai oleh permainan dan galeri aset. Audio sudah tertanam di audio-pack.js. Kredit audio ada di folder credits.
 
+Bidikan desktop: arahkan mouse di arena untuk membidik 360°, lalu klik kiri atau
+tahan Spasi untuk menyerang. WASD/panah tetap menggerakkan pemain; chevron di tanah
+menunjukkan arah efektif. Arah strike terkunci sampai kontak selesai. Audit pose,
+hasil uji dan screenshot ada di [docs/mouse-combat-visual.md](docs/mouse-combat-visual.md).
+
 Preview map tiga pulau untuk desktop: buka **preview-map.html** langsung di browser
 (`file://` juga didukung). Pilih Bab 1/2/3, jelajahi dengan WASD/panah atau klik
 tanah. Pilihan wilayah menyediakan titik aman untuk inspeksi. Panduan dan hasil
