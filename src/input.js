@@ -1,6 +1,8 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
+  // PointerEvent client coordinates can round to float CSS pixels in browsers.
+  const AIM_CENTER_EPSILON = .001;
 
   M.InputController = class InputController {
     constructor() { this.listeners = []; this.attached = false; }
@@ -17,12 +19,53 @@
   M.installInput = function ({input, session, combat, host, ui, ai, economy, renderer}) {
     input.pointerScreen = null;
     input.pointerWorld = null;
-    input.updatePointerWorld = function () {
+    input.mouseAimActive = false;
+    input.pointerOverCanvas = false;
+    const projectPointer = function () {
       if (input.pointerScreen) input.pointerWorld = renderer.screenToWorld(input.pointerScreen.x, input.pointerScreen.y);
     };
+    const syncAim = function () {
+      const hero=session.hero;
+      let angle=Number.isFinite(hero.aimAngle)?hero.aimAngle:0;
+      if(hero.strike)angle=hero.strike.angle;
+      else if(input.mouseAimActive){
+        const point=input.pointerOverCanvas&&input.pointerWorld;
+        if(point&&Number.isFinite(point.x)&&Number.isFinite(point.y)){
+          const origin=combat.heroAttackOrigin(),dx=point.x-origin.x,dy=point.y-origin.y;
+          if(Math.hypot(dx,dy)>AIM_CENTER_EPSILON)angle=Math.atan2(dy,dx);
+        }
+      }else{
+        const {dx,dy}=input.movement();
+        if(dx||dy)angle=Math.atan2(dy,dx);
+      }
+      hero.aimAngle=angle;
+      const horizontal=Math.cos(angle);
+      if(Math.abs(horizontal)>1e-9)hero.facing=horizontal>0?1:-1;
+      return angle;
+    };
+    input.updateAim = function updateAim() {
+      projectPointer();
+      return syncAim();
+    };
+    input.updatePointerWorld = function updatePointerWorld() {
+      projectPointer();
+      // The existing renderer calls this after camera.follow. Keep a stationary
+      // cursor aligned with the new view, without letting rendering own the aim.
+      if(session.state==='playing')syncAim();
+    };
+    const pointerOnCanvas=event=>document.elementFromPoint(event.clientX,event.clientY)===host.canvas;
+    const releaseMouseAttack=event=>{
+      input.pointerInput(event.pointerId,null,false);
+      if(!input.keyboardKeys.has(' '))session.hero.attackBuffer=0;
+      if(host.canvas.hasPointerCapture(event.pointerId))host.canvas.releasePointerCapture(event.pointerId);
+    };
     const trackPointer = event => {
+      if(event.pointerType!=='mouse')return;
+      input.pointerOverCanvas=pointerOnCanvas(event);
+      if(!input.pointerOverCanvas){releaseMouseAttack(event);return;}
+      input.mouseAimActive=true;
       input.pointerScreen = {x:event.clientX, y:event.clientY};
-      input.updatePointerWorld();
+      if(session.state==='playing')input.updateAim();else input.updatePointerWorld();
     };
     input.syncInputKey = function syncInputKey(key){
       if(input.keyboardKeys.has(key)||[...input.pointerBindings.values()].includes(key))input.keys.add(key);else input.keys.delete(key);
@@ -78,10 +121,15 @@
     input.listen(document, 'visibilitychange', () => { if (document.hidden && session.state === 'playing') ui.togglePause(true); });
     input.listen(host.canvas, 'pointerdown',e=>{
       trackPointer(e);
-      if(e.pointerType!=='mouse'||e.button!==0||session.state!=='playing')return;
+      if(e.pointerType!=='mouse'||e.button!==0||!input.pointerOverCanvas||session.state!=='playing'||document.querySelector('dialog[open]'))return;
       host.canvas.focus({preventScroll:true});host.canvas.setPointerCapture(e.pointerId);input.pointerInput(e.pointerId,' ',true);combat.requestAttack();
     });
     input.listen(host.canvas, 'pointermove', trackPointer);
+    input.listen(host.canvas, 'pointerenter', trackPointer);
+    input.listen(host.canvas, 'pointerleave',e=>{
+      if(e.pointerType!=='mouse')return;
+      input.pointerOverCanvas=false;releaseMouseAttack(e);
+    });
     for(const event of ['pointerup','pointercancel','lostpointercapture'])input.listen(host.canvas, event,e=>input.pointerInput(e.pointerId,null,false));
     for(const b of document.querySelectorAll('[data-move]'))input.bindTouchControl(b,{up:'w',left:'a',down:'s',right:'d'}[b.dataset.move]);
     input.bindTouchControl(host.$('touchAttack'),' ');

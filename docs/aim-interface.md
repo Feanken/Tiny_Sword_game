@@ -34,14 +34,16 @@ memakai hero.aimAngle; arc memakai combat.heroAttackAngle().
 1. Input mengonversi posisi client dengan renderer.screenToWorld. Ia tidak
    mengubah kamera. input.updateAim() memperbarui bidikan sebelum attack dan
    sesudah gerak/tick strike. Renderer tetap dapat memanggil updatePointerWorld
-   setelah kamera follow seperti existing, tanpa menulis hero.aimAngle.
+   setelah kamera follow seperti existing. Port input tersebut menyinkronkan
+   bidikan efektif dari proyeksi baru; renderer tidak menulis hero.aimAngle sendiri.
 2. Saat attack diterima, combat menyalin hero.aimAngle ke strike.angle dan
    hero.swingAngle. Strike tetap menyimpan elapsed, target, hits dan counterBonus.
 3. Seluruh windup dan contact memakai sudut yang sama sampai SWING.end (0,28 s).
    Pointer mentah boleh bergerak; sudut efektif tidak bergeser. Sesudah contact
    selesai, input kembali membaca pointer pada tick yang sama, termasuk recovery.
 4. Mouse tepat di origin mempertahankan sudut valid terakhir. Toleransi numerik
-   0,000001 world pixel hanya menangani round-off konversi kamera.
+   0,001 world pixel menangani round-off konversi kamera dan client coordinate
+   PointerEvent Chrome, yang dapat dibulatkan menjadi float CSS pixel.
 5. Sebelum mouse pernah digunakan, arah gerak keyboard/touch menjadi fallback;
    tanpa gerak pertahankan arah terakhir. Nilai awal run adalah 0 radian.
 6. WASD mengatur translasi saja ketika mouse aktif. Pemain dapat berjalan mundur

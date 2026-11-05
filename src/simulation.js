@@ -30,6 +30,7 @@
       if((dx||dy)&&!dashing){const length=Math.hypot(dx,dy);session.hero.lastMoveX=dx/length;session.hero.lastMoveY=dy/length;}
       if (!dashing && session.hero.stagger <= 0) navigation.move(session.hero, dx, dy, dt, 185 * combat.heroMoveScale());
       combat.updateHeroSwing(dt);
+      input.updateAim();
       session.hero.stepTimer=Math.max(0,(session.hero.stepTimer||0)-dt);if(session.hero.moving&&!dashing&&session.hero.stepTimer<=0){audio.playSample(['footstep_grass_000.ogg','footstep_grass_001.ogg'],session.hero,.16,1,0);session.hero.stepTimer=.32;}
       if (input.keys.has(' ') && session.hero.work) { session.hero.work = null; session.gatherCooldown = .18; }
       economy.updateWork(dt);
