@@ -167,8 +167,8 @@ try{
     const oldCamera=await evaluate('__aimRuntime.renderer.camera.x');
     await evaluate('__aimRuntime.session.hero.x=1050;__aimRuntime.renderer.draw()');
     assert(await evaluate('__aimRuntime.renderer.camera.x>'+oldCamera));
-    const movedPoint=await worldPoint(1050,470);await click(movedPoint);
-    angleClose(await evaluate('__aimRuntime.session.hero.strike.angle'),Math.PI/2);
+    const movedPoint=await worldPoint(1050,270);await click(movedPoint);
+    angleClose(await evaluate('__aimRuntime.session.hero.strike.angle'),-Math.PI/2);
 
     // Test-only large world: real Camera2D/input/combat, including shifted Y and DPR.
     await evaluate(fs.readFileSync(path.join(root,'tests/fixtures/large-world-aim.js'),'utf8'));
@@ -218,7 +218,7 @@ try{
     }
     const skill=()=>evaluate('__aimRuntime.combat.tripleSlashSnapshot()');
     await skillScene();
-    await evaluate('__aimRuntime.session.hero.riposte=2'); // One reserved counter, +12 at counter rank 0.
+    await evaluate('__aimRuntime.session.hero.riposte=2'); // Legacy mirror cannot unlock Counter below rank 10.
     await key('keyDown','q','KeyQ');
     assert.equal((await skill()).status,'active');
     for(let i=0;i<4;i++)await key('keyDown','q','KeyQ',{autoRepeat:true});
@@ -230,7 +230,7 @@ try{
     assert.equal(await evaluate('__aimRuntime.session.hero.attackBuffer'),0);
     await step(13);
     assert.deepEqual((await skill()).hitCounts,[1,0,0]);
-    assert.equal(await evaluate('__aimTargets[0].hp'),911);
+    assert.equal(await evaluate('__aimTargets[0].hp'),923);
     await click(await center('#pauseButton'));
     const pausedSkill=await skill();await step(90);
     assert.deepEqual(await skill(),pausedSkill);
@@ -238,10 +238,10 @@ try{
     await mouse('mouseMoved',await worldPoint(850,400));
     await step(18);
     assert.deepEqual((await skill()).hitCounts,[1,1,0]);
-    assert.equal(await evaluate('__aimTargets[0].hp'),834);
+    assert.equal(await evaluate('__aimTargets[0].hp'),846);
     await step(18);
     assert.deepEqual((await skill()).hitCounts,[1,1,1]);
-    assert.equal(await evaluate('__aimTargets[0].hp'),757);
+    assert.equal(await evaluate('__aimTargets[0].hp'),769);
     await step(5);
     assert.equal((await skill()).status,'completed');
     assert(Math.abs((await skill()).cooldownRemaining-7.1)<1e-7);

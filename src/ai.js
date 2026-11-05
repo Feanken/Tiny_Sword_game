@@ -1,7 +1,7 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installAi = function ({ai, world, config, math, renderer, ui, session, director, navigation, bossSystem, combat}) {
+  M.installAi = function ({ai, world, config, math, renderer, ui, session, director, navigation, bossSystem, combat, upgrading}) {
     ai.setSquadOrder = function setSquadOrder(order){
       if(session.state!=='playing'||!['follow','guard'].includes(order))return false;
       session.squadOrder=order;session.orderPulse=1.2;
@@ -233,9 +233,10 @@
       }
       const wounded=u.healTarget,home=u.team==='ally'?ai.squadHome(u):u.supportHome||u;
       if(wounded&&math.dist(u,wounded)<140&&u.cooldown<=0&&ai.shotClear(u,wounded)){
-        const base=u.team==='ally'?16:12,capacity=base+(u.team==='ally'&&wounded===session.hero?session.ranks.oath*2:0),healed=Math.min(wounded.maxHp-wounded.hp,capacity);
+        const base=u.team==='ally'?16:12,capacity=u.team==='ally'&&wounded===session.hero?(upgrading.monkHealing?.()??base+session.ranks.oath*2):base;
+        const healed=u.team==='ally'?combat.restorePassiveHp(wounded,capacity):Math.min(wounded.maxHp-wounded.hp,capacity);
         if(wounded===session.hero)session.combatStats.oathHealing+=Math.max(0,healed-base);
-        wounded.hp+=healed;session.combatStats.healingDone+=healed;session.combatStats.healingWasted+=capacity-healed;
+        if(u.team!=='ally')wounded.hp+=healed;session.combatStats.healingDone+=healed;session.combatStats.healingWasted+=capacity-healed;
         u.attack=u.attackDuration=.45;u.cooldown=u.team==='ally'?3:4.5;u.moving=false;
         renderer.addEffect(math.blue('Monk','Heal_Effect'),wounded.x,wounded.y,110,.7);renderer.float(`+${Math.ceil(healed)}`,wounded.x,wounded.y,'#ceefa0');return;
       }

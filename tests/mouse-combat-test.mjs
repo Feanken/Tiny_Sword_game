@@ -12,7 +12,7 @@ context.document={querySelector:()=>null,elementFromPoint:()=>canvas};
 vm.createContext(context);
 for(const file of ['maps/island.js','maps/floor-geometry.js','maps/campaign-islands.js',
   'maps/validate-map.js','src/config.js','src/camera.js','src/world/world.js',
-  'src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js']){
+  'src/skill-config.js','src/upgrade-skills.js','src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js']){
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file});
 }
 const M=context.PenjagaModules,noop=()=>{};
@@ -113,8 +113,8 @@ for(let rank=0;rank<=10;rank++){
   check(targets[0].hp===1000-(27+rank*5),'Primary damage unchanged');
   check(targets[1].hp===1000-(18+rank*3),'Secondary damage unchanged');
 }
-for(const [rank,expectedBonus] of [[0,12],[5,50],[10,88]]){
-  reset();session.ranks.counter=rank;session.hero.riposte=2;aim(Math.PI/2);
+for(const [rank,expectedBonus] of [[0,0],[5,0],[10,88]]){
+  reset();session.ranks.counter=rank;combat.onPerfectDodge();aim(Math.PI/2);
   const counterA=relativeEnemy(Math.PI/2,50),counterB=relativeEnemy(Math.PI/2,60);
   combat.heroAttack();const bonus=session.hero.strike.counterBonus;
   check(bonus===expectedBonus,'Counter milestone snapshot retained');finish();

@@ -1,19 +1,21 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installEconomy = function ({economy, config, world, math, audio, renderer, ui, session, upgrading}) {
+  M.installEconomy = function ({economy, config, world, math, audio, renderer, ui, session, upgrading,combat}) {
     economy.recruitUnit = function recruitUnit(free = false) {
       if (session.state !== 'playing') return;
       const kind = ['Archer', 'Lancer', 'Monk', 'Warrior'][session.recruitIndex % 4];
       const cost = kind === 'Monk' ? 55 : 40;
-      if (!free && session.allies.length >= 8) { ui.notify('Pasukan lengkap: maksimal 8 sekutu.'); return; }
+      const capacity=combat.allyCapacity();
+      if (session.allies.filter(u=>u.hp>0).length >= capacity) { ui.notify(`Pasukan lengkap: maksimal ${capacity} sekutu.`); return false; }
       if (!free && session.gold < cost) { ui.notify(`Butuh ${cost} emas. Kumpulkan di tambang atau kalahkan musuh.`); return; }
       if (!free) session.gold -= cost;
       const hp = kind === 'Lancer' ? 130 : kind === 'Monk' ? 90 : 100;
       const occupied=new Set(session.allies.filter(u=>u.hp>0).map(u=>u.formationSlot));let formationSlot=0;while(occupied.has(formationSlot))formationSlot++;
       session.allies.push({ combatId:++session.combatId, formationSlot, x: world.allySpawn.x + math.rand(-15, 15), y: world.allySpawn.y + math.rand(-10, 10), homeX: world.allyHome.x + math.rand(0, world.allyHome.width), homeY: world.allyHome.y + math.rand(0, world.allyHome.height), kind, color: 'Blue', hp, maxHp: hp, facing: -1, moving: false, attack: 0, cooldown: .2, seed: math.rand(0, 10), speed: 88, team: 'ally', flankSign: session.recruitIndex % 2 ? 1 : -1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
-      session.recruitIndex++; if (!free) { ui.notify(`${{ Archer: 'Pemanah', Lancer: 'Penombak', Monk: 'Biarawan', Warrior: 'Ksatria' }[kind]} bergabung! (${session.allies.length}/8 sekutu)`); audio.tone(440, .15, 'triangle'); }
+      session.recruitIndex++; if (!free) { ui.notify(`${{ Archer: 'Pemanah', Lancer: 'Penombak', Monk: 'Biarawan', Warrior: 'Ksatria' }[kind]} bergabung! (${session.allies.filter(u=>u.hp>0).length}/${capacity} sekutu)`); audio.tone(440, .15, 'triangle'); }
       renderer.addEffect('Particle FX/Dust_01.png', world.allySpawn.x, world.allySpawn.y, 65); ui.updateUI();
+      return true;
     };
 
     economy.repairCastle = function repairCastle() {

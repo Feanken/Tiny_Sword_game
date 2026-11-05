@@ -11,7 +11,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'penjaga-campaign-browser-'));
 const chrome=process.env.CHROME_PATH||'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const scripts=['maps/island.js','maps/floor-geometry.js','maps/campaign-islands.js',
-  'maps/validate-map.js','src/config.js','src/world/world.js','src/session.js','src/math.js','src/navigation.js'];
+  'maps/validate-map.js','src/config.js','src/world/world.js','src/skill-config.js','src/upgrade-skills.js','src/session.js','src/math.js','src/navigation.js'];
 const body=`
   const M=window.PenjagaModules,world=new M.World(PenjagaMaps['campaign-islands']);
   const session=new M.GameSession({world});

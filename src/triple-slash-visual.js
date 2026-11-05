@@ -66,12 +66,13 @@
       const status=!unlocked?'locked':active?'active':cancelled?'cancelled':cooldown>0?'cooldown':snapshot?.ready?'ready':'busy';
       const changed=this.button.dataset.status!==status||oldHidden!==this.button.hidden;
       this.button.dataset.status=status;
+      const tier=unlocked?` · Tahap ${active?snapshot.activeStage??1:snapshot.stage??1}`:'';
       const label=!unlocked?'Bilah tingkat 10':active?`Tebasan ${snapshot.slashIndex} / 3`:
         cooldown>0?`${cancelled?'Dibatalkan · ':''}${cooldown.toFixed(1)} dtk`:snapshot.ready?'Siap':'Tunggu aksi';
       if(this.status.textContent!==label)this.status.textContent=label;
       this.button.disabled=!visible||this.session.state!=='playing'||!snapshot?.ready||!!document.querySelector('dialog[open]');
       this.button.setAttribute('aria-label','Q, Triple Slash. '+label);
-      this.button.title='Q: Triple Slash · Bilah tingkat 10 · Shift membatalkan combo';
+      this.button.title='Q: Triple Slash · Bilah tingkat 10 · Shift membatalkan combo'+tier;
       this.fill.style.width=`${!unlocked?0:active?Math.min(1,snapshot.elapsed/snapshot.duration)*100:Math.max(0,1-cooldown/snapshot.cooldown)*100}%`;
       this.steps.hidden=!active;
       [...this.steps.children].forEach((step,index)=>{step.dataset.state=!active?'pending':index+1<snapshot.slashIndex?'done':index+1===snapshot.slashIndex?'active':'pending';});

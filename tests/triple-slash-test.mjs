@@ -8,7 +8,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),s={};
 const canvas={hasPointerCapture:()=>false};s.document={querySelector:()=>null,elementFromPoint:()=>canvas};
 vm.createContext(s);
 for(const file of ['maps/island.js','maps/validate-map.js','src/config.js','src/world/world.js',
-  'src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js'])
+  'src/skill-config.js','src/upgrade-skills.js','src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js'])
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),s,{filename:file});
 const M=s.PenjagaModules,noop=()=>{},rt={world:new M.World(s.PenjagaMaps.island),config:M.config,math:{},
   input:new M.InputController(),navigation:{},upgrading:{},combat:{},ui:{},economy:{},director:{},
@@ -70,7 +70,7 @@ check(targets.slice(0,5).every(e=>e.hp===9769)&&targets.slice(5).every(e=>e.hp==
 check(state().hitCounts.join(',')==='5,5,5','Independent hit sets per slash');
 
 for(const late of [false,true]){
-  reset();session.ranks.counter=10;session.hero.riposte=2;
+  reset();session.ranks.counter=10;combat.onPerfectDodge();
   const a=enemy(50,late?Math.PI:0),b=enemy(60,late?Math.PI:0);
   combat.requestTripleSlash();if(late)tick(.3);
   if(late){a.x=750;b.x=760;}
@@ -104,7 +104,7 @@ combat.resolveHeroStrike(oldStrike,.16,.28);tick(.9);
 check(cancelled.hp===damage,'Cancelled contacts cannot return');
 check(!combat.requestTripleSlash(),'Cancel does not refund cooldown');
 
-reset();session.hero.dashCooldown=1;combat.requestTripleSlash();
+reset();session.hero.skills.upgrade.wind.charges=0;session.hero.skills.upgrade.wind.rechargeRemaining=1;combat.requestTripleSlash();
 check(!combat.startDash()&&state().status==='active','Failed dash does not cancel');
 tick(.9);check(state().status==='completed','Combo survives failed dash');
 for(const [damage,reason] of [[10,'hit'],[1000,'death']]){

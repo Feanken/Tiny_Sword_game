@@ -34,6 +34,7 @@
       ui.pausedForDialog = false; ui.toastTimer = 0;
       host.$('toast').classList.remove('show'); host.$('squadBar').hidden = false;
       input.clearCombatInput(); session.state = 'playing';
+      combat.syncSkillRanks();
       host.$('startScreen').hidden = true; host.$('pauseScreen').hidden = true; host.$('endScreen').hidden = true;
       host.$('wavePanel').hidden = false; host.$('scorePanel').hidden = false; host.$('worldCaption').hidden = true;
       host.$('dashButton').hidden = false; host.$('battleStatus').hidden = false; document.body.classList.add('is-playing'); host.$('gameShell').classList.remove('player-hit');
@@ -46,6 +47,7 @@
 
     lifecycle.finish = function finish(won) {
       combat.cancelTripleSlash(session.hero.hp<=0?'death':'run-ended');
+      combat.endUpgradeSkills(session.hero.hp<=0?'death':'run-ended');
       ui.setEntryWarning('');
       session.state = won ? 'won' : 'lost'; input.clearCombatInput();
       host.$('announcement').classList.remove('show'); host.$('interactionHint').hidden = true; host.$('mobileControls').hidden = true;

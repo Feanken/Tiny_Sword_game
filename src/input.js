@@ -119,6 +119,11 @@
         if(!e.repeat&&!input.keyboardKeys.has(key)){input.keyboardInput(key,true);combat.requestTripleSlash();}
         return;
       }
+      if(key==='r'){
+        e.preventDefault();
+        if(!e.repeat&&!input.keyboardKeys.has(key)){input.keyboardInput(key,true);combat.requestOath();}
+        return;
+      }
       const controls = ['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright', ' ', 'e', '1', '2', 'h'];
       if (!controls.includes(key)) return;
       // Native buttons retain keyboard activation when deliberately focused.

@@ -4,6 +4,7 @@
   M.installRenderer = function ({renderer, host, world, config, math, assets: assetStore, ui, session, upgrading, navigation, ai, combat, input}) {
     renderer.camera = new M.Camera2D(world.width, world.height);
     renderer.tripleHud = new M.TripleSlashHud({host,input,combat,session});
+    renderer.skillHud = new M.UpgradeSkillHud({host,input,combat,session});
     renderer.screenToWorld = (x, y) => renderer.camera.screenToWorld(x, y, host.canvas.getBoundingClientRect());
     renderer.reserveLabel = function reserveLabel(x,y,w,h,owner){
       if(renderer.labelCount>=renderer.labelPool.length)return null;
@@ -14,7 +15,7 @@
       renderer.overlayDirty=false;renderer.overlayRects.length=0;
       const arena=host.canvas.getBoundingClientRect();
       const add=el=>{if(el.hidden)return;const r=el.getBoundingClientRect();if(r.width&&r.height)renderer.overlayRects.push({x:r.left-arena.left,y:r.top-arena.top,w:r.width,h:r.height});};
-      add(host.$('bossBar'));add(host.$('dashButton'));add(host.$('tripleSlashButton'));add(host.$('entryWarning'));
+      add(host.$('bossBar'));add(host.$('dashButton'));add(host.$('tripleSlashButton'));add(host.$('oathButton'));add(host.$('passiveSkills'));add(host.$('entryWarning'));
       for(const id of ['toast','announcement'])if(host.$(id).classList.contains('show'))add(host.$(id));
       if(!host.$('mobileControls').hidden)for(const el of host.$('mobileControls').querySelectorAll('button'))add(el);
     };
@@ -313,7 +314,7 @@
       const width=counter?66:44;
       host.ctx.fillStyle='#173327ed';host.ctx.fillRect(-width/2,-18,width,18);host.ctx.strokeStyle=color;host.ctx.lineWidth=1;host.ctx.strokeRect(-width/2,-18,width,18);
       host.ctx.font='bold 11px Segoe UI';host.ctx.textAlign='center';host.ctx.fillStyle=color;host.ctx.fillText(counter?'BALASAN':'KAMU',0,-6);
-      if(session.hero.cooldown>0){host.ctx.fillStyle='#ffffff26';host.ctx.fillRect(-width/2+2,-3,width-4,2);host.ctx.fillStyle=color;host.ctx.fillRect(-width/2+2,-3,(width-4)*math.clamp(1-session.hero.cooldown/(upgrading.attackCooldown()),0,1),2);}
+      if(session.hero.cooldown>0){host.ctx.fillStyle='#ffffff26';host.ctx.fillRect(-width/2+2,-3,width-4,2);host.ctx.fillStyle=color;host.ctx.fillRect(-width/2+2,-3,(width-4)*math.clamp(1-session.hero.cooldown/combat.attackCooldown(),0,1),2);}
       host.ctx.beginPath();host.ctx.moveTo(-4,below?-19:1);host.ctx.lineTo(4,below?-19:1);host.ctx.lineTo(0,below?-24:6);host.ctx.closePath();host.ctx.fill();
       if(session.hero.hp<session.hero.maxHp)renderer.healthBar(0,below?4:-23,session.hero.hp,session.hero.maxHp,session.hero.hp/session.hero.maxHp<.3?'#ffb59d':'#bde6b1',width-4);
       host.ctx.restore();
@@ -444,6 +445,8 @@
       input.updatePointerWorld();
       renderer.tripleView=combat.tripleSlashSnapshot?.()||null;
       if(renderer.tripleHud.update(renderer.tripleView))renderer.overlayDirty=true;
+      renderer.skillView=combat.skillsSnapshot();
+      if(renderer.skillHud.update(renderer.skillView))renderer.overlayDirty=true;
       if(session.hero.strike)renderer.presentedAttackKind=session.hero.strike.kind||'basic';
       if(session.state==='ready'||session.state==='loading')renderer.presentedAttackKind='basic';
       const scaleX=host.canvas.width/renderer.viewW;
@@ -469,6 +472,8 @@
       for(const trail of session.dashTrail)renderer.drawSprite(math.blue('Warrior','Run'),trail.x,trail.y,136,trail.time,14,trail.facing,trail.life*2);
       if(session.orderPulse>0){const anchor=ai.squadAnchor();host.ctx.strokeStyle='#c3e8c099';host.ctx.lineWidth=2;host.ctx.setLineDash([5,5]);host.ctx.beginPath();host.ctx.ellipse(anchor.x,anchor.y,70,30,0,0,Math.PI*2);host.ctx.stroke();host.ctx.setLineDash([]);}
       renderer.drawBossDanger();
+      M.drawUpgradeSkillGround({ctx:host.ctx,view:renderer.skillView,session,camera:renderer.camera,
+        drawHeal:(x,y,size,age)=>renderer.drawSprite(math.blue('Monk','Heal_Effect'),x,y,size,age,10)});
       renderer.renderUnits.length=0;
       for(const u of session.enemies)if(u.hp>0)renderer.renderUnits.push(u);
       for(const u of session.allies)if(u.hp>0)renderer.renderUnits.push(u);
@@ -502,6 +507,12 @@
       }
       renderer.drawHeroSwing();
       renderer.drawTripleSlash();
+      if(renderer.skillView.stages.counter)for(const enemy of session.enemies){
+        if(!combat.isEnemyRecovering(enemy)||!renderer.camera.intersects(enemy.x-12,enemy.y-62,24,24))continue;
+        host.ctx.save();host.ctx.translate(enemy.x,enemy.y-51);host.ctx.rotate(Math.PI/4);
+        host.ctx.fillStyle='#e7efb8';host.ctx.strokeStyle='#15352c';host.ctx.lineWidth=2;
+        host.ctx.fillRect(-4,-4,8,8);host.ctx.strokeRect(-4,-4,8,8);host.ctx.restore();
+      }
       renderer.drawBossDanger(true);
       renderer.drawHeroOutline();
       renderer.beginLabelLayout();renderer.reserveAimIndicator();session.hero.markerLayout=renderer.layoutHeroMarker();
