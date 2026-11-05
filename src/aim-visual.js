@@ -35,8 +35,7 @@
     const {origin,angle,age,start,end,halfAngle,reach,radius,empowered=false,missCue=0}=visual;
     if(age<0||(age>end+.08&&missCue<=0))return null;
     const windup=age<start,active=age<=end;
-    const progress=Math.max(0,Math.min(1,(age-start)/(end-start)));
-    const edge=-halfAngle+2*halfAngle*progress;
+    const edge=visual.relativeAngle;
     const alpha=windup?.12:active?.16:Math.max(0,1-(age-end)/.08)*.1;
     const from=-halfAngle,to=windup?halfAngle:edge;
     const shape={from,to,reach,radius,backAllowance:visual.backAllowance??12};

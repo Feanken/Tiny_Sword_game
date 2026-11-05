@@ -101,7 +101,7 @@ try {
       }; }
     });
   `});
-  const url=pathToFileURL(process.env.AIM_VISUAL_ENTRY||path.join(root,'index.html')).href;
+  const url=pathToFileURL(path.join(root,'index.html')).href;
   const evaluateRuntime=source=>evaluate('(()=>{const r=window.__testRuntime;'+source+'})()');
   const draw=()=>evaluateRuntime('r.renderer.draw();');
   async function closeup(name) {
@@ -156,7 +156,8 @@ try {
     const raster=await evaluateRuntime(`const config=r.config.SWING,canvas=document.createElement('canvas');
       canvas.width=canvas.height=512;const ctx=canvas.getContext('2d',{willReadFrequently:true});
       let comparisons=0;const differences=[];
-      for(const axis of [0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4,-Math.PI/2,-Math.PI/4])
+      for(const axis of [0,Math.PI/4,Math.PI/2,Math.PI*3/4,Math.PI,-Math.PI*3/4,-Math.PI/2,-Math.PI/4,
+        .37,2.63,-Math.PI+.005,Math.PI-.005])
         for(const age of [.16,.19,.22,.25,.28]) {
           ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,512,512);ctx.save();
           ctx.translate(256,256);ctx.scale(2,2);ctx.rotate(axis);

@@ -224,8 +224,9 @@
       renderer.lastSwingVisual=null;
       if(!['playing','paused'].includes(session.state)||session.hero.hp<=0||
         (session.hero.attack<=0&&session.hero.missCue<=0)||!combat.heroAttackAngle)return;
+      const age=combat.heroAttackAge();
       renderer.lastSwingVisual=M.AimVisual.drawSwing(host.ctx,{
-        origin:combat.heroAttackOrigin(),angle:combat.heroAttackAngle(),age:combat.heroAttackAge(),
+        origin:combat.heroAttackOrigin(),angle:combat.heroAttackAngle(),age,relativeAngle:combat.swingAngle(age),
         start:config.SWING.start,end:config.SWING.end,halfAngle:config.SWING.angle,
         reach:config.SWING.reach,radius:config.SWING.radius,
         empowered:session.hero.swingEmpowered,missCue:session.hero.missCue
