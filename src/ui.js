@@ -1,7 +1,7 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installUi = function ({ui, host, world, config, input, assets: assetStore, renderer, session, director, upgrading, bossSystem, audio, lifecycle, ai, economy}) {
+  M.installUi = function ({ui, host, world, config, input, assets: assetStore, renderer, session, director, upgrading, bossSystem, audio, lifecycle, ai, economy, combat}) {
     ui.scoreKey = id => 'penjaga-pulau-best-' + (world.id === 'island' ? id : world.id + '-' + id);
     ui.setDifficulty = function setDifficulty(id){
       if(!config.difficulties[id]||!['loading','ready'].includes(session.state))return false;
@@ -65,10 +65,11 @@
       host.$('bossBar').hidden=!bossVisible;host.$('arena').classList.toggle('boss-active',bossVisible);
       if(session.boss&&session.boss.hp>0){host.$('bossHealth').style.width=`${session.boss.hp/session.boss.maxHp*100}%`;host.$('bossValue').textContent=`${Math.ceil(session.boss.hp)} / ${session.boss.maxHp}`;host.$("bossIntent").textContent=bossSystem.bossIntentText(session.boss);}
 
-      const cd=session.hero.dashCooldown||0,ready=cd<=0;
-      host.$('dashLabel').textContent=session.hero.riposte>0?'Balasan siap!':ready?'Langkah Embun':`Pulih ${cd.toFixed(1)} dtk`;
+      const dash=combat.dashSnapshot(),cd=dash.nextUse,ready=dash.ready;
+      host.$('dashLabel').textContent=`${dash.charges}/${dash.capacity} · ${cd>0?`Jeda ${cd.toFixed(1)} dtk`:dash.stage?'Tiga Bayang':'Langkah Embun'}`;
       host.$('dashButton').disabled=session.state!=='playing';host.$('dashButton').classList.toggle('cooling-down',!ready);
-      host.$('dashFill').style.width=`${(1-cd/upgrading.dashCooldown())*100}%`;
+      host.$('dashFill').style.width=`${(1-dash.rechargeRemaining/dash.recharge)*100}%`;
+      host.$('dashButton').title=`Shift: dash · ${dash.charges}/${dash.capacity} charge · isi ulang serial ${dash.recharge.toFixed(1)} dtk · kebal ${dash.immunity.toFixed(2)} dtk${dash.stage?' · jeda 0,6 dtk':''}`;
       host.$('touchDash').disabled=session.state!=='playing';host.$('touchDash').classList.toggle('cooling-down',!ready);host.$('touchDash').textContent=ready?'➶':cd.toFixed(1);
       host.$('campButton').disabled=session.phase!=='prepare';host.$('campButton').textContent=session.phase!=='prepare'?'Perkemahan · jeda':'✦ Upgrade · U';
 
@@ -84,8 +85,9 @@
       host.$('phaseHint').textContent = (session.encounters[session.waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.')+(session.phase==='prepare'&&session.ranks.bastion>0?' Benteng aktif saat kamu dekat kastel.':'');
       host.$('healButton').title=`Pulihkan hingga ${upgrading.foodHealing()} nyawa penjaga dengan 1 bekal. Tombol H.`;
       const cost = session.recruitIndex % 4 === 2 ? 55 : 40;
-      host.$('recruitCost').textContent = `${cost} emas · ${session.allies.length}/8`;
-      host.$('recruitButton').classList.toggle('unavailable', session.gold < cost || session.allies.length >= 8);
+      const capacity=combat.allyCapacity(),living=session.allies.filter(u=>u.hp>0).length;
+      host.$('recruitCost').textContent = `${cost} emas · ${living}/${capacity}`;
+      host.$('recruitButton').classList.toggle('unavailable', session.gold < cost || living >= capacity);
       host.$('repairButton').classList.toggle('unavailable', session.wood < 30 || session.castle.hp >= session.castle.maxHp);
       host.$('healButton').classList.toggle('unavailable', session.food < 1 || session.hero.hp >= session.hero.maxHp);
     };

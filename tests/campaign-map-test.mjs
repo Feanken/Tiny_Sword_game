@@ -9,7 +9,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const context={};context.window=context;vm.createContext(context);
 for(const file of ['maps/island.js','maps/crossroads.example.js','maps/floor-geometry.js',
   'maps/campaign-islands.js','maps/validate-map.js','src/world/world.js','src/config.js',
-  'src/session.js','src/math.js','src/navigation.js','src/ai.js','src/director.js',
+  'src/skill-config.js','src/upgrade-skills.js','src/session.js','src/math.js','src/navigation.js','src/ai.js','src/director.js',
   'src/economy.js','src/boss.js']) {
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file});
 }
@@ -38,7 +38,7 @@ function runtime(map=definition){
     ui:{notify:noop,updateUI:noop,announce:noop},
     renderer:{addEffect:noop,float:noop},audio:{tone:noop},
     combat:{heroAttackAge:()=>0,hurt:noop,fireArrow:noop}};
-  for(const name of ['Math','Navigation','Ai','Director','Economy','BossSystem'])M['install'+name](rt);
+  for(const name of ['Math','Navigation','UpgradeSkills','Ai','Director','Economy','BossSystem'])M['install'+name](rt);
   session.gameRandom=rt.math.seededRandom(723);
   return rt;
 }

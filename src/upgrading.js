@@ -1,7 +1,7 @@
 /* Rank/tier transactions and adapters to pure base stats. Skills own temporary effects. */
 ((M)=>{
   'use strict';
-  M.installUpgrading=function({upgrading,host,config,audio,ui,session}){
+  M.installUpgrading=function({upgrading,host,config,audio,ui,session,combat}){
     const rules=M.UpgradeProgress;
     let key='',cached;
     upgrading.stats=()=>{
@@ -60,7 +60,6 @@
       upgrading.applyBaseStats();
       if(id==='bastion')session.castle.hp=Math.min(after.castleMaxHp,session.castle.hp+after.castleMaxHp-before.castleMaxHp);
       if(id==='oath')session.hero.hp=Math.min(after.heroMaxHp,session.hero.hp+after.heroMaxHp-before.heroMaxHp);
-      if(id==='wind')session.hero.dashCooldown=Math.min(session.hero.dashCooldown||0,upgrading.dashCooldown());
       const perk=config.upgrades.find(p=>p.id===id),rank=session.ranks[id];
       const bonus=rank===5||rank===10?' Bonus aktif: '+config.upgradeBuffs[id][rank/5-1]:'';
       feedback(id,perk.name+' rank '+rank+' ditempa.'+bonus);

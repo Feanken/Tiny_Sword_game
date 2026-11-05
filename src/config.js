@@ -47,7 +47,7 @@ config.upgrades = [
 config.upgradeBuffs = {
     blade:['Sapuan mengenai hingga 4 musuh.','Sapuan mengenai hingga 5 musuh.'],
     rhythm:['Kecepatan gerak saat mengayun naik menjadi 65%.','Kecepatan gerak saat mengayun naik menjadi 75%.'],
-    wind:['Kebal selama 0,18 detik awal dash.','Kebal selama seluruh 0,20 detik dash.'],
+    wind:['Dash kebal selama 0,16 detik awal.','Tiga charge dash; kebal 0,16 detik, jeda start 0,60 detik.'],
     counter:['Bonus damage balasan tambahan +8.','Bonus damage balasan tambahan menjadi +16.'],
     bastion:['Damage ke kastel berkurang 20%.','Damage ke kastel berkurang 40%.'],
     oath:['Jeda penggunaan bekal menjadi 1,5 detik.','Jeda penggunaan bekal menjadi 1,2 detik.']

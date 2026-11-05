@@ -6,21 +6,14 @@
       if (session.state !== 'playing') return;
       for (const u of [session.hero, ...session.allies, ...session.enemies]) navigation.keepOnLand(u);
       if (session.castle.hp <= 0 || session.hero.hp <= 0) { lifecycle.finish(false); return; }
+      combat.updateSkillState(dt);
       renderer.updatePresentation(dt);
       session.pressureGap=Math.max(0,session.pressureGap-dt);session.rangedPressureGap=Math.max(0,session.rangedPressureGap-dt);session.pressureActive=0;
       for(const u of session.enemies)if(u.hp>0&&(u.strike?.target===session.hero&&u.kind!=='Archer'||u.isBoss&&u.bossAction?.stage==='warning'))session.pressureActive++;
       session.orderPulse=Math.max(0,session.orderPulse-dt);
       session.elapsed += dt; session.gatherCooldown = Math.max(0, session.gatherCooldown - dt); session.hero.cooldown = Math.max(0, session.hero.cooldown - dt); session.hero.attack = Math.max(0, session.hero.attack - dt); session.hero.invuln = Math.max(0, session.hero.invuln - dt);
       session.hero.healCooldown = Math.max(0, session.hero.healCooldown - dt);
-      session.hero.dashCooldown=Math.max(0,(session.hero.dashCooldown||0)-dt);session.hero.riposte=Math.max(0,(session.hero.riposte||0)-dt);
-      if(session.hero.dashBuffer>0){combat.startDash();session.hero.dashBuffer=Math.max(0,session.hero.dashBuffer-dt);}
-      session.dashTrail.forEach(t=>t.life-=dt);session.dashTrail=session.dashTrail.filter(t=>t.life>0);
-      const dashing=session.hero.dash>0;
-      if(dashing){
-        session.hero.dashElapsed+=dt;session.hero.dash=Math.max(0,session.hero.dash-dt);
-        session.dashTrail.push({x:session.hero.x,y:session.hero.y,time:session.hero.dashElapsed,facing:session.hero.facing,life:.12});if(session.dashTrail.length>6)session.dashTrail.shift();
-        navigation.move(session.hero,session.hero.dashX,session.hero.dashY,dt,720);
-      }
+      const dashing=combat.updateDash(dt);
 
       for (const u of [session.hero, ...session.allies, ...session.enemies]) combat.updateReaction(u, dt);
       session.castle.hitFlash = Math.max(0, (session.castle.hitFlash || 0) - dt);
@@ -38,7 +31,7 @@
       session.hero.attackBuffer=Math.max(0,(session.hero.attackBuffer||0)-dt);
       if (input.keys.has('e')) economy.gather();
       for (const s of world.sheep) s.cooldown = Math.max(0, s.cooldown - dt);
-      if (session.phase === 'prepare') { session.waveTimer -= dt; if (math.dist(session.hero, session.castle) < 155) session.hero.hp = Math.min(session.hero.maxHp, session.hero.hp + 4 * dt); if (session.waveTimer <= 0) director.startWave(); }
+      if (session.phase === 'prepare') { session.waveTimer -= dt; if (math.dist(session.hero, session.castle) < 155) combat.restorePassiveHp(session.hero,4*dt); if (session.waveTimer <= 0) director.startWave(); }
       else director.updateSpawns(dt);
       session.combatUnits.length=0;for(const u of session.allies)session.combatUnits.push(u);for(const u of session.enemies)session.combatUnits.push(u);
       session.engagements.clear();for(const u of session.combatUnits)if(u.hp>0&&u.kind!=='Monk'){const target=u.strike?.target||u.combatTarget;if(target?.hp>0)session.engagements.set(target,(session.engagements.get(target)||0)+1);}

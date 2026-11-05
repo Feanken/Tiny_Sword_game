@@ -1,9 +1,9 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  const freshSkills = () => ({tripleSlash:{
+  const freshSkills = () => ({upgrade:M.createUpgradeSkillState(),tripleSlash:{
     status:'idle',sequence:0,cooldownRemaining:0,elapsed:0,slashIndex:0,slashElapsed:0,
-    phase:'idle',angle:0,counterBonus:0,counterConsumed:false,hitCounts:[0,0,0],cancelReason:null
+    phase:'idle',angle:0,stage:0,damageScale:1,cooldownDuration:0,counterBonus:0,counterToken:0,counterConsumed:false,hitCounts:[0,0,0],cancelReason:null
   }});
   M.GameSession = class GameSession {
     constructor({world}) {

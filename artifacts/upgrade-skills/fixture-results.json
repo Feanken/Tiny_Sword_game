@@ -1,0 +1,60 @@
+{
+  "result": "PASS",
+  "checks": 232,
+  "costs": [
+    {
+      "rank": 9,
+      "capacity": 8,
+      "paidUnits": 7,
+      "cost": 310
+    },
+    {
+      "rank": 10,
+      "capacity": 10,
+      "paidUnits": 9,
+      "cost": 390
+    },
+    {
+      "rank": 19,
+      "capacity": 10,
+      "paidUnits": 9,
+      "cost": 390
+    },
+    {
+      "rank": 20,
+      "capacity": 12,
+      "paidUnits": 11,
+      "cost": 485
+    },
+    {
+      "rank": 24,
+      "capacity": 12,
+      "paidUnits": 11,
+      "cost": 485
+    },
+    {
+      "rank": 25,
+      "capacity": 12,
+      "paidUnits": 11,
+      "cost": 485
+    }
+  ],
+  "benchmarks": [
+    {
+      "allies": 8,
+      "enemies": 21,
+      "frames": 780,
+      "meanMs": 3.731,
+      "p95Ms": 8.223,
+      "maxMs": 12.546
+    },
+    {
+      "allies": 12,
+      "enemies": 21,
+      "frames": 780,
+      "meanMs": 13.493,
+      "p95Ms": 23.206,
+      "maxMs": 26.863
+    }
+  ]
+}

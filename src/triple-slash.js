@@ -13,14 +13,15 @@
       input.updateAim();
       combat.createHeroStrike({angle:s.angle,duration:period,kind:'triple-slash',
         comboSequence:s.sequence,slashIndex:s.slashIndex,
-        counterBonus:s.counterConsumed?0:s.counterBonus});
+        counterBonus:s.counterConsumed?0:s.counterBonus,counterToken:s.counterConsumed?0:s.counterToken});
     }
     combat.requestTripleSlash=function requestTripleSlash(){
       if(!canStart())return false;
-      const s=state(),angle=input.updateAim();
-      Object.assign(s,{status:'active',sequence:s.sequence+1,cooldownRemaining:tuning.cooldown,
+      const s=state(),angle=input.updateAim(),stage=M.SkillConfig.stage(session.ranks.blade),counter=combat.captureCounter();
+      Object.assign(s,{status:'active',sequence:s.sequence+1,cooldownRemaining:M.SkillConfig.triple.cooldown[stage],
+        stage,damageScale:M.SkillConfig.triple.damageScale[stage],cooldownDuration:M.SkillConfig.triple.cooldown[stage],
         elapsed:0,slashIndex:1,slashElapsed:0,phase:'windup',angle,
-        counterBonus:session.hero.riposte>0?upgrading.counterBonus():0,
+        counterBonus:counter.bonus,counterToken:counter.token,
         counterConsumed:false,hitCounts:[0,0,0],cancelReason:null});
       session.hero.attackBuffer=0;session.hero.work=null;
       beginSlash(s);
@@ -84,8 +85,9 @@
     };
     combat.tripleSlashSnapshot=function tripleSlashSnapshot(){
       const s=state();
-      return {...s,hitCounts:[...s.hitCounts],unlocked:session.ranks.blade>=tuning.unlockRank,ready:canStart(),
-        duration:tuning.duration,cooldown:tuning.cooldown,slashDuration:period,
+      const currentStage=M.SkillConfig.stage(session.ranks.blade);
+      return {...s,stage:currentStage,activeStage:s.stage,hitCounts:[...s.hitCounts],unlocked:session.ranks.blade>=tuning.unlockRank,ready:canStart(),
+        duration:tuning.duration,cooldown:s.cooldownRemaining>0||active()?s.cooldownDuration:M.SkillConfig.triple.cooldown[currentStage],slashDuration:period,
         contactStart:config.SWING.start,contactEnd:config.SWING.end,
         hitArea:{origin:combat.heroAttackOrigin(),angle:s.angle,reach:config.SWING.reach,
           radius:config.SWING.radius,halfAngle:config.SWING.angle,backAllowance:12}};

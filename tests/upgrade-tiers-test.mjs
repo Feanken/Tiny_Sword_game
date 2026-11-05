@@ -8,7 +8,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),scope
 const noop=()=>{},canvas={hasPointerCapture:()=>false};
 scope.document={querySelector:()=>null,elementFromPoint:()=>canvas};vm.createContext(scope);
 for(const file of ['maps/island.js','maps/validate-map.js','src/config.js','src/base-stats.js',
-  'src/upgrade-progress.js','src/expedition.js','src/world/world.js','src/session.js','src/math.js',
+  'src/upgrade-progress.js','src/expedition.js','src/world/world.js','src/skill-config.js','src/upgrade-skills.js','src/session.js','src/math.js',
   'src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js',
   'src/economy.js','src/simulation.js','src/ai.js'])
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),scope,{filename:file});
@@ -137,9 +137,10 @@ Object.assign(s.hero,{x:700,y:400,riposte:4});
 rt.input.mouseAimActive=true;rt.input.pointerOverCanvas=true;rt.input.pointerScreen={x:850,y:400};
 const comboTarget={x:760,y:400,hp:10000,maxHp:10000,team:'enemy',kind:'Warrior',combatId:1};
 s.enemies=[comboTarget];
+c.onPerfectDodge();
 check(c.requestTripleSlash(),'Existing skill consumes rank 25 base damage');
 c.updateHeroSwing(.9);
-equal(comboTarget.hp,10000-3*102-113,'Three derived base hits, counter once');
+equal(comboTarget.hp,10000-3*Math.round(102*1.1)-113,'Stage 3 skill uses derived base hits, counter once');
 for(let rank=0;rank<=25;rank++){
   const ranks=Object.fromEntries(P.ids.map(id=>[id,rank])),v=M.BaseStats.resolve(ranks);
   check(v.attackCooldown>=.30&&v.attackCooldown>M.config.SWING.end,'Full contact fits every cooldown');
@@ -171,7 +172,7 @@ s.hero.hp=100;rt.economy.healHero();equal(s.hero.hp,220,'Bekal uses base resolve
 const healerAi={};M.installAi({...rt,ai:healerAi,bossSystem:{}});
 Object.assign(s.hero,{x:700,y:400,hp:50});
 const monk={x:730,y:400,team:'ally',kind:'Monk',healThink:1,healTarget:s.hero,cooldown:0};
-healerAi.updateHealer(monk,1/60);equal(s.hero.hp,92,'Actual Monk cast uses diminishing base heal');
+healerAi.updateHealer(monk,1/60);equal(s.hero.hp,64,'Monk uses base heal within Stage 6 passive cap');
 equal(monk.cooldown,3,'Monk cooldown is unchanged');
 const ally={x:700,y:400,hp:50,maxHp:100,team:'ally'};
 Object.assign(monk,{healThink:1,healTarget:ally,cooldown:0});

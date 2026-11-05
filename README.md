@@ -34,6 +34,16 @@ tebasan berikutnya. Dash membatalkan sisa combo tanpa mengembalikan cooldown.
 Makan bekal sekarang memakai **H**; tombol Isi tenaga tetap dapat diklik.
 Kontrak skill untuk visual/HUD ada di [docs/triple-slash-interface.md](docs/triple-slash-interface.md).
 
+Skill desktop tingkat 10: **Rhythm** membangun lima lapis kecepatan serang saat hit;
+**Wind** membuka tiga charge dash serial (Shift); **Counter** menyimpan satu balasan
+4 detik setelah elak sempurna; **Bastion** menambah dua slot rekrut berbayar;
+**R — Sumpah Penjaga** membuat zona pemulihan pemain dan sekutu. **H** tetap bekal,
+**2** tetap perbaikan benteng dengan kayu. HUD menunjukkan charge, lapis, balasan,
+kapasitas serta cooldown Q/R. Game normal masih dibatasi tingkat 10.
+Perkembangan tingkat 20/25 diuji melalui fixture, tanpa cheat pada halaman game.
+Parameter, titik integrasi Tahap 5 dan hasil uji:
+[kontrak skill](docs/upgrade-skills-interface.md), [pemeriksaan](docs/upgrade-skills-checks.md).
+
 Preview map tiga pulau untuk desktop: buka **preview-map.html** langsung di browser
 (`file://` juga didukung). Pilih Bab 1/2/3, jelajahi dengan WASD/panah atau klik
 tanah. Pilihan wilayah menyediakan titik aman untuk inspeksi. Panduan dan hasil
