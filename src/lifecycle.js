@@ -1,7 +1,7 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installLifecycle = function ({lifecycle, host, world, math, input, audio, renderer, ui, session, director, economy, combat}) {
+  M.installLifecycle = function ({lifecycle, host, world, math, input, audio, renderer, ui, session, director, economy, combat, upgrading}) {
     lifecycle.showTitle = function showTitle(){
       ui.setEntryWarning('');
       session.collectingHeroDamage=false;session.pendingHeroDamage=null;session.approachSlots.clear();session.engagements.clear();session.combatUnits.length=0;
@@ -10,6 +10,7 @@
       Object.assign(session.hero,{x:world.heroSpawn.x,y:world.heroSpawn.y,hp:100,maxHp:100,attack:0,dash:0,dashCooldown:0,riposte:0,work:null,facing:1,invuln:0,hitFlash:0,stagger:0,cooldown:0,moving:false,knockX:0,knockY:0});session.castle.hp=session.castle.maxHp=500;session.castle.hitFlash=0;session.orderPulse=0;session.gold=80;session.wood=40;session.food=3;session.score=0;session.waveIndex=0;session.phase='prepare';session.waveTimer=22;for(const id in session.ranks)session.ranks[id]=0;
       session.hero.aimAngle=0;session.hero.swingAngle=0;session.hero.strike=null;
       session.resetSkills();
+      session.resetUpgradeProgress();
       ui.toastTimer=0;ui.announcementTimer=0;host.$('toast').classList.remove('show');host.$('announcement').classList.remove('show');host.$('worldCaption').hidden=false;
       host.$('startScreen').hidden=false;host.$('endScreen').hidden=true;host.$('pauseScreen').hidden=true;host.$('battleStatus').hidden=true;host.$('squadBar').hidden=true;host.$('bossBar').hidden=true;host.$('dashButton').hidden=true;host.$('mobileControls').hidden=true;
       document.body.classList.remove('is-playing');host.$('arena').classList.remove('boss-active');ui.setDifficulty(session.difficulty);ui.updateUI();renderer.resize();
@@ -24,11 +25,13 @@
       combat.resetCombatStats();
       session.resetForRun();
       if (carry) {
+        if(carry.upgradeProgress&&!M.UpgradeProgress.restore(session,carry.upgradeProgress))throw new Error('Invalid carried upgrade progression.');
         session.gold = carry.gold;
         Object.assign(session.ranks, carry.ranks);
         Object.assign(session.hero, carry.hero);
         Object.assign(session.castle, carry.castle);
       }
+      upgrading.applyBaseStats();
       audio.lastCombatCue.clear();
       world.resetResources();
       ui.pausedForDialog = false; ui.toastTimer = 0;

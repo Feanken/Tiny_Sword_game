@@ -1,4 +1,4 @@
-/* Classic script. Load after src/config.js. */
+/* Classic script. Load after config, base-stats and upgrade-progress. */
 ((M) => {
   'use strict';
   const DEFAULT_MAP_IDS = Object.freeze(['island', 'crossroads']);
@@ -6,7 +6,7 @@
   const rankIds = upgrades.map(upgrade => upgrade.id);
   const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 
-  function carryFrom({gold, ranks}) {
+  function carryFrom({gold, ranks, upgradeProgress}) {
     if (!Number.isSafeInteger(gold) || gold < 0) throw new RangeError('Gold must be a nonnegative safe integer.');
     if (!isRecord(ranks)) throw new TypeError('Upgrade ranks must be an object.');
     const carriedRanks = {};
@@ -17,15 +17,23 @@
         throw new RangeError(`Rank ${id} must be an integer from 0 to ${MAX_UPGRADE_LEVEL}.`);
       }
       carriedRanks[id] = rank;
-      milestones[id] = Math.floor(rank / 5);
+      milestones[id] = Math.min(2,Math.floor(rank / 5));
     }
     // Prototype capacities match GameSession and the Oath/Bastion upgrades.
-    const heroHp = 100 + 15 * carriedRanks.oath;
-    const castleHp = 500 + 80 * carriedRanks.bastion;
+    const progress=upgradeProgress??{ranks:carriedRanks,paidTierUnlocks:Object.fromEntries(rankIds.map(id=>[id,[]])),bossVictories:[]};
+    if(!M.UpgradeProgress.validSnapshot(progress)||rankIds.some(id=>progress.ranks[id]!==carriedRanks[id]))
+      throw new RangeError('Carried ranks need matching paid tiers and boss evidence.');
+    const derived=M.BaseStats.resolve(carriedRanks),heroHp=derived.heroMaxHp,castleHp=derived.castleMaxHp;
+    const frozenProgress=Object.freeze({
+      ranks:Object.freeze({...carriedRanks}),
+      paidTierUnlocks:Object.freeze(Object.fromEntries(rankIds.map(id=>[id,Object.freeze([...progress.paidTierUnlocks[id]])]))),
+      bossVictories:Object.freeze([...progress.bossVictories])
+    });
     return Object.freeze({
       gold,
       ranks: Object.freeze(carriedRanks),
       milestones: Object.freeze(milestones),
+      upgradeProgress:frozenProgress,
       hero: Object.freeze({hp: heroHp, maxHp: heroHp}),
       castle: Object.freeze({hp: castleHp, maxHp: castleHp})
     });

@@ -50,6 +50,8 @@ memuat bukti dan pembayaran secara eksplisit, tidak menebaknya dari rank.
 ## Resolver stat dasar
 
 M.BaseStats.resolve(ranks) adalah fungsi murni; upgrading.stats() membacanya.
+Resolver menolak rank non-integer/di luar 0–25 atau record yang kehilangan ID.
+Hasil immutable; adapter cache hanya berdasarkan enam rank, tanpa cache efek skill.
 Gunakan a=min(r,10), b=min(max(r−10,0),10), c=min(max(r−20,0),5).
 
 | Field / adapter upgrading | Rumus prototipe |
@@ -97,3 +99,46 @@ cheat pada produk. Tidak ada integrasi boss kampanye sebelum Tahap 7.
 Stat/transaction quote tidak menghitung stage skill lewat flag bayar; rank
 menjadi satu-satunya sumber tahap skill. Aggregate heal cap dan efek skill tetap
 menjadi pekerjaan Chat 2. Mining testing tetap mengikuti konfigurasi existing.
+
+## Adapter Tahap 7 dan checkpoint
+
+Contoh integrasi controller kampanye setelah start/restore:
+
+```js
+M.UpgradeProgress.bindSource(session,{
+  hasBossVictory(bossId) { return campaign.hasClearedBoss(bossId); }
+});
+// UI dan unlockTier membaca source ini; controller tetap pemilik prefix wave.
+```
+
+hasBossVictory harus sinkron dan mengembalikan boolean true untuk bukti sah.
+Exception atau hasil selain true menolak unlock. Controller memvalidasi urutan
+clearedWaveIds dan receipt boss; resolver ini tidak menyelesaikan wave atau memberi
+hadiah. Tier I tidak membutuhkan bukti boss.
+
+snapshot(session) menghasilkan salinan {ranks,paidTierUnlocks,bossVictories}.
+validSnapshot(value) memeriksa tepat enam ID, rentang rank, urutan pembayaran
+dan bukti yang diperlukan oleh pembayaran tersebut. restore(session,value)
+mengembalikan boolean, menolak data invalid sebelum menulis, mempertahankan identitas
+session.ranks, menyalin array dan melepas source eksternal. Pemanggil menerapkan
+upgrading.applyBaseStats() lalu kebijakan HP miliknya. Snapshot ini bukan format
+checkpoint kampanye lengkap dan tidak menyimpan saldo; Tahap 7 menggabungkannya
+dengan wallet dan prefix wave sesuai campaign-contract.md. Bukti serialized harus
+dicocokkan kembali dengan prefix tersebut, bukan dipercaya sebagai save terverifikasi.
+
+Carry ekspedisi existing menyertakan snapshot ini secara immutable. Payload lama
+tanpa snapshot masih sah untuk rank 0–10 dengan pembayaran/bukti kosong; rank >10
+wajib menyertakan pembayaran dan bukti eksplisit. Tidak ada migrasi yang menebak
+pembayaran dari rank. Full heal saat pindah arena tetap mengikuti kebijakan existing.
+
+Fixture browser:
+
+```js
+// Muat tests/fixtures/upgrade-progress.js hanya dari harness/DevTools pengujian.
+giveUpgradeBossEvidence(runtime,'boss-chapter-1');
+// Rank 10 dan saldo 500 masih wajib, serta pembayaran per jalur tetap terpisah.
+```
+
+Jalankan node tests/upgrade-tiers-test.mjs dan
+node tests/upgrade-tiers-browser-test.mjs dari root checkout untuk seluruh skenario.
+Hasil audit, batas tuning dan regresi ada di upgrade-tiers-checks.md.

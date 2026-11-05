@@ -30,7 +30,7 @@
       if (session.hero.healCooldown > 0) return;
       if (session.hero.hp >= session.hero.maxHp) { ui.notify('Tenagamu masih penuh.'); return; }
       if (session.food < 1) { ui.notify('Bekal habis. Dekati domba lalu tekan E.'); return; }
-      const restored = Math.min(45+5*session.ranks.oath, session.hero.maxHp - session.hero.hp);session.combatStats.oathHealing+=Math.max(0,restored-45);
+      const restored = Math.min(upgrading.foodHealing(), session.hero.maxHp - session.hero.hp);session.combatStats.oathHealing+=Math.max(0,restored-45);
       session.hero.work = null;
       session.food--; session.hero.healCooldown = upgrading.foodCooldown(); session.hero.hp += restored; renderer.float(`+${Math.ceil(restored)}`, session.hero.x, session.hero.y, '#c6eea1', true);
       renderer.addEffect(math.blue('Monk', 'Heal_Effect'), session.hero.x, session.hero.y, 140, .8); audio.tone(587, .25); ui.updateUI();

@@ -89,7 +89,8 @@
       if (!arena) return;
       const result = expedition.finishArena({
         runId: arena.runId, arenaIndex: arena.arenaIndex, mapId: arena.mapId,
-        outcome: won ? 'won' : 'lost', gold: session.gold, ranks: session.ranks
+        outcome: won ? 'won' : 'lost', gold: session.gold, ranks: session.ranks,
+        upgradeProgress:M.UpgradeProgress.snapshot(session)
       });
       nextArena = result.nextArena;
       if (nextArena) {

@@ -15,14 +15,19 @@
     ui.renderCamp = function renderCamp() {
       host.$('campGold').textContent=session.gold;
       host.$('campRound').textContent=`JEDA ${session.waveIndex+1} / 5`;
-      host.$('campRule').textContent='Beli berkali-kali selama emas cukup. Setiap jalur maksimal 10 tingkat; sisakan emas untuk pasukan.';
+      host.$('campRule').textContent='Tier I: rank 1–10. Buka Tier II dengan boss Bab 1 + 500 emas; Tier III dengan boss Bab 2 + 1.500 emas. Biaya dibayar per jalur, terpisah dari harga rank.';
       host.$('campCards').replaceChildren();
       for(const perk of config.upgrades){
-        const level=session.ranks[perk.id],cost=perk.cost+level*20,button=document.createElement('button');
-        button.className='perk-card';button.dataset.perk=perk.id;
-        button.disabled=level>=config.MAX_UPGRADE_LEVEL||session.gold<cost||session.phase!=='prepare';
-        button.innerHTML=`<span class="perk-category">${perk.group}<span>${level} / ${config.MAX_UPGRADE_LEVEL}</span></span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}<span class="perk-milestone ${level>=5?'active':''}">V · ${level>=5?'AKTIF · ':''}${config.upgradeBuffs[perk.id][0]}</span><span class="perk-milestone ${level>=10?'active':''}">X · ${level>=10?'AKTIF · ':''}${config.upgradeBuffs[perk.id][1]}</span></span><span class="perk-price">${level>=config.MAX_UPGRADE_LEVEL?'TINGKAT 10 / 10':`${cost} emas <span>Tingkat ${level+1} →</span>`}</span>`;
-        button.addEventListener('click',()=>upgrading.buyUpgrade(perk.id));host.$('campCards').append(button);
+        const view=upgrading.viewUpgrade(perk.id),level=view.rank,q=view.actionQuote,button=document.createElement('button');
+        button.className='perk-card';button.dataset.perk=perk.id;button.dataset.action=q.action;
+        button.disabled=!q.allowed;
+        const label=q.action==='tier'?'Buka Tier '+config.UPGRADE_TIERS.find(t=>t.id===q.tierId).name:
+          level>=config.MAX_UPGRADE_LEVEL?'Maksimum rank 25':'Rank '+(level+1);
+        const next=view.unlockQuote,nextInfo=next?
+          'Tier berikutnya '+config.UPGRADE_TIERS.find(t=>t.id===next.tierId).name+' · '+next.cost+' emas. '+upgrading.reasonText(next):'Tier tertinggi.';
+        button.innerHTML=`<span class="perk-category">${perk.group}<span>${level} / ${config.MAX_UPGRADE_LEVEL}</span></span><span class="perk-tier">Tier ${view.tier.name} · batas ${view.cap} · ${view.skillStage?'Tahap skill '+view.skillStage:'Skill pada rank 10'}</span><span class="perk-icon" aria-hidden="true">${perk.icon}</span><strong>${perk.name}</strong><span class="perk-description">${perk.description}<span class="perk-milestone ${level>=5?'active':''}">V · ${level>=5?'AKTIF · ':''}${config.upgradeBuffs[perk.id][0]}</span><span class="perk-milestone ${level>=10?'active':''}">X · ${level>=10?'AKTIF · ':''}${config.upgradeBuffs[perk.id][1]}</span></span><span class="perk-price">${label}<span>${q.cost===null?'':q.cost+' emas'}</span></span><span class="perk-reason">${upgrading.reasonText(q)}</span><span class="perk-next-tier">${nextInfo}</span>`;
+        button.addEventListener('click',()=>q.action==='tier'?upgrading.unlockTier(perk.id,q.tierId):upgrading.buyUpgrade(perk.id));
+        host.$('campCards').append(button);
       }
       host.$('campBuild').textContent=config.upgrades.filter(p=>session.ranks[p.id]).map(p=>`${p.name} ${session.ranks[p.id]}`).join(' · ')||'Belum ada penempaan. Setiap pilihan membentuk cara bertarungmu.';
     };
@@ -77,7 +82,7 @@
       host.$('waveProgress').style.width = `${session.phase === 'prepare' ? (1 - session.waveTimer / (session.waveIndex === 0 ? 22 : 15)) * 100 : (session.spawned - session.enemies.filter(u=>!u.isBoss).length) / w.count * 100}%`;
       host.$('enemyCount').textContent = session.phase === 'prepare' ? `${session.allies.length} sekutu bersiap` : `${session.enemies.length + w.count - session.spawned+(session.waveIndex===4&&!session.bossSpawned?1:0)} musuh tersisa`;
       host.$('phaseHint').textContent = (session.encounters[session.waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.')+(session.phase==='prepare'&&session.ranks.bastion>0?' Benteng aktif saat kamu dekat kastel.':'');
-      host.$('healButton').title=`Pulihkan hingga ${45+5*session.ranks.oath} nyawa penjaga dengan 1 bekal. Tombol H.`;
+      host.$('healButton').title=`Pulihkan hingga ${upgrading.foodHealing()} nyawa penjaga dengan 1 bekal. Tombol H.`;
       const cost = session.recruitIndex % 4 === 2 ? 55 : 40;
       host.$('recruitCost').textContent = `${cost} emas · ${session.allies.length}/8`;
       host.$('recruitButton').classList.toggle('unavailable', session.gold < cost || session.allies.length >= 8);

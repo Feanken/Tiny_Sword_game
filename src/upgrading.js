@@ -1,35 +1,77 @@
-/* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
-(function (M) {
-  "use strict";
-  M.installUpgrading = function ({upgrading, host, config, audio, ui, session}) {
-    upgrading.attackCooldown = function attackCooldown(){return config.HERO_ATTACK.cooldown*(1-Math.min(5,session.ranks.rhythm)*.06-Math.max(0,session.ranks.rhythm-5)*.03);};
-
-    upgrading.swingCap = function swingCap(){return config.SWING.cap+upgrading.milestone('blade');};
-
-    upgrading.counterBonus = function counterBonus(){return 12+session.ranks.counter*6+upgrading.milestone('counter')*8;};
-
-    upgrading.dashImmunity = function dashImmunity(){return .16+upgrading.milestone('wind')*.02;};
-
-    upgrading.foodCooldown = function foodCooldown(){return 1.8-upgrading.milestone('oath')*.3;};
-
-    upgrading.dashCooldown = function dashCooldown(){return 2.4-Math.min(5,session.ranks.wind)*.25-Math.max(0,session.ranks.wind-5)*.08;};
-
-    upgrading.fortressRadius = function fortressRadius(){return 160+session.ranks.bastion*20;};
-
-    upgrading.buyUpgrade = function buyUpgrade(id) {
-      const perk=config.upgrades.find(p=>p.id===id);
-      if(!perk||session.phase!=='prepare'||session.ranks[id]>=config.MAX_UPGRADE_LEVEL||!(session.state==='playing'||(session.state==='paused'&&host.$('campDialog').open)))return false;
-      const cost=perk.cost+session.ranks[id]*20;if(session.gold<cost)return false;
-      session.gold-=cost;session.ranks[id]++;session.campPurchase=session.waveIndex;
-      if(id==='bastion'){session.castle.maxHp+=80;session.castle.hp=Math.min(session.castle.maxHp,session.castle.hp+80);}
-      if(id==='oath'){session.hero.maxHp+=15;session.hero.hp=Math.min(session.hero.maxHp,session.hero.hp+15);}
-      if(id==='wind')session.hero.dashCooldown=Math.min(session.hero.dashCooldown,upgrading.dashCooldown());
-      host.$('campFeedback').textContent=`${perk.name} tingkat ${session.ranks[id]} ditempa.${session.ranks[id]%5===0?' Bonus aktif: '+config.upgradeBuffs[id][session.ranks[id]/5-1]:' Berlaku hingga pertandingan selesai.'}`;
-      audio.tone(523,.2,'triangle');ui.renderCamp();ui.updateUI();
-      if(host.$('campDialog').open){const card=host.$('campCards').querySelector('[data-perk="'+id+'"]');(card&&!card.disabled?card:host.$('campCards').querySelector('button:not(:disabled)')||host.$('campReady')).focus({preventScroll:true});}
+/* Rank/tier transactions and adapters to pure base stats. Skills own temporary effects. */
+((M)=>{
+  'use strict';
+  M.installUpgrading=function({upgrading,host,config,audio,ui,session}){
+    const rules=M.UpgradeProgress;
+    let key='',cached;
+    upgrading.stats=()=>{
+      const next=rules.ids.map(id=>session.ranks[id]).join('/');
+      if(next!==key||!cached){cached=M.BaseStats.resolve(session.ranks);key=next;}
+      return cached;
+    };
+    for(const name of ['attackCooldown','swingCap','counterBonus','counterWindow','foodCooldown',
+      'foodHealing','monkHealing','fortressRadius','primaryDamage','secondaryDamage',
+      'swingMoveScale','heroDamageReduction','castleDamageReduction'])upgrading[name]=()=>upgrading.stats()[name];
+    upgrading.dashCooldown=()=>upgrading.stats().legacyDashCooldown;
+    upgrading.dashImmunity=()=>upgrading.stats().legacyDashImmunity;
+    upgrading.milestone=id=>Math.min(2,Math.floor(session.ranks[id]/5));
+    upgrading.skillStage=id=>rules.skillStage(session.ranks[id]);
+    upgrading.clampMoveScale=value=>Math.max(0,Math.min(.85,value));
+    upgrading.clampHeroDamageReduction=value=>Math.max(0,Math.min(.35,value));
+    upgrading.clampCastleDamageReduction=value=>Math.max(0,Math.min(.50,value));
+    upgrading.applyBaseStats=()=>{
+      const stats=upgrading.stats();
+      session.hero.maxHp=stats.heroMaxHp;session.castle.maxHp=stats.castleMaxHp;
+      session.hero.hp=Math.min(session.hero.hp,stats.heroMaxHp);
+      session.castle.hp=Math.min(session.castle.hp,stats.castleMaxHp);
+      return stats;
+    };
+    const context=()=>({campOpen:!!host.$('campDialog').open});
+    upgrading.quoteRank=id=>rules.quoteRank(session,id,context());
+    upgrading.quoteTier=(id,tierId)=>rules.quoteTier(session,id,tierId,context());
+    upgrading.reasonText=quote=>({
+      'unknown-upgrade':'Jalur tidak dikenal.','unknown-tier':'Tier tidak dikenal.',
+      'invalid-state':'Progres tidak valid.','not-preparation':'Tersedia saat jeda/perkemahan.',
+      'max-rank':'Tingkat maksimum 25.','tier-locked':'Buka tier berikutnya terlebih dahulu.',
+      'gold-short':'Butuh '+quote.cost+' emas.','already-paid':'Tier ini sudah dibuka.',
+      'previous-tier':'Buka tier sebelumnya terlebih dahulu.',
+      'required-rank':'Perlu rank '+quote.requiredRank+' pada jalur ini.',
+      'boss-required':quote.requiredBossId==='boss-chapter-1'?'Menangkan boss Bab 1 terlebih dahulu.':'Menangkan boss Bab 2 terlebih dahulu.'
+    }[quote.reason]||'');
+    upgrading.viewUpgrade=id=>{
+      const perk=config.upgrades.find(p=>p.id===id);if(!perk)return null;
+      const paid=rules.paidTier(session,id),tier=config.UPGRADE_TIERS[paid-1]||config.UPGRADE_TIERS[0];
+      const nextTier=config.UPGRADE_TIERS[paid],rank=session.ranks[id],rankQuote=upgrading.quoteRank(id);
+      const unlockQuote=nextTier?upgrading.quoteTier(id,nextTier.id):null;
+      return {id,rank,tier,cap:tier.cap,skillStage:upgrading.skillStage(id),rankQuote,unlockQuote,
+        actionQuote:rank>=tier.cap&&unlockQuote?unlockQuote:rankQuote};
+    };
+    function feedback(id,text){
+      host.$('campFeedback').textContent=text;audio.tone(523,.2,'triangle');ui.renderCamp();ui.updateUI();
+      if(host.$('campDialog').open){
+        const card=host.$('campCards').querySelector('[data-perk="'+id+'"]');
+        (card&&!card.disabled?card:host.$('campCards').querySelector('button:not(:disabled)')||host.$('campReady')).focus({preventScroll:true});
+      }
+    }
+    upgrading.buyUpgrade=function(id){
+      const quote=upgrading.quoteRank(id);if(!quote.allowed)return false;
+      const before=upgrading.stats(),after=M.BaseStats.resolve({...session.ranks,[id]:quote.targetRank});
+      session.gold-=quote.cost;session.ranks[id]=quote.targetRank;session.campPurchase=session.waveIndex;
+      upgrading.applyBaseStats();
+      if(id==='bastion')session.castle.hp=Math.min(after.castleMaxHp,session.castle.hp+after.castleMaxHp-before.castleMaxHp);
+      if(id==='oath')session.hero.hp=Math.min(after.heroMaxHp,session.hero.hp+after.heroMaxHp-before.heroMaxHp);
+      if(id==='wind')session.hero.dashCooldown=Math.min(session.hero.dashCooldown||0,upgrading.dashCooldown());
+      const perk=config.upgrades.find(p=>p.id===id),rank=session.ranks[id];
+      const bonus=rank===5||rank===10?' Bonus aktif: '+config.upgradeBuffs[id][rank/5-1]:'';
+      feedback(id,perk.name+' rank '+rank+' ditempa.'+bonus);
       return true;
     };
-
-    upgrading.milestone = id=>Math.floor(session.ranks[id]/5);
+    upgrading.unlockTier=function(id,tierId){
+      const quote=upgrading.quoteTier(id,tierId);if(!quote.allowed)return false;
+      session.gold-=quote.cost;session.paidTierUnlocks[id]=[...session.paidTierUnlocks[id],tierId];
+      feedback(id,config.upgrades.find(p=>p.id===id).name+' · Tier '+config.UPGRADE_TIERS.find(t=>t.id===tierId).name+
+        ' dibuka. Batas rank '+quote.cap+'.');
+      return true;
+    };
   };
-})(window.PenjagaModules = window.PenjagaModules || {});
+})(window.PenjagaModules=window.PenjagaModules||{});

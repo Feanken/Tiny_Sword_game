@@ -10,6 +10,15 @@ Klik dua kali **Mainkan.cmd** atau buka **index.html** di browser. Seluruh aset 
 
 Folder gambar dipertahankan karena dipakai oleh permainan dan galeri aset. Audio sudah tertanam di audio-pack.js. Kredit audio ada di folder credits.
 
+Perkemahan (**U**, saat jeda) mendukung enam jalur hingga rank 25. Tier I membatasi
+rank pada 10. Pembukaan Tier II memerlukan rank 10, kemenangan boss Bab 1 dan
+500 emas per jalur; Tier III memerlukan rank 20, kemenangan boss Bab 2 dan
+1.500 emas per jalur. Harga rank dibayar terpisah. Integrasi boss kampanye
+menunggu Tahap 7; arena lama tidak otomatis memberi bukti boss bab.
+Kontrak progres/stat dan cara menguji fixture tersedia di
+[docs/upgrade-tiers-interface.md](docs/upgrade-tiers-interface.md) dan
+[docs/upgrade-tiers-checks.md](docs/upgrade-tiers-checks.md).
+
 Slot desktop **Q — Triple Slash** menampilkan syarat Bilah tingkat 10, progres tiga
 tebasan dan cooldown. Visual/HUD serta hasil tes ada di
 [docs/triple-slash-visual.md](docs/triple-slash-visual.md).

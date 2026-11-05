@@ -210,7 +210,8 @@
 .perk-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
 .perk-card { text-align:left;background:#304734;border:1px solid #8b9a6566;border-radius:7px;padding:15px;color:#e9e6c8;display:flex;flex-direction:column;min-height:190px;transition:background .15s,border-color .15s; }
 .perk-card:hover:enabled { background:#40543a;border-color:#e2cc88; }
-.perk-card:disabled { opacity:.5;cursor:default; }
+.perk-card:disabled { opacity:.8;cursor:not-allowed; }
+.perk-card:focus-visible { outline:3px solid #f3d58c;outline-offset:3px; }
 .perk-category { display:flex;justify-content:space-between;gap:5px;font-size:7px;letter-spacing:1.4px;color:#b2c29b; }
 .perk-category>span { color:#efd18b;letter-spacing:2px; }
 .perk-icon { font:27px Georgia;color:#edcf8d;margin:9px 0 3px; }
@@ -241,6 +242,9 @@
 }
 
 .camp-modal .close-button { top:8px;right:12px;line-height:1;width:30px;height:30px;padding:0; }
+.perk-tier { display:block;color:#c8d6b5;font-size:10px;margin-top:7px;line-height:1.5; }
+.perk-reason { display:block;color:#ffe0a0;font-size:11px;line-height:1.5;margin-top:7px; }
+.perk-next-tier { display:block;color:#bacbb5;font-size:10px;line-height:1.5;margin-top:7px; }
 
 .difficulty-picker{display:flex;gap:7px;margin:0 0 7px;max-width:350px}
 .difficulty-picker button{flex:1;min-width:0;padding:9px 10px;background:#18362bbd;border:1px solid #b2c18c66;border-radius:4px;color:#e4e9cb;text-align:left;font-size:11px}

@@ -29,14 +29,20 @@ config.difficulties = {
     hard:{name:'Sulit',hp:1.2,damage:1.25,speed:1.08,interval:.82,bossHp:850,warning:.75,score:1.4,note:'Musuh lebih tangguh, cepat, dan rapat. Maksimalkan elak sempurna.'},
   };
 config.bossRecoveryTimes = {easy:{slam:1.3,charge:1.3,volley:1.15},normal:{slam:1.1,charge:1.15,volley:1},hard:{slam:1,charge:1.05,volley:.9}};
-config.MAX_UPGRADE_LEVEL = 10;
+config.MAX_UPGRADE_LEVEL = 25;
+config.UPGRADE_RANK_STEP = 20;
+config.UPGRADE_TIERS = [
+  {id:'tier-1',number:1,name:'I',cap:10,requiredRank:0,requiredBossId:null,cost:0},
+  {id:'tier-2',number:2,name:'II',cap:20,requiredRank:10,requiredBossId:'boss-chapter-1',cost:500},
+  {id:'tier-3',number:3,name:'III',cap:25,requiredRank:20,requiredBossId:'boss-chapter-2',cost:1500}
+];
 config.upgrades = [
-    {id:'blade',name:'Bilah Bara',group:'PEDANG',icon:'⚔',cost:45,description:'Damage sasaran utama +5, sasaran tambahan +3 per tingkat.'},
-    {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda serangan −6% per tingkat I–V, lalu −3% per tingkat VI–X.'},
-    {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Cooldown dash −0,25 detik per tingkat I–V, lalu −0,08 detik per tingkat VI–X.'},
-    {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan elak sempurna +6 damage dan durasi +0,5 detik per tingkat.'},
-    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'Kastel +80 HP, pulih 80; damage dekat kastel −2 dan jangkauan perlindungan +20 per tingkat.'},
-    {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'Nyawa +15, pulih 15; pemulihan bekal +5 dan biarawan untukmu +2 per tingkat.'},
+    {id:'blade',name:'Bilah Bara',group:'PEDANG',icon:'⚔',cost:45,description:'Damage utama +5/+2/+1 dan sekunder +3/+1/+0,5 per rank pada Tier I/II/III.'},
+    {id:'rhythm',name:'Ritme Tempur',group:'PEDANG',icon:'✦',cost:40,description:'Jeda pedang berkurang bertahap; minimum 0,30 detik agar seluruh kontak selesai.'},
+    {id:'wind',name:'Jejak Angin',group:'KELINCAHAN',icon:'➶',cost:35,description:'Stat dash dasar dibatasi aman; tahap skill mengikuti rank 10/20/25.'},
+    {id:'counter',name:'Balasan Embun',group:'KELINCAHAN',icon:'◇',cost:35,description:'Bonus balasan memakai diminishing returns; waktu simpan maksimum 4 detik.'},
+    {id:'bastion',name:'Benteng Hidup',group:'PERTAHANAN',icon:'♜',cost:40,description:'HP kastel +80/+40/+20 per rank Tier I/II/III. Perlindungan memakai persentase terbatas.'},
+    {id:'oath',name:'Sumpah Penjaga',group:'PERTAHANAN',icon:'♡',cost:40,description:'HP +15/+8/+4 per rank Tier I/II/III; bekal dan Monk tumbuh lebih perlahan.'},
   ];
 config.upgradeBuffs = {
     blade:['Sapuan mengenai hingga 4 musuh.','Sapuan mengenai hingga 5 musuh.'],

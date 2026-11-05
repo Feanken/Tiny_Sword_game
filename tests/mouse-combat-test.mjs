@@ -11,7 +11,7 @@ const canvas={hasPointerCapture:()=>false};
 context.document={querySelector:()=>null,elementFromPoint:()=>canvas};
 vm.createContext(context);
 for(const file of ['maps/island.js','maps/floor-geometry.js','maps/campaign-islands.js',
-  'maps/validate-map.js','src/config.js','src/camera.js','src/world/world.js',
+  'maps/validate-map.js','src/config.js','src/base-stats.js','src/upgrade-progress.js','src/camera.js','src/world/world.js',
   'src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js']){
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file});
 }
@@ -142,6 +142,6 @@ combat.cancelHeroSwing(false);aim(Math.PI);near(session.hero.aimAngle,Math.PI);
 
 session.resetForRun();
 check(session.hero.aimAngle===0&&session.hero.swingAngle===0&&!session.hero.strike,'New run resets combat directions');
-check(M.config.GATHERING_REWARDS.gold===10000&&M.config.MAX_UPGRADE_LEVEL===10,'Balance config unchanged');
+check(M.config.GATHERING_REWARDS.gold===10000&&M.config.MAX_UPGRADE_LEVEL===25&&M.config.UPGRADE_TIERS[0].cap===10,'Mining preserved; tier I cap 10, maximum 25');
 navigation.dispose();
 console.log('PASS mouse combat: '+checks+' checks; 72 aim axes, lock/recovery, backward movement, origin, caps, counter, cover, water, camera.');

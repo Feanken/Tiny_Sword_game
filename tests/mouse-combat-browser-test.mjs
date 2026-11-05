@@ -192,14 +192,14 @@ try{
     assert.equal(await evaluate('__aimRuntime.session.ranks.blade'),9);
     await click(await center('#campDialog [data-close]'));
     await waitFor("__aimRuntime.session.state==='playing'&&!document.querySelector('dialog[open]')");
-    await evaluate('__aimRuntime.session.hero.hp=9950;__aimRuntime.session.food=3');
+    await evaluate('__aimRuntime.session.hero.hp=50;__aimRuntime.session.food=3');
     await tap('q','KeyQ');
     assert.equal(await evaluate('__aimRuntime.combat.tripleSlashSnapshot().unlocked'),false);
     assert.equal(await evaluate('__aimRuntime.session.food'),3);
     assert.equal(await evaluate('__aimRuntime.session.hero.skills.tripleSlash.cooldownRemaining'),0);
     await tap('h','KeyH');
     assert.equal(await evaluate('__aimRuntime.session.food'),2);
-    assert.equal(await evaluate('__aimRuntime.session.hero.hp'),9995);
+    assert.equal(await evaluate('__aimRuntime.session.hero.hp'),95);
     assert.equal(await evaluate("document.querySelector('#healButton kbd').textContent"),'H');
     assert.match(await evaluate("document.getElementById('healButton').title"),/Tombol H/);
     await click(await center('#campButton'));await click(await center('[data-perk="blade"]'));

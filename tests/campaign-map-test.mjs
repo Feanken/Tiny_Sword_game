@@ -97,7 +97,7 @@ for(const name of ['island','crossroads']){
 }
 check(M.config.GATHERING_REWARDS.gold===10000,'Manual mining preserved');
 assert.deepEqual(Array.from(M.config.upgrades,u=>u.id),['blade','rhythm','wind','counter','bastion','oath']);
-check(M.config.MAX_UPGRADE_LEVEL===10,'Existing cap preserved');
+check(M.config.MAX_UPGRADE_LEVEL===25&&M.config.UPGRADE_TIERS[0].cap===10,'Upgrade cap 25; initial tier cap 10');
 check(context.PenjagaMapValidation.validateMap(definition).valid,'Campaign validates');
 const pristine=JSON.stringify(definition),rt=runtime(),{world,navigation,session}=rt;
 for(const [chapter,pathCount] of [['chapter-1',1],['chapter-2',2],['chapter-3',3]]){

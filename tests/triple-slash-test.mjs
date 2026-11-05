@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),s={};s.window=s;
 const canvas={hasPointerCapture:()=>false};s.document={querySelector:()=>null,elementFromPoint:()=>canvas};
 vm.createContext(s);
-for(const file of ['maps/island.js','maps/validate-map.js','src/config.js','src/world/world.js',
+for(const file of ['maps/island.js','maps/validate-map.js','src/config.js','src/base-stats.js','src/upgrade-progress.js','src/world/world.js',
   'src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js'])
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),s,{filename:file});
 const M=s.PenjagaModules,noop=()=>{},rt={world:new M.World(s.PenjagaMaps.island),config:M.config,math:{},

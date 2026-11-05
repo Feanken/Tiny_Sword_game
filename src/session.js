@@ -63,11 +63,13 @@
         initialized: false,
       });
       Object.assign(this.hero, world.heroSpawn);
+      this.resetUpgradeProgress();
       this.resetSkills();
       Object.assign(this.castle, world.castle);
     }
     resetForRun() {
       const world = this.world;
+      this.resetUpgradeProgress();
       this.resetSkills();
       this.combatId=0;this.pressureActive=0;this.pressureGap=0;this.rangedPressureGap=0;this.approachSlots.clear();this.engagements.clear();this.combatUnits.length=0;this.collectingHeroDamage=false;this.pendingHeroDamage=null;
       Object.assign(this.hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99,stepTimer:0,swingFacing:1,swingEmpowered:false,labelSlot:0,markerLayout:null});
@@ -82,5 +84,9 @@
       this.phase = 'prepare'; this.waveIndex = 0; this.waveTimer = 22; this.spawned = 0; this.spawnTimer = 0; this.elapsed = 0; this.passiveTimer = 0; this.gatherCooldown = 0; this.shake = 0;
     }
     resetSkills() { this.hero.skills=freshSkills(); }
+    resetUpgradeProgress() {
+      this.paidTierUnlocks=Object.fromEntries(M.config.upgrades.map(p=>[p.id,[]]));
+      this.upgradeProgress={bossVictories:[]};this.progressSource=null;
+    }
   };
 })(window.PenjagaModules = window.PenjagaModules || {});
