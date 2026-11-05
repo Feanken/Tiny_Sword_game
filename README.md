@@ -15,6 +15,12 @@ tahan Spasi untuk menyerang. WASD/panah tetap menggerakkan pemain; chevron di ta
 menunjukkan arah efektif. Arah strike terkunci sampai kontak selesai. Audit pose,
 hasil uji dan screenshot ada di [docs/mouse-combat-visual.md](docs/mouse-combat-visual.md).
 
+Pada Bilah Bara tingkat 10, **Q** mengaktifkan **Triple Slash**: tiga tebasan
+selama 0,9 detik dengan cooldown 8 detik. Arah dapat dikoreksi maksimal 30° pada
+tebasan berikutnya. Dash membatalkan sisa combo tanpa mengembalikan cooldown.
+Makan bekal sekarang memakai **H**; tombol Isi tenaga tetap dapat diklik.
+Kontrak skill untuk visual/HUD ada di [docs/triple-slash-interface.md](docs/triple-slash-interface.md).
+
 Preview map tiga pulau untuk desktop: buka **preview-map.html** langsung di browser
 (`file://` juga didukung). Pilih Bab 1/2/3, jelajahi dengan WASD/panah atau klik
 tanah. Pilihan wilayah menyediakan titik aman untuk inspeksi. Panduan dan hasil

@@ -62,7 +62,8 @@ try{
   const center=selector=>evaluate('(()=>{const r=document.querySelector('+JSON.stringify(selector)+').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()');
   const worldPoint=(x,y)=>evaluate('(()=>{const r=__aimRuntime;return r.renderer.camera.worldToScreen('+x+','+y+',r.host.canvas.getBoundingClientRect());})()');
   const step=n=>evaluate('(()=>{const r=__aimRuntime;for(let i=0;i<'+n+';i++)r.simulation.update(1/60);r.renderer.draw();})()');
-  const key=(type,key,code)=>page('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode:key===' '?32:key.toUpperCase().charCodeAt(0)});
+  const key=(type,key,code,extra={})=>page('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode:key===' '?32:key.toUpperCase().charCodeAt(0),...extra});
+  async function tap(keyName,code){await key('keyDown',keyName,code);await key('keyUp',keyName,code);}
   // DevTools pointer coordinates pass through Blink's float CSS coordinates.
   const angleClose=(actual,expected)=>assert(Math.abs(Math.atan2(Math.sin(actual-expected),Math.cos(actual-expected)))<1e-5,actual+' != '+expected);
   async function scene(axis=0,position={x:700,y:400}){
@@ -183,6 +184,119 @@ try{
     angleClose(large.before.angle,-Math.PI/4);angleClose(large.after.angle,large.expected);
     assert(large.after.x>large.before.x&&large.after.y>large.before.y);
     await evaluate('__largeAim.navigation.dispose()');
+    // Stage 4: buy nine/ten blade ranks through the actual camp UI.
+    await scene();
+    await evaluate('__aimRuntime.session.gold=5000;__aimRuntime.ui.updateUI()');
+    await click(await center('#campButton'));
+    for(let i=0;i<9;i++)await click(await center('[data-perk="blade"]'));
+    assert.equal(await evaluate('__aimRuntime.session.ranks.blade'),9);
+    await click(await center('#campDialog [data-close]'));
+    await waitFor("__aimRuntime.session.state==='playing'&&!document.querySelector('dialog[open]')");
+    await evaluate('__aimRuntime.session.hero.hp=9950;__aimRuntime.session.food=3');
+    await tap('q','KeyQ');
+    assert.equal(await evaluate('__aimRuntime.combat.tripleSlashSnapshot().unlocked'),false);
+    assert.equal(await evaluate('__aimRuntime.session.food'),3);
+    assert.equal(await evaluate('__aimRuntime.session.hero.skills.tripleSlash.cooldownRemaining'),0);
+    await tap('h','KeyH');
+    assert.equal(await evaluate('__aimRuntime.session.food'),2);
+    assert.equal(await evaluate('__aimRuntime.session.hero.hp'),9995);
+    assert.equal(await evaluate("document.querySelector('#healButton kbd').textContent"),'H');
+    assert.match(await evaluate("document.getElementById('healButton').title"),/Tombol H/);
+    await click(await center('#campButton'));await click(await center('[data-perk="blade"]'));
+    assert.equal(await evaluate('__aimRuntime.session.ranks.blade'),10);
+    await click(await center('#campDialog [data-close]'));
+    await waitFor("__aimRuntime.session.state==='playing'&&!document.querySelector('dialog[open]')");
+    await evaluate('window.__ownedBladeRanks={...__aimRuntime.session.ranks}');
+    async function skillScene(){
+      await scene();
+      await evaluate(`(()=>{
+        const r=__aimRuntime,s=r.session;Object.assign(s.ranks,__ownedBladeRanks);
+        s.enemies=[__aimTargets[0]];s.boss=null;
+        Object.assign(__aimTargets[0],{x:750,y:400,kind:'Lancer',cooldown:10000,stagger:10,knockX:0,knockY:0});
+      })()`);
+      await mouse('mouseMoved',await worldPoint(850,400));
+    }
+    const skill=()=>evaluate('__aimRuntime.combat.tripleSlashSnapshot()');
+    await skillScene();
+    await evaluate('__aimRuntime.session.hero.riposte=2'); // One reserved counter, +12 at counter rank 0.
+    await key('keyDown','q','KeyQ');
+    assert.equal((await skill()).status,'active');
+    for(let i=0;i<4;i++)await key('keyDown','q','KeyQ',{autoRepeat:true});
+    await key('keyDown','q','KeyQ'); // Duplicate non-repeat down is also ignored.
+    await key('keyUp','q','KeyQ');
+    await click(await worldPoint(850,400)); // Basic attack cannot overlap.
+    assert.equal((await skill()).sequence,1);
+    assert.equal(await evaluate('__aimRuntime.session.combatStats.swings'),1);
+    assert.equal(await evaluate('__aimRuntime.session.hero.attackBuffer'),0);
+    await step(13);
+    assert.deepEqual((await skill()).hitCounts,[1,0,0]);
+    assert.equal(await evaluate('__aimTargets[0].hp'),911);
+    await click(await center('#pauseButton'));
+    const pausedSkill=await skill();await step(90);
+    assert.deepEqual(await skill(),pausedSkill);
+    await click(await center('#resumeButton'));
+    await mouse('mouseMoved',await worldPoint(850,400));
+    await step(18);
+    assert.deepEqual((await skill()).hitCounts,[1,1,0]);
+    assert.equal(await evaluate('__aimTargets[0].hp'),834);
+    await step(18);
+    assert.deepEqual((await skill()).hitCounts,[1,1,1]);
+    assert.equal(await evaluate('__aimTargets[0].hp'),757);
+    await step(5);
+    assert.equal((await skill()).status,'completed');
+    assert(Math.abs((await skill()).cooldownRemaining-7.1)<1e-7);
+    // Holding Q across cooldown expiry cannot queue another cast.
+    await key('keyDown','q','KeyQ');await step(500);
+    await key('keyDown','q','KeyQ',{autoRepeat:true});
+    assert.equal((await skill()).sequence,1);
+    await key('keyUp','q','KeyQ');await tap('q','KeyQ');
+    assert.equal((await skill()).sequence,2);
+    await step(13);await evaluate('void(window.__cancelledTripleStrike=__aimRuntime.session.hero.strike)');
+    await key('keyDown','Shift','ShiftLeft');await key('keyUp','Shift','ShiftLeft');
+    assert.equal((await skill()).cancelReason,'dash');
+    const cancelledHp=await evaluate('__aimTargets[0].hp');
+    await step(60);
+    assert.equal((await skill()).status,'cancelled');
+    assert.deepEqual((await skill()).hitCounts,[1,0,0]);
+    assert.equal(await evaluate('__aimTargets[0].hp'),cancelledHp);
+    assert((await skill()).cooldownRemaining>6);
+    await evaluate(`(()=>{
+      const r=__aimRuntime;Object.assign(r.session.hero,{x:700,y:400});
+      Object.assign(__aimTargets[0],{x:750,y:400,knockX:0,knockY:0});
+      r.combat.resolveHeroStrike(__cancelledTripleStrike,.16,.28);
+    })()`);
+    assert.equal(await evaluate('__aimTargets[0].hp'),cancelledHp);
+
+    await skillScene();await tap('q','KeyQ');
+    await mouse('mouseMoved',await worldPoint(700,550));await step(13);
+    angleClose((await skill()).angle,0);
+    await step(5);angleClose((await skill()).angle,Math.PI/6);
+    await step(18);angleClose((await skill()).angle,Math.PI/3);
+    await skillScene();
+    await click(await worldPoint(850,400));await tap('q','KeyQ');
+    assert.equal((await skill()).status,'idle');
+    assert.equal((await skill()).cooldownRemaining,0);
+    await step(18);await tap('q','KeyQ');
+    assert.equal((await skill()).status,'idle'); // Basic recovery still blocks.
+
+    await skillScene();await tap('q','KeyQ');
+    await evaluate('__aimRuntime.combat.hurt(__aimRuntime.session.hero,10,__aimTargets[0])');
+    assert.equal((await skill()).cancelReason,'hit');
+    const interruptedHp=await evaluate('__aimTargets[0].hp');await step(60);
+    assert.equal(await evaluate('__aimTargets[0].hp'),interruptedHp);
+    await skillScene();
+    await evaluate('Object.assign(__aimRuntime.session.hero,{x:805,y:310});Object.assign(__aimTargets[0],{x:885,y:310});__aimRuntime.renderer.draw()');
+    await mouse('mouseMoved',await worldPoint(905,310));await tap('q','KeyQ');await step(54);
+    assert.deepEqual((await skill()).hitCounts,[0,0,0]);
+    assert.equal(await evaluate('__aimTargets[0].hp'),1000);
+    await skillScene();await tap('q','KeyQ');await step(10);
+    await click(await center('#pauseButton'));await click(await center('#restartPauseButton'));
+    assert.equal((await skill()).status,'idle');
+    assert.equal((await skill()).cooldownRemaining,0);
+    assert.equal((await skill()).sequence,0);
+    assert.equal(await evaluate('__aimRuntime.session.ranks.blade'),0);
+    assert.equal(await evaluate('__aimRuntime.session.hero.strike'),null);
+    console.log('PASS '+protocol+' DPR '+dpr+': Triple Slash rank 9/10 via camp, Q/H, 3 contacts, counter once, repeat/basic exclusion, turn cap, dash/hit cancellation, pause, cover, restart.');
     console.log('PASS '+protocol+' DPR '+dpr+': normal entry, 8 directions, hold/lock/recovery, backwards, UI/drag, cover/water, shifted camera, large-world fixture.');
   }
   assert.deepEqual(errors,[]);

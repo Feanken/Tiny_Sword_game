@@ -1,7 +1,8 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installCombat = function ({combat, host, config, math, input, audio, renderer, session, director, upgrading, navigation, ai}) {
+  M.installCombat = function (ports) {
+    const {combat, host, config, math, input, audio, renderer, session, director, upgrading, navigation, ai}=ports;
     combat.resetCombatStats = function resetCombatStats(){
       Object.assign(session.combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0,allyEvades:0,allyHazardHits:0,roleIntercepts:0,repositions:0,fortressSaved:0});
       Object.assign(session.combatStats,{rangedDeferrals:0,maxRangedWindups:0,oathHealing:0});
@@ -14,7 +15,7 @@
       if(!dx&&!dy){dx=session.hero.lastMoveX??session.hero.facing;dy=session.hero.lastMoveY??0;}
       const length=Math.hypot(dx,dy);session.hero.dashX=dx/length;session.hero.dashY=dy/length;
       session.hero.dash=.2;session.hero.dashCooldown=upgrading.dashCooldown();session.hero.dashElapsed=0;session.hero.dashPerfect=false;
-      combat.cancelHeroSwing(false);session.hero.impactHold=0;session.hero.attackBuffer=0;session.hero.dashBuffer=0;session.hero.work=null;session.hero.attack=0;session.hero.stagger=0;session.hero.knockX=0;session.hero.knockY=0;
+      combat.cancelHeroSwing(false,'dash');session.hero.impactHold=0;session.hero.attackBuffer=0;session.hero.dashBuffer=0;session.hero.work=null;session.hero.attack=0;session.hero.stagger=0;session.hero.knockX=0;session.hero.knockY=0;
       if(Math.abs(dx)>.1)session.hero.facing=dx>0?1:-1;
       renderer.addEffect('Particle FX/Dust_01.png',session.hero.x,session.hero.y,55);if(!audio.playSample(['cloth1.ogg','cloth2.ogg'],session.hero,.4,1.3,2))audio.tone(360,.14,'triangle',.025,720);return true;
     };
@@ -25,7 +26,11 @@
       return combat.startDash();
     };
 
-    combat.heroCounterReady = function heroCounterReady(){return session.hero.riposte>0||!!(session.hero.strike?.counterBonus>0&&session.hero.strike.hits.size===0);};
+    combat.heroCounterReady = function heroCounterReady(){
+      const skill=session.hero.skills.tripleSlash;
+      return session.hero.riposte>0||!!(session.hero.strike?.counterBonus>0&&session.hero.strike.hits.size===0)||
+        skill.status==='active'&&skill.counterBonus>0&&!skill.counterConsumed;
+    };
 
     combat.heroMoveScale = function heroMoveScale(){
       const movement=config.HERO_ATTACK.moveScale+upgrading.milestone('rhythm')*.1;return movement+(1-movement)*math.clamp((combat.heroAttackAge()-config.SWING.end)/((session.hero.attackDuration||config.HERO_ATTACK.duration)-config.SWING.end),0,1);
@@ -85,7 +90,7 @@
       else if (source === session.hero) { session.shake = Math.max(session.shake, 1.5);if(!session.hero.strike||session.hero.strike.hits.size===1)audio.combatCue('hit',target); }
       if(target!==session.castle&&!target.isBoss)combat.holdImpactPose(target);
       if (target !== session.castle && !target.isBoss) {
-        if (target === session.hero) {combat.cancelHeroSwing(true);session.hero.work = null;session.hero.attackBuffer=0;session.hero.dashBuffer=0;}
+        if (target === session.hero) {combat.cancelHeroSwing(true,target.hp<=0?'death':'hit');session.hero.work = null;session.hero.attackBuffer=0;session.hero.dashBuffer=0;}
         const force = target.kind === 'Lancer' ? 140 : target === session.hero ? 195 : 255;
         target.knockX = Math.cos(angle) * force; target.knockY = Math.sin(angle) * force;
         target.stagger = target === session.hero ? .09 : .12;
@@ -103,17 +108,22 @@
     };
 
     combat.heroAttack = function heroAttack() {
-      if (session.state !== 'playing' || session.hero.cooldown > 0 || session.hero.stagger > 0 || session.hero.dash > 0) return;
+      if (session.hero.skills.tripleSlash.status==='active'||session.state !== 'playing' || session.hero.cooldown > 0 || session.hero.stagger > 0 || session.hero.dash > 0) return;
       const angle=input.updateAim();
       session.hero.attackBuffer = 0;
       session.hero.work = null;
       session.hero.cooldown=upgrading.attackCooldown();
-      session.hero.attack=session.hero.attackDuration=Math.min(config.HERO_ATTACK.duration,session.hero.cooldown);
+      combat.createHeroStrike({angle,duration:Math.min(config.HERO_ATTACK.duration,session.hero.cooldown)});
+    };
+
+    combat.createHeroStrike = function createHeroStrike({angle,duration,kind='basic',comboSequence,slashIndex,counterBonus}) {
+      session.hero.attack=session.hero.attackDuration=duration;
       const target=combat.heroAttackTarget(angle);
       session.hero.swingFacing=session.hero.facing;session.hero.swingEmpowered=session.hero.riposte>0;session.hero.missCue=0;
-      session.hero.strike = { elapsed:0, facing:session.hero.facing, target, hits:new Set(),counterBonus:session.hero.riposte>0?upgrading.counterBonus():0 };
+      session.hero.strike = { kind,comboSequence,slashIndex,elapsed:0, facing:session.hero.facing, target, hits:new Set(),counterBonus:counterBonus??(session.hero.riposte>0?upgrading.counterBonus():0) };
       Object.defineProperty(session.hero.strike,'angle',{value:angle,enumerable:true});
       session.hero.swingAngle=angle;
+      session.hero.swingEmpowered=session.hero.strike.counterBonus>0;
       session.combatStats.swings++;
       audio.tone(380, .1, 'triangle', .018, 110);
     };
@@ -133,7 +143,8 @@
       return target;
     };
 
-    combat.cancelHeroSwing = function cancelHeroSwing(interrupted){
+    combat.cancelHeroSwing = function cancelHeroSwing(interrupted,reason=interrupted?'hit':'invalid-state'){
+      if(session.hero.skills.tripleSlash.status==='active'){combat.cancelTripleSlash(reason);return;}
       if(session.hero.strike){session.combatStats[interrupted?'interruptions':'cancels']++;session.hero.strike=null;}
       session.hero.swingEmpowered=false;session.hero.missCue=0;
     };
@@ -161,25 +172,43 @@
       return angle+padding>=from&&angle-padding<=to&&navigation.clearPath(origin,target);
     };
 
-    combat.updateHeroSwing = function updateHeroSwing(dt){
-      const s=session.hero.strike;if(!s)return;
-      const previous=s.elapsed;s.elapsed+=dt;
-      if(s.elapsed>=config.SWING.start&&previous<=config.SWING.end&&s.hits.size<upgrading.swingCap()){
-        // At most three contacts; sorting is bounded by the 21-enemy encounter cap.
-        const contacts=session.enemies.filter(e=>e.hp>0&&!s.hits.has(e)&&combat.swingContact(s,e,previous,s.elapsed));
+    combat.isCurrentHeroStrike = function isCurrentHeroStrike(s) {
+      if(!s||session.state!=='playing'||session.hero.hp<=0||session.hero.strike!==s)return false;
+      const skill=session.hero.skills.tripleSlash;
+      return s.kind==='triple-slash'?skill.status==='active'&&s.comboSequence===skill.sequence&&s.slashIndex===skill.slashIndex:skill.status!=='active';
+    };
+    combat.heroPrimaryDamage = () => 27+session.ranks.blade*5;
+    combat.resolveHeroStrike = function resolveHeroStrike(s,previous,current){
+      if(!combat.isCurrentHeroStrike(s))return;
+      const skill=session.hero.skills.tripleSlash,isSkill=s.kind==='triple-slash';
+      const cap=isSkill?config.TRIPLE_SLASH.targetCap:upgrading.swingCap();
+      if(current>=config.SWING.start&&previous<=config.SWING.end&&s.hits.size<cap){
+        // Sorting remains bounded by the existing 21-enemy encounter cap.
+        const contacts=session.enemies.filter(e=>e.hp>0&&!s.hits.has(e)&&combat.swingContact(s,e,previous,current));
         contacts.sort((a,b)=>(a===s.target?-1:b===s.target?1:math.dist(session.hero,a)-math.dist(session.hero,b)));
         for(const target of contacts){
-          if(s.hits.size>=upgrading.swingCap())break;
-          const primary=s.hits.size===0,bonus=primary?s.counterBonus||0:0;
+          if(s.hits.size>=cap||!combat.isCurrentHeroStrike(s))break;
+          const primary=s.hits.size===0,bonus=isSkill?(!skill.counterConsumed?skill.counterBonus:0):(primary?s.counterBonus||0:0);
           s.hits.add(target);session.combatStats.hits++;
-          combat.hurt(target,primary?27+session.ranks.blade*5+bonus:18+session.ranks.blade*3,session.hero);
-          if(bonus){session.hero.riposte=0;renderer.float('BALASAN!',session.hero.x,session.hero.y-25,'#f8d68b',true);}
+          if(isSkill)skill.hitCounts[s.slashIndex-1]=s.hits.size;
+          if(bonus){session.hero.riposte=0;if(isSkill)skill.counterConsumed=true;}
+          combat.hurt(target,(isSkill?combat.heroPrimaryDamage()*config.TRIPLE_SLASH.damageScale:primary?combat.heroPrimaryDamage():18+session.ranks.blade*3)+bonus,session.hero);
+          if(bonus)renderer.float('BALASAN!',session.hero.x,session.hero.y-25,'#f8d68b',true);
         }
       }
-      if(s.elapsed>=config.SWING.end){
-        if(!s.hits.size){session.combatStats.misses++;session.hero.missCue=.18;audio.combatCue('miss');}
-        session.hero.strike=null;
-      }
+    };
+    combat.finishHeroStrike = function finishHeroStrike(s) {
+      if(session.hero.strike!==s)return;
+      if(!s.hits.size){session.combatStats.misses++;session.hero.missCue=.18;audio.combatCue('miss');}
+      session.hero.strike=null;
+    };
+    combat.updateHeroSwing = function updateHeroSwing(dt){
+      if(session.state!=='playing'||!Number.isFinite(dt)||dt<=0)return;
+      if(combat.updateTripleSlash(dt))return;
+      const s=session.hero.strike;if(!s)return;
+      const previous=s.elapsed;s.elapsed+=dt;
+      combat.resolveHeroStrike(s,previous,s.elapsed);
+      if(s.elapsed>=config.SWING.end)combat.finishHeroStrike(s);
     };
 
     combat.fireArrow = function fireArrow(u, target) {
@@ -189,7 +218,7 @@
     };
 
     combat.requestAttack = function requestAttack() {
-      if(session.state!=='playing')return;
+      if(session.state!=='playing'||session.hero.skills.tripleSlash.status==='active')return;
       host.$('interactionHint').hidden=true;
       if(session.hero.work){session.hero.work=null;session.gatherCooldown=Math.max(session.gatherCooldown,.18);}
       session.hero.attackBuffer=.14;
@@ -199,7 +228,8 @@
 
     combat.swingAngle = age => -config.SWING.angle+2*config.SWING.angle*math.clamp((age-config.SWING.start)/(config.SWING.end-config.SWING.start),0,1);
 
-    combat.heroAttackAge = () => session.hero.attack>0 ? (session.hero.attackDuration||config.HERO_ATTACK.duration)-session.hero.attack : config.HERO_ATTACK.duration;
+    combat.heroAttackAge = () => session.hero.skills.tripleSlash.status==='active'?session.hero.skills.tripleSlash.slashElapsed:
+      session.hero.attack>0 ? (session.hero.attackDuration||config.HERO_ATTACK.duration)-session.hero.attack : config.HERO_ATTACK.duration;
     combat.updateProjectiles = function (dt) {
       for (const p of session.projectiles) {
         const previous = { x: p.x, y: p.y };
@@ -223,5 +253,6 @@
         }
       }
     };
+    M.installTripleSlash(ports);
   };
 })(window.PenjagaModules = window.PenjagaModules || {});

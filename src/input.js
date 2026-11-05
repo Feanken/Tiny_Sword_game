@@ -24,11 +24,10 @@
     const projectPointer = function () {
       if (input.pointerScreen) input.pointerWorld = renderer.screenToWorld(input.pointerScreen.x, input.pointerScreen.y);
     };
-    const syncAim = function () {
+    const desiredAim = function () {
       const hero=session.hero;
       let angle=Number.isFinite(hero.aimAngle)?hero.aimAngle:0;
-      if(hero.strike)angle=hero.strike.angle;
-      else if(input.mouseAimActive){
+      if(input.mouseAimActive){
         const point=input.pointerOverCanvas&&input.pointerWorld;
         if(point&&Number.isFinite(point.x)&&Number.isFinite(point.y)){
           const origin=combat.heroAttackOrigin(),dx=point.x-origin.x,dy=point.y-origin.y;
@@ -38,6 +37,12 @@
         const {dx,dy}=input.movement();
         if(dx||dy)angle=Math.atan2(dy,dx);
       }
+      return angle;
+    };
+    input.desiredAimAngle = function desiredAimAngle() { projectPointer();return desiredAim(); };
+    const syncAim = function () {
+      const hero=session.hero,skill=hero.skills.tripleSlash;
+      const angle=hero.strike?.angle ?? (skill.status==='active'?skill.angle:desiredAim());
       hero.aimAngle=angle;
       const horizontal=Math.cos(angle);
       if(Math.abs(horizontal)>1e-9)hero.facing=horizontal>0?1:-1;
@@ -109,12 +114,17 @@
       if((key==='f'||key==='g')&&!e.repeat){e.preventDefault();ai.setSquadOrder(key==='f'?'follow':'guard');return;}
       if(key==='u'&&!e.repeat){e.preventDefault();ui.openCamp();return;}
       if(key==='shift'){e.preventDefault();if(!e.repeat)combat.requestDash();return;}
-      const controls = ['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright', ' ', 'e', '1', '2', 'q'];
+      if(key==='q'){
+        e.preventDefault();
+        if(!e.repeat&&!input.keyboardKeys.has(key)){input.keyboardInput(key,true);combat.requestTripleSlash();}
+        return;
+      }
+      const controls = ['w', 'a', 's', 'd', 'arrowup', 'arrowleft', 'arrowdown', 'arrowright', ' ', 'e', '1', '2', 'h'];
       if (!controls.includes(key)) return;
       // Native buttons retain keyboard activation when deliberately focused.
       if (key === ' ' && e.target.tagName === 'BUTTON') return;
       e.preventDefault();if(e.repeat&&!input.keyboardKeys.has(key))return;input.keyboardInput(key,true);if(key===' '&&!e.repeat)combat.requestAttack();
-      if (!e.repeat) { if (key === '1') economy.recruitUnit(); if (key === '2') economy.repairCastle(); if (key === 'q') economy.healHero(); }
+      if (!e.repeat) { if (key === '1') economy.recruitUnit(); if (key === '2') economy.repairCastle(); if (key === 'h') economy.healHero(); }
     });
     input.listen(window, 'keyup', e => input.keyboardInput(e.key.toLowerCase(),false));
     input.listen(window, 'blur', () => { input.clearCombatInput(); if (session.state === 'playing') ui.togglePause(true); });
