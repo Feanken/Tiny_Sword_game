@@ -1,3 +1,4 @@
+// Isolated original-island combat fixture; actual campaign entry is covered by campaign-playable-browser-test.mjs.
 // Camp transactions through normal index.html, with explicit test-only boss receipts.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -63,7 +64,7 @@ try{
   await page('Page.addScriptToEvaluateOnNewDocument',{source:`
     window.PenjagaModules={};let factory;
     Object.defineProperty(PenjagaModules,'createRuntime',{get(){return factory;},set(value){
-      factory=(...args)=>{const rt=value(...args);window.__aimRuntime=rt;return rt;};
+      factory=(...args)=>{const rt=value({...args[0],map:window.PenjagaMaps.island});window.__aimRuntime=rt;return rt;};
     }});
   `});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -139,19 +140,7 @@ try{
       await activate('#campDialog [data-close]');
       await waitFor(s+".state==='playing'&&!document.querySelector('dialog[open]')");
     }
-    // Rank 25, both receipts and both payments survive the actual arena handoff.
-    await evaluate(r+'.lifecycle.finish(true)');await activate('#continueButton');
-    await waitFor("document.getElementById('gameShell').dataset.map==='crossroads'&&"+s+".state==='playing'");
-    await evaluate('cancelAnimationFrame('+r+'.simulation.frameId)');
-    same(await evaluate(s+'.ranks.oath'),25);
-    same(await evaluate(s+'.paidTierUnlocks.oath'),['tier-2','tier-3']);
-    same(await evaluate(s+'.upgradeProgress.bossVictories'),['boss-chapter-1','boss-chapter-2']);
-    same(await evaluate('['+s+'.hero.hp,'+s+'.hero.maxHp]'),[350,350]);
-    await evaluate(r+'.lifecycle.finish(false)');await activate('#titleButton');
-    await waitFor("document.getElementById('gameShell').dataset.map==='island'&&"+s+".state==='ready'");
-    await activate('#menuExpeditionButton');await activate('#startButton');
-    await waitFor(s+".state==='playing'");
-    await evaluate('cancelAnimationFrame('+r+'.simulation.frameId)');
+    // Campaign carry is covered by campaign-playable-browser-test.mjs.
     // Keyboard focus can reach an available card; short screens scroll to all six cards.
     await evaluate(r+'.lifecycle.startGame(57);'+s+'.gold=100000;'+s+'.waveTimer=100000;'+r+'.ui.updateUI()');
     for(const [width,height] of [[1440,900],[1024,600],[960,480]]){

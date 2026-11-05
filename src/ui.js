@@ -39,10 +39,10 @@
       host.$('campFeedback').textContent='';ui.renderCamp();ui.openDialog('campDialog');host.$('campCards').querySelector('button:not(:disabled)')?.focus({preventScroll:true});
     };
 
-    ui.showChapterReview=function(){
+    ui.showChapterReview=function(result){
       const p=campaign.snapshot(),chapter=campaign.chapter();
       host.$('chapterTitle').textContent='Bab '+(p.chapterIndex+1)+' · '+chapter.name;
-      host.$('chapterSummary').textContent=(p.chapterIndex===1?'Pulau dan jembatan utara terbuka. Ancaman: barat dan utara.':'Pulau dan jembatan barat daya terbuka. Ancaman: tiga arah.')+
+      host.$('chapterSummary').textContent='Hadiah wave dan boss: +'+result.gold+' emas. '+(p.chapterIndex===1?'Pulau dan jembatan utara terbuka. Ancaman: barat dan utara.':'Pulau dan jembatan barat daya terbuka. Ancaman: tiga arah.')+
         ' Pemulihan: +'+chapter.recovery.heroHp+' HP penjaga, +'+chapter.recovery.castleHp+' HP benteng; dibatasi maksimum. Sekutu hidup dan seluruh bekal dibawa.';
       host.$('chapterScreen').hidden=false;host.$('chapterContinueButton').focus({preventScroll:true});
     };

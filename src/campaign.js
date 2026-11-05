@@ -9,7 +9,10 @@
     campaign.waveId=()=> 'c'+(chapterIndex+1)+'-w'+(s.waveIndex+1);
     campaign.miningRewardOverride=()=>options.economyProfileId==='standard'?null:config.GATHERING_REWARDS.gold;
     campaign.hasBossVictory=id=>profile.chapters.some((chapter,i)=>chapter.bossId===id&&cleared.includes('c'+(i+1)+'-w5'));
-    campaign.snapshot=()=>({runId,status,chapterId:campaign.chapter().id,chapterIndex,waveId:campaign.waveId(),
+    campaign.snapshot=()=>({campaignId:profile.id,mapId:profile.mapId,runId,status,seed:s.runSeed,difficulty:s.difficulty,
+      phase:status==='chapter-review'?'chapter-review':status==='complete'?'campaign-complete':status==='lost'?'lost':
+        s.state==='paused'?'paused':s.phase==='prepare'?(s.waveIndex===0?'chapter-prepare':'wave-prepare'):'battle',
+      chapterId:campaign.chapter().id,chapterIndex,waveId:campaign.waveId(),
       clearedWaveIds:[...cleared],bossVictories:profile.chapters.filter(c=>campaign.hasBossVictory(c.bossId)).map(c=>c.bossId),
       economyProfileId:options.economyProfileId||'testing',miningOverrideGold:campaign.miningRewardOverride(),
       passiveTicks});
@@ -45,6 +48,7 @@
       passiveTicks++;s.gold+=profile.passive.gold;s.wood+=profile.passive.wood;return true;
     };
     campaign.canCompleteWave=()=>status==='active'&&s.state==='playing'&&s.phase==='battle'&&
+      cleared.length===chapterIndex*5+s.waveIndex&&
       s.hero.hp>0&&s.castle.hp>0&&s.spawned===config.waves[s.waveIndex].count&&
       director.arrivalSchedule&&director.departureCursor===director.arrivalSchedule.length&&
       !s.enemies.some(u=>u.hp>0)&&
@@ -85,7 +89,7 @@
       status='active';s.state='playing';s.phase='prepare';ui.updateUI();input.clearCombatInput();return true;
     };
     campaign.fail=()=>{
-      if(!['active','chapter-review'].includes(status))return false;
+      if(!['active','chapter-review'].includes(status)||s.hero.hp>0&&s.castle.hp>0)return false;
       status='lost';return true;
     };
   };

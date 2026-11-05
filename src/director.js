@@ -137,7 +137,7 @@
         const result=campaign.completeWave(receipt);if(!result.accepted)return false;
         ui.setEntryWarning('');
         if(result.campaignComplete)lifecycle.finish(true);
-        else if(result.chapterComplete)ui.showChapterReview();
+        else if(result.chapterComplete)ui.showChapterReview(result);
         else ui.announce('Gelombang ditaklukkan!','+'+result.gold+' EMAS · +15 KAYU · +1 BEKAL');
         ui.updateUI();return true;
       }

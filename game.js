@@ -21,4 +21,5 @@
   ui.setDifficulty('normal');menu.showMain();renderer.resize();
   simulation.frameId=requestAnimationFrame(simulation.frame);
   await runtime.assets.preload();menu.ready();
+  if(new URLSearchParams(location.search).get('map')==='crossroads')menu.showSetup('expedition');
 })();

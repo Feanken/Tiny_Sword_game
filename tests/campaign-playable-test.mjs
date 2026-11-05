@@ -18,6 +18,19 @@ function killAll(){
 }
 function fixtureWave(){
   r.director.startWave();const receipt=c.receipt(),count=r.config.waves[s.waveIndex].count;
+  const schedule=r.director.arrivalSchedule,slots=schedule.flatMap(e=>e.slots);
+  eq(slots.length,count,'Scheduling preserves enemy total');
+  eq(new Set(slots).size,count,'Each authored enemy is dispatched once');
+  check(schedule.every(e=>e.departure>=.3-1e-9&&r.world.entryPaths.has(e.pathId)),'Only open paths with valid departure times');
+  const first=schedule.filter(e=>e.packet===0),paths=new Set(first.map(e=>e.pathId));
+  if(c.snapshot().chapterIndex>0&&s.waveIndex===0){
+    eq(paths.size,1,'New direction introduced alone');
+    check(paths.has(c.chapter().newPath),'First packet introduces new gate');
+  }
+  if(c.snapshot().chapterIndex===1&&s.waveIndex>=2)eq(paths.size,2,'Chapter2 pairs');
+  if(c.snapshot().chapterIndex===2&&s.waveIndex===2)eq(paths.size,2,'Chapter3 paired introduction');
+  if(c.snapshot().chapterIndex===2&&s.waveIndex>=3)eq(paths.size,3,'Chapter3 triple arrivals');
+  eq(new Set(first.map(e=>e.arrival)).size,1,'One target arrival across packet paths');
   let time=0;
   while(s.spawned<count||s.waveIndex===4&&!s.bossSpawned){
     s.elapsed+=.05;r.director.updateSpawns(.05);killAll();time+=.05;
@@ -37,6 +50,7 @@ s.gold=100000;for(let i=0;i<10;i++)check(r.upgrading.buyUpgrade('blade'),'Reach 
 check(!r.upgrading.unlockTier('blade','tier-2'),'No tier before real boss proof');
 // Premature/replayed finish callbacks cannot award or skip the chapter.
 const wallet=s.gold;check(!r.lifecycle.finish(true),'Direct win callback cannot bypass campaign');eq(s.gold,wallet,'Premature finish is free');
+check(!r.lifecycle.finish(false),'Stale loss callback cannot kill living defenders');
 for(let chapter=0;chapter<3;chapter++){
   for(let wave=0;wave<5;wave++){
     eq(s.waveIndex,wave,'Local wave cursor');
@@ -107,6 +121,12 @@ eq(s.allies.length,1,'One initial Archer only');
 eq(M.config.GATHERING_REWARDS.gold,10000,'Manual mining override preserved');eq(c.miningRewardOverride(),null,'Standard profile opts out of override');
 const n=events.length;s.state='paused';r.simulation.update(5);eq(events.length,n,'No mines tick on pause');
 s.state='playing';r.simulation.update(1/60);check(events.some(e=>e===1/60),'Mines fixed-step hook');
+const node=world.goldNodes[0];Object.assign(s.hero,{x:node.x,y:node.y,moving:false,attack:0,dash:0,stagger:0,work:null});
+s.gatherCooldown=0;const resource=r.economy.nearestResource();eq(resource.type,'gold','Mine resource selected');
+const beforeGold=s.gold,beforeCalls=events.filter(e=>typeof e==='string'&&e.startsWith('gold-')).length;
+r.economy.gather();r.economy.updateWork(.9);r.economy.updateWork(.9);
+eq(events.filter(e=>typeof e==='string'&&e.startsWith('gold-')).length,beforeCalls+1,'Completed work calls mine port once');
+eq(s.gold,beforeGold,'Economy caller never awards gold on top of mine port');
 for(let i=0;i<51;i++)c.passiveTick();eq(c.snapshot().passiveTicks,50,'Base passive bounded50 per chapter');
 const testProfile=createCampaignFixture({economyProfileId:'testing'});testProfile.r.lifecycle.startGame(1);
 eq(testProfile.r.campaign.miningRewardOverride(),10000,'Testing override explicit');

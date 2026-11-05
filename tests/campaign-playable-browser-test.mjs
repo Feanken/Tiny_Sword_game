@@ -107,6 +107,17 @@ try{
     await page('Page.navigate',{url});
     await waitFor("window.PenjagaPulau?.snapshot().state==='ready'&&!document.querySelector('.menu-main').hidden");
     eq(await evaluate(r+'.world.id'),'campaign-islands');
+    for(const [button,dialog] of [['#menuSettingsButton','#audioDialog'],['#menuHelpButton','#helpDialog']]){
+      await activate(button);eq(await evaluate('document.querySelector('+JSON.stringify(dialog)+').open'),true);
+      await activate(dialog+' [data-close]');await waitFor("!document.querySelector('dialog[open]')");
+    }
+    await evaluate("document.getElementById('menuExpeditionButton').focus()");
+    await page('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13,text:'\r'});
+    await page('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13});
+    eq(await evaluate("document.querySelector('.menu-setup').hidden"),false);
+    await page('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    await page('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
+    eq(await evaluate("document.querySelector('.menu-main').hidden"),false);
     await activate('#menuExpeditionButton');
     assert.match(await evaluate("document.getElementById('menuSetupRoute').textContent"),/Bab 1.*Bab 2.*Bab 3/);checks++;
     await activate('#startButton');await waitFor(s+".state==='playing'");
@@ -162,6 +173,7 @@ try{
           await evaluate(`(()=>{
             const r=__aimRuntime,s=r.session,e=r.director.arrivalSchedule[0];
             s.elapsed=r.director.waveStartedAt+e.arrival-1;r.director.updateSpawns(0);
+            r.ui.updateUI();
             r.renderer.draw();
           })()`);
           const warning=await evaluate("document.getElementById('entryWarning').textContent");

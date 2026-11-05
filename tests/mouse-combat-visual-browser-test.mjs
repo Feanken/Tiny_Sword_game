@@ -1,3 +1,4 @@
+// Isolated original-island combat fixture; actual campaign entry is covered by campaign-playable-browser-test.mjs.
 // Desktop aim/sweep rendering against real combat and browser input.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -97,7 +98,7 @@ try {
     Object.defineProperty(window.PenjagaModules, 'createRuntime', {
       get() { return factory; },
       set(value) { factory = (...args) => {
-        const runtime = value(...args); window.__testRuntime = runtime; return runtime;
+        const runtime = value({...args[0],map:window.PenjagaMaps.island}); window.__testRuntime = runtime; return runtime;
       }; }
     });
   `});

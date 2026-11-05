@@ -1,3 +1,4 @@
+// Isolated original-island combat fixture; actual campaign entry is covered by campaign-playable-browser-test.mjs.
 // Real mouse/keyboard events through index.html. Runtime injection only makes
 // scenes deterministic; production input, combat, navigation and camera stay real.
 import assert from 'node:assert/strict';
@@ -88,7 +89,7 @@ try{
   await page('Page.addScriptToEvaluateOnNewDocument',{source:`
     window.PenjagaModules={};let factory;
     Object.defineProperty(PenjagaModules,'createRuntime',{get(){return factory;},set(value){
-      factory=(...args)=>{const rt=value(...args);window.__aimRuntime=rt;return rt;};
+      factory=(...args)=>{const rt=value({...args[0],map:window.PenjagaMaps.island});window.__aimRuntime=rt;return rt;};
     }});
   `});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
