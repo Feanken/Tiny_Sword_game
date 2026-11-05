@@ -15,7 +15,7 @@
       setup.hidden = true;
       screen.scrollTop = 0;
       document.body.dataset.screen = 'title';
-      for (const id of ['siteHeader', 'pageHeading', 'gameHud', 'commandBar', 'gameFooter', 'battleStatus', 'squadBar', 'worldCaption']) host.$(id).hidden = true;
+      for (const id of ['siteHeader', 'pageHeading', 'gameHud', 'commandBar', 'gameFooter', 'battleStatus', 'squadBar', 'worldCaption', 'tripleSlashButton']) host.$(id).hidden = true;
       host.canvas.tabIndex = -1;
       host.canvas.setAttribute('aria-hidden', 'true');
       expeditionButton.focus({preventScroll: true});

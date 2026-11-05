@@ -31,6 +31,7 @@
       for (const tool of ['Axe', 'Pickaxe']) paths.add(math.blue('Pawn', `Interact ${tool}`));
       paths.add(math.blue('Pawn', 'Idle Meat'));paths.add(math.unitPath('Black','Warrior','Attack2'));paths.add(math.unitPath('Black','Warrior','Guard'));
       paths.add(math.blue('Monk', 'Heal_Effect'));
+      paths.add(math.blue('Warrior', 'Attack2'));
       for (const b of world.buildings) paths.add(`Buildings/${b.color} Buildings/${b.name}.png`);
       for (let i = 1; i <= 4; i++) {
         paths.add(math.terrain(`Resources/Wood/Trees/Tree${i}`));

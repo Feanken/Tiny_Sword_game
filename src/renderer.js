@@ -3,6 +3,7 @@
   "use strict";
   M.installRenderer = function ({renderer, host, world, config, math, assets: assetStore, ui, session, upgrading, navigation, ai, combat, input}) {
     renderer.camera = new M.Camera2D(world.width, world.height);
+    renderer.tripleHud = new M.TripleSlashHud({host,input,combat,session});
     renderer.screenToWorld = (x, y) => renderer.camera.screenToWorld(x, y, host.canvas.getBoundingClientRect());
     renderer.reserveLabel = function reserveLabel(x,y,w,h,owner){
       if(renderer.labelCount>=renderer.labelPool.length)return null;
@@ -13,7 +14,7 @@
       renderer.overlayDirty=false;renderer.overlayRects.length=0;
       const arena=host.canvas.getBoundingClientRect();
       const add=el=>{if(el.hidden)return;const r=el.getBoundingClientRect();if(r.width&&r.height)renderer.overlayRects.push({x:r.left-arena.left,y:r.top-arena.top,w:r.width,h:r.height});};
-      add(host.$('bossBar'));add(host.$('dashButton'));add(host.$('entryWarning'));
+      add(host.$('bossBar'));add(host.$('dashButton'));add(host.$('tripleSlashButton'));add(host.$('entryWarning'));
       for(const id of ['toast','announcement'])if(host.$(id).classList.contains('show'))add(host.$(id));
       if(!host.$('mobileControls').hidden)for(const el of host.$('mobileControls').querySelectorAll('button'))add(el);
     };
@@ -209,7 +210,8 @@
     renderer.heroPose = function heroPose(){
       const age=combat.heroAttackAge();
       if(age>=config.SWING.end&&session.hero.moving)return {path:math.blue('Warrior','Run'),age:age-config.SWING.end,fps:11,once:false};
-      const path=math.blue('Warrior','Attack1'),count=renderer.spriteFrame(path).count;
+      const action=renderer.tripleView?.status==='active'&&renderer.tripleView.slashIndex===2?'Attack2':'Attack1';
+      const path=math.blue('Warrior',action),count=renderer.spriteFrame(path).count;
       // Contact/recovery frames bake in a horizontal slash. Keep the clean poses
       // upright and let the world-space sweep represent the actual strike.
       const clean=Math.min(2,count),frame=age<config.SWING.start?Math.min(clean-1,Math.floor(age/config.SWING.start*clean)):age<config.SWING.end?clean-1:0;
@@ -222,6 +224,7 @@
 
     renderer.drawHeroSwing = function drawHeroSwing(){
       renderer.lastSwingVisual=null;
+      if(renderer.tripleView?.status==='active'||renderer.presentedAttackKind==='triple-slash')return;
       if(!['playing','paused'].includes(session.state)||session.hero.hp<=0||
         (session.hero.attack<=0&&session.hero.missCue<=0)||!combat.heroAttackAngle)return;
       const age=combat.heroAttackAge();
@@ -231,6 +234,25 @@
         reach:config.SWING.reach,radius:config.SWING.radius,
         empowered:session.hero.swingEmpowered,missCue:session.hero.missCue
       });
+    };
+
+    renderer.drawTripleSlash = function drawTripleSlash(){
+      renderer.lastTripleSlashVisual=null;renderer.lastTripleCancelVisual=null;
+      const view=renderer.tripleView;
+      if(!view||!['playing','paused'].includes(session.state)||session.hero.hp<=0)return;
+      if(view.status==='active'){
+        const h=view.hitArea,r=h.reach+h.radius;
+        if(renderer.camera.intersects(h.origin.x-r,h.origin.y-r,r*2,r*2))
+          renderer.lastTripleSlashVisual=M.TripleSlashFx.drawSlash(host.ctx,view,combat.swingAngle(view.slashElapsed),assetStore.img('Particle FX/Water Splash.png'));
+      }
+      if(view.status==='cancelled'){
+        if(renderer.tripleCancel?.sequence!==view.sequence)renderer.tripleCancel={sequence:view.sequence,cooldown:view.cooldownRemaining,origin:{...view.hitArea.origin}};
+        const age=Math.max(0,renderer.tripleCancel.cooldown-view.cooldownRemaining);
+        if(age<.24){
+          M.TripleSlashFx.drawCancellation(host.ctx,renderer.tripleCancel.origin,age/.24);
+          renderer.lastTripleCancelVisual={origin:{...renderer.tripleCancel.origin},reason:view.cancelReason,age};
+        }
+      }else renderer.tripleCancel=null;
     };
 
     renderer.aimVisual = function aimVisual(){
@@ -420,6 +442,10 @@
       renderer.cameraX = renderer.camera.x;
       renderer.cameraY = renderer.camera.y;
       input.updatePointerWorld();
+      renderer.tripleView=combat.tripleSlashSnapshot?.()||null;
+      if(renderer.tripleHud.update(renderer.tripleView))renderer.overlayDirty=true;
+      if(session.hero.strike)renderer.presentedAttackKind=session.hero.strike.kind||'basic';
+      if(session.state==='ready'||session.state==='loading')renderer.presentedAttackKind='basic';
       const scaleX=host.canvas.width/renderer.viewW;
       host.ctx.setTransform(scaleX, 0, 0, renderer.scale, -renderer.cameraX * scaleX, -renderer.cameraY * renderer.scale);
       if(!renderer.waterPattern)renderer.waterPattern=host.ctx.createPattern(assetStore.img(math.terrain('Tileset/Water Background color')),'repeat');
@@ -475,6 +501,7 @@
         host.ctx.restore();
       }
       renderer.drawHeroSwing();
+      renderer.drawTripleSlash();
       renderer.drawBossDanger(true);
       renderer.drawHeroOutline();
       renderer.beginLabelLayout();renderer.reserveAimIndicator();session.hero.markerLayout=renderer.layoutHeroMarker();

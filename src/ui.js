@@ -77,7 +77,7 @@
       host.$('waveProgress').style.width = `${session.phase === 'prepare' ? (1 - session.waveTimer / (session.waveIndex === 0 ? 22 : 15)) * 100 : (session.spawned - session.enemies.filter(u=>!u.isBoss).length) / w.count * 100}%`;
       host.$('enemyCount').textContent = session.phase === 'prepare' ? `${session.allies.length} sekutu bersiap` : `${session.enemies.length + w.count - session.spawned+(session.waveIndex===4&&!session.bossSpawned?1:0)} musuh tersisa`;
       host.$('phaseHint').textContent = (session.encounters[session.waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.')+(session.phase==='prepare'&&session.ranks.bastion>0?' Benteng aktif saat kamu dekat kastel.':'');
-      host.$('healButton').title=`Pulihkan hingga ${45+5*session.ranks.oath} nyawa penjaga dengan 1 bekal. Tombol Q.`;
+      host.$('healButton').title=`Pulihkan hingga ${45+5*session.ranks.oath} nyawa penjaga dengan 1 bekal. Tombol H.`;
       const cost = session.recruitIndex % 4 === 2 ? 55 : 40;
       host.$('recruitCost').textContent = `${cost} emas · ${session.allies.length}/8`;
       host.$('recruitButton').classList.toggle('unavailable', session.gold < cost || session.allies.length >= 8);
