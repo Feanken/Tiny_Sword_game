@@ -246,11 +246,11 @@
           renderer.lastTripleSlashVisual=M.TripleSlashFx.drawSlash(host.ctx,view,combat.swingAngle(view.slashElapsed),assetStore.img('Particle FX/Water Splash.png'));
       }
       if(view.status==='cancelled'){
-        if(renderer.tripleCancel?.sequence!==view.sequence)renderer.tripleCancel={sequence:view.sequence,cooldown:view.cooldownRemaining,origin:{...view.hitArea.origin}};
+        if(renderer.tripleCancel?.sequence!==view.sequence)renderer.tripleCancel={sequence:view.sequence,cooldown:view.cooldownRemaining,origin:{...view.hitArea.origin},angle:view.hitArea.angle};
         const age=Math.max(0,renderer.tripleCancel.cooldown-view.cooldownRemaining);
         if(age<.24){
-          M.TripleSlashFx.drawCancellation(host.ctx,renderer.tripleCancel.origin,age/.24);
-          renderer.lastTripleCancelVisual={origin:{...renderer.tripleCancel.origin},reason:view.cancelReason,age};
+          M.TripleSlashFx.drawCancellation(host.ctx,renderer.tripleCancel.origin,age/.24,renderer.tripleCancel.angle);
+          renderer.lastTripleCancelVisual={origin:{...renderer.tripleCancel.origin},angle:renderer.tripleCancel.angle,reason:view.cancelReason,age};
         }
       }else renderer.tripleCancel=null;
     };

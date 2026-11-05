@@ -102,7 +102,7 @@ try {
     });
   `});
   const fixtureMode=process.argv.includes('--fixture');
-  const url=pathToFileURL(process.env.TRIPLE_VISUAL_ENTRY||path.join(root,'index.html')).href;
+  const url=pathToFileURL(path.join(root,'index.html')).href;
   const run=source=>evaluate('(()=>{const r=window.__testRuntime;'+source+'})()');
   const view=()=>run(`return {snapshot:r.combat.tripleSlashSnapshot(),effect:r.renderer.lastTripleSlashVisual,
     cancel:r.renderer.lastTripleCancelVisual,basic:r.renderer.lastSwingVisual,status:r.host.$('tripleSlashButton').dataset.status,
@@ -244,7 +244,8 @@ try {
       await key('Shift','ShiftLeft');await step(1);
     }
     state=await view();assert.equal(state.snapshot.status,'cancelled');assert.equal(state.effect,null);assert.equal(state.basic,null);
-    assert.equal(state.cancel.reason,'dash');assert.match(state.label,/Dibatalkan/);assert.ok(state.snapshot.cooldownRemaining>7);
+    assert.equal(state.cancel.reason,'dash');assert.equal(state.cancel.angle,state.snapshot.hitArea.angle);
+    assert.match(state.label,/Dibatalkan/);assert.ok(state.snapshot.cooldownRemaining>7);
     if(width===1440){await screenshot('dash-cancel');await detail('dash-cancel-detail');await detail('hud-cancel',true);}
     if(fixtureMode)await fixture({status:'cancelled',cancelReason:'dash',cooldownRemaining:7.4});else await step(30);
     state=await view();assert.equal(state.effect,null);assert.equal(state.cancel,null);
@@ -252,6 +253,7 @@ try {
     const bounds=await evaluate(`(()=>{const a=document.getElementById('arena').getBoundingClientRect(),b=document.getElementById('tripleSlashButton').getBoundingClientRect(),d=document.getElementById('dashButton').getBoundingClientRect();
       return {inside:b.left>=a.left&&b.right<=a.right&&b.top>=a.top&&b.bottom<=a.bottom,separate:b.left>=d.right||b.top>=d.bottom||b.bottom<=d.top};})()`);
     assert.equal(bounds.inside,true);assert.equal(bounds.separate,true);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Desktop controls cannot overflow horizontally.');
     assert.equal(await evaluate('document.querySelectorAll("#tripleSlashButton").length'),1);
     assert.equal(await evaluate('document.getElementById("healButton").querySelector("kbd").textContent'),'H');
 
@@ -307,8 +309,15 @@ try {
     await run('r.renderer.resize();r.renderer.draw();');
     const after=await view();assert.deepEqual(after.snapshot,beforeResize);
     assert.equal(after.disabled,true);assert.equal(after.effect.angle,after.snapshot.hitArea.angle);
+    assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'Control hints remain within the resized desktop.');
     assert.equal(await evaluate('(()=>{const a=document.getElementById("arena").getBoundingClientRect(),b=document.getElementById("tripleSlashButton").getBoundingClientRect();return b.left>=a.left&&b.right<=a.right&&b.top>=a.top&&b.bottom<=a.bottom;})()'),true);
   }
+  const visibleCancel=await evaluate(`(()=>{const c=document.createElement('canvas');c.width=c.height=180;const ctx=c.getContext('2d');
+    PenjagaModules.TripleSlashFx.drawCancellation(ctx,{x:90,y:90},.2,Math.PI/3);
+    const p=ctx.getImageData(0,0,180,180).data;let outsideFeet=0;
+    for(let y=0;y<180;y++)for(let x=0;x<180;x++)if(p[(y*180+x)*4+3]>100&&Math.hypot(x-90,y-90)>30)outsideFeet++;
+    return outsideFeet;})()`);
+  assert.ok(visibleCancel>60,'Cancellation marks must be visible beyond the player foot ring.');
   assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
   await call('Browser.close');
 }finally{

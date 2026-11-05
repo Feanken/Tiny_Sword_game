@@ -39,16 +39,17 @@
     return {sequence:snapshot.sequence,slashIndex:snapshot.slashIndex,phase,origin:{...origin},
       angle,reach,radius,halfAngle,backAllowance,from:-halfAngle,to:edge,color,trails:index+1};
   }
-  function drawCancellation(ctx,origin,progress){
-    const alpha=Math.max(0,1-progress),distance=24+progress*15;
-    ctx.save();ctx.translate(origin.x,origin.y);ctx.globalAlpha=alpha;ctx.lineCap='round';
+  function drawCancellation(ctx,origin,progress,angle=0){
+    const alpha=Math.max(0,1-progress),distance=44+progress*18;
+    ctx.save();ctx.translate(origin.x,origin.y);ctx.rotate(angle);ctx.globalAlpha=alpha;ctx.lineCap='round';
     for(let i=0;i<3;i++){
-      const x=(i-1)*15,y=-10-Math.abs(i-1)*3;
-      ctx.beginPath();ctx.moveTo(x-5,y-7);ctx.lineTo(x+5,y+3);
+      const direction=(i-1)*.55,x=Math.cos(direction)*distance,y=Math.sin(direction)*distance;
+      ctx.beginPath();ctx.moveTo(x-4,y-4);ctx.lineTo(x+4,y+4);ctx.moveTo(x+4,y-4);ctx.lineTo(x-4,y+4);
       ctx.strokeStyle='#17312e';ctx.lineWidth=6;ctx.stroke();
       ctx.strokeStyle='#f5bea3';ctx.lineWidth=2;ctx.stroke();
     }
-    ctx.setLineDash([4,6]);ctx.beginPath();ctx.ellipse(0,-3,distance,distance*.42,0,0,Math.PI*2);
+    ctx.setLineDash([4,6]);ctx.beginPath();ctx.arc(0,0,distance,-.85,.85);
+    ctx.strokeStyle='#17312e';ctx.lineWidth=4;ctx.stroke();
     ctx.strokeStyle='#f5bea3';ctx.lineWidth=1.5;ctx.stroke();ctx.restore();
   }
   M.TripleSlashHud=class TripleSlashHud {

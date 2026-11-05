@@ -10,6 +10,10 @@ Klik dua kali **Mainkan.cmd** atau buka **index.html** di browser. Seluruh aset 
 
 Folder gambar dipertahankan karena dipakai oleh permainan dan galeri aset. Audio sudah tertanam di audio-pack.js. Kredit audio ada di folder credits.
 
+Slot desktop **Q — Triple Slash** menampilkan syarat Bilah tingkat 10, progres tiga
+tebasan dan cooldown. Visual/HUD serta hasil tes ada di
+[docs/triple-slash-visual.md](docs/triple-slash-visual.md).
+
 Bidikan desktop: arahkan mouse di arena untuk membidik 360°, lalu klik kiri atau
 tahan Spasi untuk menyerang. WASD/panah tetap menggerakkan pemain; chevron di tanah
 menunjukkan arah efektif. Arah strike terkunci sampai kontak selesai. Audit pose,
