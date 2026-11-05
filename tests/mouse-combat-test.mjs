@@ -12,7 +12,7 @@ context.document={querySelector:()=>null,elementFromPoint:()=>canvas};
 vm.createContext(context);
 for(const file of ['maps/island.js','maps/floor-geometry.js','maps/campaign-islands.js',
   'maps/validate-map.js','src/config.js','src/camera.js','src/world/world.js',
-  'src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/combat.js']){
+  'src/session.js','src/math.js','src/input.js','src/navigation.js','src/upgrading.js','src/triple-slash.js','src/combat.js']){
   vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file});
 }
 const M=context.PenjagaModules,noop=()=>{};

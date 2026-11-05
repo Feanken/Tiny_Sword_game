@@ -19,6 +19,7 @@ config.waveStyles = [
     {name:'Serbuan bergerak',hint:'Ksatria menekan cepat. Sisakan ruang untuk menghindar.',bias:'Warrior'},
   ];
 config.SWING = Object.freeze({ start:.16, end:.28, angle:1.3, reach:76, radius:18, cap:3 });
+config.TRIPLE_SLASH = {unlockRank:10,slashes:3,duration:.9,cooldown:8,damageScale:1,targetCap:5,maxTurnRadians:Math.PI/6};
 config.HERO_ATTACK = Object.freeze({ duration:.42, cooldown:.58, moveScale:.55 });
 config.approachOffsets = Array.from({length:8},(_,i)=>({x:Math.cos(i*Math.PI/4),y:Math.sin(i*Math.PI/4)}));
 config.FIXED_STEP = 1 / 60;

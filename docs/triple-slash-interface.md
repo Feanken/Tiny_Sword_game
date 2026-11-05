@@ -95,6 +95,8 @@ agar renderer existing dapat menggunakan timing contact yang sama.
 - combat.tripleSlashSnapshot(): POJO salinan, aman dibaca renderer/HUD.
   Memuat seluruh field state, unlocked, ready, duration, cooldown, slashDuration,
   contactStart/contactEnd, dan hitArea {origin,angle,reach,radius,halfAngle,backAllowance}.
+  hitArea menyatakan area tebasan skill terakhir; bidikan netral tetap memakai
+  hero.aimAngle. Snapshot juga tersedia pada PenjagaPulau.snapshot().skills.tripleSlash.
 - input.desiredAimAngle(): arah mouse mentah yang valid, tanpa mengubah lock.
 - Port aim Tahap 3 tetap dipakai, tidak dibuat transform kamera baru.
 

@@ -1,6 +1,10 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
+  const freshSkills = () => ({tripleSlash:{
+    status:'idle',sequence:0,cooldownRemaining:0,elapsed:0,slashIndex:0,slashElapsed:0,
+    phase:'idle',angle:0,counterBonus:0,counterConsumed:false,hitCounts:[0,0,0],cancelReason:null
+  }});
   M.GameSession = class GameSession {
     constructor({world}) {
       Object.assign(this, {
@@ -59,10 +63,12 @@
         initialized: false,
       });
       Object.assign(this.hero, world.heroSpawn);
+      this.resetSkills();
       Object.assign(this.castle, world.castle);
     }
     resetForRun() {
       const world = this.world;
+      this.resetSkills();
       this.combatId=0;this.pressureActive=0;this.pressureGap=0;this.rangedPressureGap=0;this.approachSlots.clear();this.engagements.clear();this.combatUnits.length=0;this.collectingHeroDamage=false;this.pendingHeroDamage=null;
       Object.assign(this.hero,{impactHold:0,damageCue:0,dodgeCue:0,missCue:0,lastDamageTime:-99,stepTimer:0,swingFacing:1,swingEmpowered:false,labelSlot:0,markerLayout:null});
       Object.assign(this.hero, { x: world.heroSpawn.x, y: world.heroSpawn.y, hp: 100, facing: 1, aimAngle: 0, swingAngle: 0, attack: 0, cooldown: 0, invuln: 0, moving: false, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
@@ -75,5 +81,6 @@
       this.enemies = []; this.allies = []; this.effects = []; this.floaters = []; this.drops = []; this.projectiles = []; this.impacts = []; this.damageDealt = 0; this.damageTaken = 0;
       this.phase = 'prepare'; this.waveIndex = 0; this.waveTimer = 22; this.spawned = 0; this.spawnTimer = 0; this.elapsed = 0; this.passiveTimer = 0; this.gatherCooldown = 0; this.shake = 0;
     }
+    resetSkills() { this.hero.skills=freshSkills(); }
   };
 })(window.PenjagaModules = window.PenjagaModules || {});
