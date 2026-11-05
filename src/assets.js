@@ -43,6 +43,7 @@
       for (const n of world.goldNodes) paths.add(math.terrain(`Resources/Gold/Gold Stones/Gold Stone ${n.variant}`));
       for (const p of ['Tileset/Tilemap_color1', 'Tileset/Water Background color', 'Tileset/Water Foam', 'Tileset/Shadow', 'Decorations/Rubber Duck/Rubber duck', 'Decorations/Clouds/Clouds_01', 'Decorations/Clouds/Clouds_03', 'Resources/Meat/Sheep/Sheep_Idle', 'Resources/Meat/Sheep/Sheep_Move', 'Resources/Meat/Sheep/Sheep_Grass', 'Resources/Gold/Gold Resource/Gold_Resource', 'Resources/Meat/Meat Resource/Meat Resource', 'Resources/Wood/Wood Resource/Wood Resource']) paths.add(math.terrain(p));
       for (const p of ['Dust_01', 'Dust_02', 'Explosion_01', 'Explosion_02', 'Fire_01', 'Fire_02', 'Fire_03', 'Water Splash']) paths.add(`Particle FX/${p}.png`);
+      if(world.version===2)for(const p of M.MapPreviewRenderer.assetPaths(world))paths.add(p);
       let loaded = 0;
       const failures = [];
       await Promise.all([...paths].map(async p => { try { await assetStore.loadImage(p); } catch { failures.push(p); } loaded++; host.$('loadingProgress').style.width = `${loaded / paths.size * 100}%`; }));

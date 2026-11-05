@@ -2,7 +2,7 @@
 
 Baseline bersama: main 29350d7 + Tahap 5 4bf682f + Tahap 6 bf9e8be.
 Branch codex/campaign-playable menggabungkan ketiganya sebelum implementasi campaign.
-ID kampanye campaign-islands; chapter-1/chapter-2/chapter-3; wave c1-w1 sampai
+ID kampanye dawn-campaign, map campaign-islands; chapter-1/chapter-2/chapter-3; wave c1-w1 sampai
 c3-w5; boss-chapter-1/2/3. Tidak ada perubahan ID dari campaign-contract.md.
 
 ## Pemilik dan pemasangan
@@ -21,7 +21,8 @@ Port yang dipanggil integrator:
 
 - mines.reset(): run baru/title; idempotent, hapus state operasi milik run lama.
 - mines.enterChapter({runId,chapterId}): setelah topologi/progres bab siap.
-  runId adalah integer monotonik selama runtime hidup, chapterId string di atas.
+  runId adalah string opaque per run, chapterId string di atas. Ini menyelaraskan
+  kontrak campaign-contract.md; jangan mengubah runId menjadi angka.
   Panggilan ulang pasangan yang sama tidak mereset kuota/tick atau memberi bonus.
 - mines.update(dt): tepat satu kali per fixed step aktif; tidak pada pause/dialog,
   transisi bab, kalah, menang atau menu. dt detik.

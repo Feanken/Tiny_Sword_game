@@ -1,8 +1,9 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installLifecycle = function ({lifecycle, host, world, math, input, audio, renderer, ui, session, director, economy, combat, upgrading}) {
+  M.installLifecycle = function ({lifecycle, host, world, math, input, audio, renderer, ui, session, director, economy, combat, upgrading, campaign}) {
     lifecycle.showTitle = function showTitle(){
+      if(campaign?.enabled){campaign.reset();host.$('chapterScreen').hidden=true;}
       ui.setEntryWarning('');
       session.collectingHeroDamage=false;session.pendingHeroDamage=null;session.approachSlots.clear();session.engagements.clear();session.combatUnits.length=0;
       session.state='ready';input.clearCombatInput();session.simulationAccumulator=0;
@@ -24,6 +25,7 @@
       for(const voice of [...audio.soundVoices]){voice.source.stop();voice.finish();}
       combat.resetCombatStats();
       session.resetForRun();
+      if(campaign?.enabled){campaign.start();host.$('chapterScreen').hidden=true;}
       if (carry) {
         if(carry.upgradeProgress&&!M.UpgradeProgress.restore(session,carry.upgradeProgress))throw new Error('Invalid carried upgrade progression.');
         session.gold = carry.gold;
@@ -49,6 +51,12 @@
     };
 
     lifecycle.finish = function finish(won) {
+      if(!['playing','chapter-review'].includes(session.state))return false;
+      if(campaign?.enabled){
+        if(won&&campaign.snapshot().status!=='complete')return false;
+        if(!won&&!campaign.fail())return false;
+        host.$('chapterScreen').hidden=true;
+      }
       combat.cancelTripleSlash(session.hero.hp<=0?'death':'run-ended');
       combat.endUpgradeSkills(session.hero.hp<=0?'death':'run-ended');
       ui.setEntryWarning('');
@@ -66,6 +74,13 @@
       host.$('runLabel').textContent=`Ekspedisi ${session.runSeed.toString(36).toUpperCase().padStart(6,'0')} · ${director.settings().name}`;
       host.$('endScreen').hidden = false; host.$('restartButton').focus({ preventScroll: true }); ui.updateUI();
       audio.tone(won ? 659 : 196, .7, 'triangle', .04, won ? 880 : 98);
+      if(campaign?.enabled){
+        host.$('resultTitle').textContent=won?'Pulau bertahan sampai fajar!':'Perjalanan terhenti.';
+        host.$('resultDescription').textContent=won?'Tiga bab dan lima belas gelombang ditaklukkan.':
+          'Bab '+(campaign.snapshot().chapterIndex+1)+' · '+(session.hero.hp<=0?'Penjaga gugur.':'Benteng runtuh.')+' Mulai ekspedisi baru untuk mencoba lagi.';
+        host.$('finalWave').textContent=campaign.snapshot().clearedWaveIds.length+' / 15';
+      }
+      return true;
     };
   };
 })(window.PenjagaModules = window.PenjagaModules || {});

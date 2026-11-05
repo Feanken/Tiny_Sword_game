@@ -1,7 +1,7 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installUi = function ({ui, host, world, config, input, assets: assetStore, renderer, session, director, upgrading, bossSystem, audio, lifecycle, ai, economy, combat}) {
+  M.installUi = function ({ui, host, world, config, input, assets: assetStore, renderer, session, director, upgrading, bossSystem, audio, lifecycle, ai, economy, combat, campaign, mines}) {
     ui.scoreKey = id => 'penjaga-pulau-best-' + (world.id === 'island' ? id : world.id + '-' + id);
     ui.setDifficulty = function setDifficulty(id){
       if(!config.difficulties[id]||!['loading','ready'].includes(session.state))return false;
@@ -14,7 +14,8 @@
 
     ui.renderCamp = function renderCamp() {
       host.$('campGold').textContent=session.gold;
-      host.$('campRound').textContent=`JEDA ${session.waveIndex+1} / 5`;
+      host.$('campRound').textContent=(campaign?.enabled?'BAB '+(campaign.snapshot().chapterIndex+1)+' · ':'')+`JEDA ${session.waveIndex+1} / 5`;
+      if(host.$('mineUpgradeButton'))host.$('mineUpgradeButton').disabled=typeof mines?.purchaseNextLevel!=='function';
       host.$('campRule').textContent='Tier I: rank 1–10. Buka Tier II dengan boss Bab 1 + 500 emas; Tier III dengan boss Bab 2 + 1.500 emas. Biaya dibayar per jalur, terpisah dari harga rank.';
       host.$('campCards').replaceChildren();
       for(const perk of config.upgrades){
@@ -38,6 +39,13 @@
       host.$('campFeedback').textContent='';ui.renderCamp();ui.openDialog('campDialog');host.$('campCards').querySelector('button:not(:disabled)')?.focus({preventScroll:true});
     };
 
+    ui.showChapterReview=function(){
+      const p=campaign.snapshot(),chapter=campaign.chapter();
+      host.$('chapterTitle').textContent='Bab '+(p.chapterIndex+1)+' · '+chapter.name;
+      host.$('chapterSummary').textContent=(p.chapterIndex===1?'Pulau dan jembatan utara terbuka. Ancaman: barat dan utara.':'Pulau dan jembatan barat daya terbuka. Ancaman: tiga arah.')+
+        ' Pemulihan: +'+chapter.recovery.heroHp+' HP penjaga, +'+chapter.recovery.castleHp+' HP benteng; dibatasi maksimum. Sekutu hidup dan seluruh bekal dibawa.';
+      host.$('chapterScreen').hidden=false;host.$('chapterContinueButton').focus({preventScroll:true});
+    };
     ui.notify = function notify(text) { host.$('toast').textContent = text; host.$('toast').classList.add('show');ui.toastTimer=3;renderer.overlayDirty=true; };
 
     ui.announce = function announce(title, subtitle) {
@@ -77,12 +85,18 @@
       host.$('castleHealth').textContent = `${Math.ceil(session.castle.hp)} / ${session.castle.maxHp}`; host.$('castleHealthBar').style.width = `${session.castle.hp/session.castle.maxHp*100}%`;
       host.$('goldCount').textContent = session.gold; host.$('woodCount').textContent = session.wood; host.$('foodCount').textContent = session.food; host.$('scoreCount').textContent = String(session.score).padStart(4, '0');
       const w = config.waves[session.waveIndex];
+      if(campaign?.enabled)host.$('campaignLabel').textContent='Bab '+(campaign.snapshot().chapterIndex+1)+' / 3 · '+campaign.chapter().name;
       host.$('waveCount').textContent = `${session.phase === 'prepare' ? session.waveIndex : session.waveIndex + 1} / 5`;
       host.$('waveTitle').textContent = session.phase === 'prepare' ? `Jeda · ${Math.max(0, Math.ceil(session.waveTimer))} dtk` : `Gelombang ${session.waveIndex + 1}`;
-      host.$('waveDetail').textContent = `${director.settings().name} · ${session.encounters[session.waveIndex]?.name||w.name}`;
-      host.$('waveProgress').style.width = `${session.phase === 'prepare' ? (1 - session.waveTimer / (session.waveIndex === 0 ? 22 : 15)) * 100 : (session.spawned - session.enemies.filter(u=>!u.isBoss).length) / w.count * 100}%`;
+      host.$('waveDetail').textContent = `${campaign?.enabled?'Bab '+(campaign.snapshot().chapterIndex+1)+' · ':''}${director.settings().name} · ${session.encounters[session.waveIndex]?.name||w.name}`;
+      host.$('waveProgress').style.width = `${session.phase === 'prepare' ? (1 - session.waveTimer / (session.waveIndex === 0&&campaign?.enabled?campaign.chapter().preparationSeconds:session.waveIndex === 0 ? 22 : 15)) * 100 : (session.spawned - session.enemies.filter(u=>!u.isBoss).length) / w.count * 100}%`;
       host.$('enemyCount').textContent = session.phase === 'prepare' ? `${session.allies.length} sekutu bersiap` : `${session.enemies.length + w.count - session.spawned+(session.waveIndex===4&&!session.bossSpawned?1:0)} musuh tersisa`;
       host.$('phaseHint').textContent = (session.encounters[session.waveIndex]?.hint||'U: pilih upgrade · Shift: dash menghindar.')+(session.phase==='prepare'&&session.ranks.bastion>0?' Benteng aktif saat kamu dekat kastel.':'');
+      if(campaign?.enabled){
+        const n=campaign.snapshot().chapterIndex+1,review=session.state==='chapter-review';
+        host.$('waveTitle').textContent='Bab '+n+' · '+(review?'Wilayah terbuka':session.phase==='prepare'?'Jeda '+Math.max(0,Math.ceil(session.waveTimer))+' dtk':'Gel. '+(session.waveIndex+1));
+        if(review){host.$('waveCount').textContent='0 / 5';host.$('enemyCount').textContent=session.allies.length+' sekutu selamat';host.$('waveProgress').style.width='0%';}
+      }
       host.$('healButton').title=`Pulihkan hingga ${upgrading.foodHealing()} nyawa penjaga dengan 1 bekal. Tombol H.`;
       const cost = session.recruitIndex % 4 === 2 ? 55 : 40;
       const capacity=combat.allyCapacity(),living=session.allies.filter(u=>u.hp>0).length;
@@ -173,6 +187,8 @@
     input.listen(host.$('followButton'), 'click',()=>{ai.setSquadOrder('follow');host.canvas.focus({preventScroll:true});});
     input.listen(host.$('guardButton'), 'click',()=>{ai.setSquadOrder('guard');host.canvas.focus({preventScroll:true});});
     input.listen(host.$('campButton'), 'click',ui.openCamp);
+    if(host.$('mineUpgradeButton'))input.listen(host.$('mineUpgradeButton'),'click',()=>{mines?.purchaseNextLevel?.();ui.renderCamp();ui.updateUI();});
+    if(host.$('chapterContinueButton'))input.listen(host.$('chapterContinueButton'),'click',()=>{if(campaign.beginPreparation()){host.$('chapterScreen').hidden=true;host.canvas.focus({preventScroll:true});}});
     input.listen(host.$('campReady'), 'click',()=>{session.waveTimer=Math.min(session.waveTimer,3);host.$('campDialog').close();});
     input.listen(host.$('helpButton'), 'click', () => ui.openDialog('helpDialog'));
     input.listen(host.$('audioSettingsButton'), 'click',()=>{audio.initAudio();audio.updateAudioVolumes();ui.openDialog('audioDialog');});

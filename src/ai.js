@@ -228,7 +228,7 @@
         if(u.team==='enemy'){
           let front=null,d=Infinity;for(const f of session.enemies)if(f.hp>0&&!f.entering&&['Warrior','Lancer'].includes(f.kind)&&math.dist(u,f)<d){front=f;d=math.dist(u,f);}
           if(front){const distance=Math.max(1,math.dist(front,session.hero));u.supportHome={x:front.x+(front.x-session.hero.x)/distance*80,y:front.y+(front.y-session.hero.y)/distance*80};}
-          else u.supportHome={x:620,y:410};
+          else u.supportHome={x:world.squadGuard.x,y:world.squadGuard.y};
         }
       }
       const wounded=u.healTarget,home=u.team==='ally'?ai.squadHome(u):u.supportHome||u;

@@ -1,7 +1,7 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installEconomy = function ({economy, config, world, math, audio, renderer, ui, session, upgrading,combat}) {
+  M.installEconomy = function ({economy, config, world, math, audio, renderer, ui, session, upgrading,combat, campaign, mines}) {
     economy.recruitUnit = function recruitUnit(free = false) {
       if (session.state !== 'playing') return;
       const kind = ['Archer', 'Lancer', 'Monk', 'Warrior'][session.recruitIndex % 4];
@@ -40,7 +40,7 @@
 
     economy.nearestResource = function nearestResource() {
       let closest = null, distance = 85;
-      for (const node of [...world.trees.filter(t => t.resource).map(t => ({ ...t, type: 'wood', name: 'Tebang kayu +8' })), ...world.goldNodes.map(n => ({ ...n, type: 'gold', name: `Tambang emas +${config.GATHERING_REWARDS.gold}` })), ...world.sheep.filter(s => s.cooldown <= 0).map(s => ({ ...s, type: 'food', name: 'Ambil bekal +1', original: s }))]) {
+      for (const node of [...world.trees.filter(t => t.resource).map(t => ({ ...t, type: 'wood', name: 'Tebang kayu +8' })), ...world.goldNodes.map(n => ({ ...n, id:n.id||world.objectIds?.goldNodes[world.allCollections.goldNodes.indexOf(n)], type: 'gold', name: campaign?.enabled?'Kerjakan tambang':`Tambang emas +${config.GATHERING_REWARDS.gold}` })), ...world.sheep.filter(s => s.cooldown <= 0).map(s => ({ ...s, type: 'food', name: 'Ambil bekal +1', original: s }))]) {
         const d = math.dist(session.hero, node); if (d < distance) { distance = d; closest = node; }
       }
       return closest;
@@ -67,6 +67,10 @@
       if (node.type === 'food' && node.original.cooldown > 0) return;
       if (node.type === 'wood') { session.wood += config.GATHERING_REWARDS.wood; renderer.float('+8 kayu', node.x, node.y); }
       if (node.type === 'gold') {
+        if(campaign?.enabled){
+          if(!mines.interact?.(node.id))ui.notify('Tambang belum siap atau kuota habis.');
+          return;
+        }
         const reward = config.GATHERING_REWARDS.gold;
         session.gold += reward;
         renderer.float(`+${reward} emas`, node.x, node.y);
@@ -85,7 +89,7 @@
     };
     economy.updatePassiveIncome = function (dt) {
       session.passiveTimer += dt;
-      if (session.passiveTimer >= 6) { session.passiveTimer -= 6; session.wood += 3; session.gold += 4; renderer.float('+3 kayu', world.villagers[0].x, world.villagers[0].y, '#dbdca0'); renderer.float('+4 emas', world.villagers[1].x, world.villagers[1].y); }
+      if (session.passiveTimer >= 6) { session.passiveTimer -= 6; if(campaign?.enabled){if(!campaign.passiveTick())return;}else{session.wood += 3;session.gold += 4;} renderer.float('+3 kayu', world.villagers[0].x, world.villagers[0].y, '#dbdca0'); renderer.float('+4 emas', world.villagers[1].x, world.villagers[1].y); }
     };
   };
 })(window.PenjagaModules = window.PenjagaModules || {});

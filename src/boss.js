@@ -1,7 +1,7 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installBossSystem = function ({bossSystem, world, config, math, audio, renderer, ui, session, director, navigation, ai, combat}) {
+  M.installBossSystem = function ({bossSystem, world, config, math, audio, renderer, ui, session, director, navigation, ai, combat, campaign}) {
     bossSystem.traceCharge = function traceCharge(origin,dx,dy,length){
       let traveled=0;
       while(traveled<length){
@@ -15,11 +15,12 @@
     bossSystem.spawnBoss = function spawnBoss(){
       if(session.waveIndex!==4||session.bossSpawned)return false;
       session.bossSpawned=true;const hp=director.settings().bossHp;
-      const spawn = world.bossSpawn, path = world.entryPaths.get(spawn.pathId);
+      const spawn = campaign?.enabled?world.bossSpawns.get(campaign.chapter().bossPathId):world.bossSpawn, path = world.entryPaths.get(spawn.pathId);
       const lane = spawn.lanes[0];
       session.boss={combatId:++session.combatId,x:spawn.x + lane * path.entryLaneOffset.x,y:spawn.y + lane * path.entryLaneOffset.y,kind:'Warrior',color:'Black',hp,maxHp:hp,facing:1,moving:false,attack:0,cooldown:1,seed:0,speed:62*director.settings().speed,team:'enemy',entering:true,lane,pathId:spawn.pathId,entryWaypoint:1,flankSign:1,isBoss:true,hitFlash:0,stagger:0,knockX:0,knockY:0,bossAction:null,abilityCooldown:.5,pattern:0,patternMask:0,lastPattern:-1,enraged:false};
+      if(campaign?.enabled){session.boss.campaignBossId=campaign.chapter().bossId;session.boss.campaignRunId=campaign.snapshot().runId;session.boss.waveId=campaign.waveId();}
       session.enemies.push(session.boss);session.spawnTimer=Math.max(session.spawnTimer,session.difficulty==='easy'?2.2:session.difficulty==='hard'?1.4:1.8);
-      ui.announce('Panglima Kelam','BACA TANDANYA · HINDARI · BALAS');return true;
+      ui.announce(campaign?.enabled?campaign.chapter().boss.name:'Panglima Kelam','BACA TANDANYA · HINDARI · BALAS');return true;
     };
 
     bossSystem.chooseBossPattern = function chooseBossPattern(u,target){
@@ -27,6 +28,7 @@
       const d=math.dist(u,target),charge=bossSystem.traceCharge(u,(target.x-u.x)/Math.max(1,d),(target.y-u.y)/Math.max(1,d),252);
       let clustered=0;for(const f of [session.hero,...session.allies])if(f.hp>0&&math.dist(f,target)<105)clustered++;
       const scores=[(d<115?7:2)+Math.min(3,clustered),charge.distance>Math.min(d,130)?(d>115?7:2):-2,d>150&&ai.shotClear(u,target)?8:3];
+      if(campaign?.enabled)scores[['slam','charge','volley'].indexOf(campaign.chapter().boss.bias)]+=2;
       let selected=-1,score=-Infinity;
       for(let i=0;i<3;i++)if(!(u.patternMask&(1<<i))){const value=scores[i]-(u.lastPattern===i?20:0);if(value>score){selected=i;score=value;}}
       u.patternMask|=1<<selected;u.lastPattern=selected;u.pattern++;
@@ -34,7 +36,7 @@
     };
 
     bossSystem.recoverBoss = function recoverBoss(u,action){
-      action.stage='recovery';action.time=action.recoveryDuration=Math.max(.85,config.bossRecoveryTimes[session.difficulty][action.type]-(u.enraged?.1:0));
+      action.stage='recovery';action.time=action.recoveryDuration=Math.max(.85,config.bossRecoveryTimes[session.difficulty][action.type]*(campaign?.enabled?campaign.chapter().boss.recoveryScale:1)-(u.enraged?.1:0));
     };
 
     bossSystem.bossIntentText = function bossIntentText(u){

@@ -44,6 +44,10 @@
     };
 
     renderer.makeTerrain = function makeTerrain() {
+      if(world.version===2){
+        if(!renderer.campaignTerrain)renderer.campaignTerrain=new M.MapPreviewRenderer(world,{get:path=>assetStore.img(path)});
+        return renderer.campaignTerrain.canvas;
+      }
       const c = document.createElement('canvas'); c.width = world.width; c.height = world.height;
       const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
       const tilemap = assetStore.img(math.terrain('Tileset/Tilemap_color1'));
@@ -55,7 +59,7 @@
       const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
       g.fillStyle = '#b2e6df33';
       for (let i = 0; i < 185; i++) { const x = random() * world.width, y = random() * world.height; g.fillRect(x, y, 5 + random() * 20, 2); }
-      for (const [rstr, [left, right]] of Object.entries(world.rows)) {
+      for (const [rstr, [left, right]] of Object.entries(world.rows||{})) {
         const r = Number(rstr);
         for (let col = left; col <= right; col++) {
           const x = col * world.tileSize, y = r * world.tileSize;
@@ -63,7 +67,7 @@
           if (!navigation.land(col, r + 1)) g.drawImage(tilemap, 384, 256, 64, 64, x, y + 37, 64, 43);
         }
       }
-      for (const [rstr, [left, right]] of Object.entries(world.rows)) {
+      for (const [rstr, [left, right]] of Object.entries(world.rows||{})) {
         const r = Number(rstr);
         for (let col = left; col <= right; col++) {
           const sx = col === left ? 0 : col === right ? 128 : 64;
@@ -614,14 +618,16 @@
 
     renderer.labelCount = 0;
 
-    renderer.sceneryItems = [
+    renderer.refreshScenery=()=>{renderer.sceneryItems = [
       ...world.trees.map(t=>({type:'tree',source:t,x:t.x,y:t.y,path:math.terrain(`Resources/Wood/Trees/Tree${t.variant}`)})),
       ...world.goldNodes.map(n=>({type:'gold',source:n,x:n.x,y:n.y,path:math.terrain(`Resources/Gold/Gold Stones/Gold Stone ${n.variant}`)})),
       ...world.bushes.map(([x,y,i])=>({type:'bush',x,y,seed:i,path:math.terrain(`Decorations/Bushes/Bushe${i}`)})),
       ...world.buildings.map(b=>({type:'building',source:b,x:b.x,y:b.y-9,path:`Buildings/${b.color} Buildings/${b.name}.png`})),
       ...world.sheep.map(s=>({type:'sheep',source:s,x:s.x,y:s.y,idle:math.terrain('Resources/Meat/Sheep/Sheep_Idle'),grass:math.terrain('Resources/Meat/Sheep/Sheep_Grass')})),
       ...world.villagers.map(v=>({type:'villager',source:v,x:v.x,y:v.y,path:math.blue('Pawn',`Interact ${v.tool}`)}))
-    ].sort((a,b)=>a.y-b.y);
+    ].sort((a,b)=>a.y-b.y);};
+    renderer.refreshScenery();
+    renderer.topologyUnsubscribe=world.onTopologyChange?.(()=>renderer.refreshScenery());
 
     renderer.renderUnits = [];
 
@@ -629,12 +635,12 @@
 
     renderer.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    for(const [rstr,[left,right]] of Object.entries(world.rows)){const r=Number(rstr);for(let c=left;c<=right;c++)if(!navigation.land(c,r+1))renderer.shoreTiles.push([c*64,(r+1)*64-1]);}
+    for(const [rstr,[left,right]] of Object.entries(world.rows||{})){const r=Number(rstr);for(let c=left;c<=right;c++)if(!navigation.land(c,r+1))renderer.shoreTiles.push([c*64,(r+1)*64-1]);}
 
       renderer.attach = function () {
         const observer = new ResizeObserver(renderer.resize);
         observer.observe(host.$('arena'));
-        renderer.detach = () => observer.disconnect();
+        renderer.detach = () => {observer.disconnect();renderer.topologyUnsubscribe?.();renderer.campaignTerrain?.dispose();};
       };
   };
 })(window.PenjagaModules = window.PenjagaModules || {});

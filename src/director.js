@@ -1,8 +1,8 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installDirector = function ({director, world, config, math, audio, renderer, ui, session, lifecycle, bossSystem}) {
-    const timing = world.arrivalTiming;
+  M.installDirector = function ({director, world, config, math, audio, renderer, ui, session, lifecycle, bossSystem, campaign}) {
+    const timing = campaign?.enabled ? {warningLead:M.CAMPAIGN.warningLead} : world.arrivalTiming;
     const directionLabel = id => world.entryPaths.get(id).warningLabel || id;
     const enemySpeed = (kind, waveIndex) =>
       ((kind === 'Lancer' ? 59 : kind === 'Pawn' ? 75 : 66) + waveIndex * 5) * director.settings().speed;
@@ -27,6 +27,25 @@
     }
 
     function scheduleArrivals(plan, waveIndex) {
+      if(campaign?.enabled){
+        const chapter=campaign.chapter(),paths=chapter.paths,events=[];
+        const mode=paths.length===1?'solo':waveIndex===0?'introduce':waveIndex===1?'alternate':paths.length===3&&waveIndex===2?'pairs':'all';
+        const order=[chapter.newPath,...paths.filter(p=>p!==chapter.newPath)];
+        const gap=mode==='all'?8:mode==='pairs'?7:6.5;
+        for(const [packet,group] of plan.groups.entries()){
+          const chosen=mode==='solo'?paths:mode==='introduce'||mode==='alternate'?[order[packet%order.length]]:
+            mode==='pairs'?[order[packet%3],order[(packet+1)%3]]:paths;
+          for(let j=0;j<group.count;j++){
+            const slot=group.start+j,pathId=chosen[j%chosen.length],spawn=world.waveSpawns.get(pathId);
+            const travel=estimateTravel(pathId,spawn,plan.spawnLanes[slot],enemySpeed(plan.roster[slot],waveIndex));
+            const arrival=packet*gap;
+            events.push({packet,pathId,slots:[slot],arrival,departure:arrival-travel});
+          }
+        }
+        const offset=.3-Math.min(...events.map(e=>e.departure));
+        for(const e of events){e.departure+=offset;e.arrival+=offset;}
+        return events.sort((a,b)=>a.departure-b.departure);
+      }
       const alternating = waveIndex < timing.alternatingWaves;
       // Keep the second wave's 5/5 split while alternating complete groups.
       const counts = waveIndex === 1 && plan.roster.length === 10 ?
@@ -99,6 +118,8 @@
     };
 
     director.startWave = function startWave() {
+      if(session.state!=='playing'||session.phase!=='prepare')return false;
+      director.waveReceipt=campaign?.enabled?campaign.receipt():null;
       session.phase = 'battle'; session.spawned = 0; session.spawnTimer = .3;
       if (timing) {
         director.arrivalSchedule = scheduleArrivals(session.encounters[session.waveIndex], session.waveIndex);
@@ -111,7 +132,15 @@
       audio.tone(220, .25, 'triangle', .04, 330);
     };
 
-    director.finishWave = function finishWave() {
+    director.finishWave = function finishWave(receipt=director.waveReceipt) {
+      if(campaign?.enabled){
+        const result=campaign.completeWave(receipt);if(!result.accepted)return false;
+        ui.setEntryWarning('');
+        if(result.campaignComplete)lifecycle.finish(true);
+        else if(result.chapterComplete)ui.showChapterReview();
+        else ui.announce('Gelombang ditaklukkan!','+'+result.gold+' EMAS · +15 KAYU · +1 BEKAL');
+        ui.updateUI();return true;
+      }
       ui.setEntryWarning('');
       const reward = 30 + session.waveIndex * 10;
       session.gold += reward; session.wood += 15; session.food += 1; session.score += 150 + session.waveIndex * 50;
@@ -138,6 +167,7 @@
       session.enemies.push({ combatId:++session.combatId, x: entry.x, y: entry.y, kind, color: session.waveIndex === 4 ? ['Red', 'Purple', 'Yellow', 'Black'][slot % 4] : w.color, hp, maxHp: hp, facing: 1, moving: false, attack: 0, cooldown: math.rand(.1, .6), seed: math.rand(0, 10), speed: enemySpeed(kind, session.waveIndex), team: 'enemy', entering: true, lane, flankAngle: slot * 2.399963 + session.waveIndex * .8, flankSign: slot % 2 ? -1 : 1, hitFlash: 0, stagger: 0, knockX: 0, knockY: 0, strike: null });
       renderer.addEffect('Particle FX/Dust_02.png', entry.x, entry.y, 48); session.spawned++;
       const enemy = session.enemies[session.enemies.length - 1]; enemy.chargeCooldown = 2; enemy.charge = 0;
+      if(campaign?.enabled){enemy.campaignRunId=campaign.snapshot().runId;enemy.waveId=campaign.waveId();}
       enemy.pathId = pathId;
       enemy.entryWaypoint = 1;
       if (path.points[1].x < spawn.x) enemy.facing = -1;
@@ -152,10 +182,10 @@
       }
       const finalWave = session.waveIndex === config.waves.length - 1;
       if (finalWave && !director.bossEntry && session.spawned >= Math.ceil(config.waves[session.waveIndex].count / 2)) {
-        const spawn = world.bossSpawn;
+        const spawn = campaign?.enabled?world.bossSpawns.get(campaign.chapter().bossPathId):world.bossSpawn;
         const departure = time + 1.25;
         const arrival = departure + estimateTravel(spawn.pathId, spawn, spawn.lanes[0], 62 * director.settings().speed);
-        director.bossEntry = {departure, arrival};
+        director.bossEntry = {departure, arrival,pathId:spawn.pathId};
       }
       const bossEntry = director.bossEntry;
       if (bossEntry && time >= bossEntry.departure && !session.bossSpawned) bossSystem.spawnBoss();
@@ -163,7 +193,7 @@
       const visible = arrival => time >= arrival - timing.warningLead && time < arrival + .35;
       const paths = new Set(events.filter(event => visible(event.arrival)).map(event => event.pathId));
       const labels = world.wavePathIds.filter(id => paths.has(id)).map(directionLabel);
-      if (bossEntry && visible(bossEntry.arrival)) labels.push('Panglima ' + directionLabel(world.bossSpawn.pathId));
+      if (bossEntry && visible(bossEntry.arrival)) labels.push('Panglima ' + directionLabel(bossEntry.pathId||world.bossSpawn.pathId));
       ui.setEntryWarning(labels.join(' · '));
     }
 
@@ -185,6 +215,12 @@
       }
     };
 
-    director.settings = ()=>config.difficulties[session.difficulty];
+    director.estimateTravel=estimateTravel;
+    director.settings = ()=>{
+      const base=config.difficulties[session.difficulty];if(!campaign?.enabled)return base;
+      const chapter=campaign.chapter(),p=chapter.pressure;
+      return {...base,hp:base.hp*p.hp,damage:base.damage*p.damage,speed:base.speed*p.speed,
+        bossHp:Math.round(base.bossHp*chapter.boss.hp/650),warning:Math.max(.65,base.warning*chapter.boss.warningScale)};
+    };
   };
 })(window.PenjagaModules = window.PenjagaModules || {});

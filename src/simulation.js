@@ -1,11 +1,12 @@
 /* Penjaga Pulau: classic scripts keep direct file:// loading dependency-free. */
 (function (M) {
   "use strict";
-  M.installSimulation = function ({simulation, host, world, config, math, input, audio, renderer, ui, session, director, lifecycle, navigation, ai, economy, combat}) {
+  M.installSimulation = function ({simulation, host, world, config, math, input, audio, renderer, ui, session, director, lifecycle, navigation, ai, economy, combat, campaign, mines}) {
     simulation.update = function update(dt) {
       if (session.state !== 'playing') return;
       for (const u of [session.hero, ...session.allies, ...session.enemies]) navigation.keepOnLand(u);
       if (session.castle.hp <= 0 || session.hero.hp <= 0) { lifecycle.finish(false); return; }
+      mines?.update?.(dt);
       combat.updateSkillState(dt);
       renderer.updatePresentation(dt);
       session.pressureGap=Math.max(0,session.pressureGap-dt);session.rangedPressureGap=Math.max(0,session.rangedPressureGap-dt);session.pressureActive=0;
@@ -50,7 +51,8 @@
       }
       economy.updatePassiveIncome(dt);
       if (session.castle.hp <= 0 || session.hero.hp <= 0) { lifecycle.finish(false); return; }
-      if (session.phase === 'battle' && session.spawned >= config.waves[session.waveIndex].count && session.enemies.length === 0 && (session.waveIndex<4||session.bossSpawned)) director.finishWave();
+      if(campaign?.enabled){if(campaign.canCompleteWave())director.finishWave();}
+      else if (session.phase === 'battle' && session.spawned >= config.waves[session.waveIndex].count && session.enemies.length === 0 && (session.waveIndex<4||session.bossSpawned)) director.finishWave();
       ui.updateInteraction(dt);
       audio.updateMusic(dt);
     };

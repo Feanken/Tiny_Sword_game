@@ -2,7 +2,7 @@
 (function (M) {
   "use strict";
   M.installCombat = function (ports) {
-    const {combat, host, config, math, input, audio, renderer, session, director, upgrading, navigation, ai}=ports;
+    const {combat, host, config, math, input, audio, renderer, session, director, upgrading, navigation, ai,campaign}=ports;
     combat.resetCombatStats = function resetCombatStats(){
       Object.assign(session.combatStats,{swings:0,hits:0,misses:0,interruptions:0,cancels:0,bufferedInputs:0,healingDone:0,healingWasted:0,stalls:0,blockedSeconds:0,mergedHits:0,pressureDeferrals:0,maxWindups:0,damageTaken:0,allyEvades:0,allyHazardHits:0,roleIntercepts:0,repositions:0,fortressSaved:0});
       Object.assign(session.combatStats,{rangedDeferrals:0,maxRangedWindups:0,oathHealing:0});
@@ -82,7 +82,7 @@
       }
       if (target.hp <= 0 && target.team === 'enemy' && !target.dead) {
         ai.releaseApproach(target);session.approachSlots.delete(target);
-        target.dead = true; session.kills++; session.score += target.isBoss?500:25 + session.waveIndex * 5; session.gold += target.isBoss?50:6;
+        target.dead = true; session.kills++; session.score += target.isBoss?500:25 + session.waveIndex * 5; if(campaign?.enabled)campaign.claimKill(target);else session.gold += target.isBoss?50:6;
         renderer.addEffect('Particle FX/Explosion_01.png', target.x, target.y - 9, source===session.hero?70:45,source===session.hero?.45:.3);
         session.drops.push({ x: target.x, y: target.y, type: session.gameRandom() > .7 ? 'wood' : 'gold', life: 18, value: 5 });
         audio.tone(320, .075, 'triangle', .02, 540);

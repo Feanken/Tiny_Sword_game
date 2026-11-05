@@ -29,12 +29,12 @@
       setup.hidden = false;
       screen.scrollTop = 0;
       setup.dataset.mode = mode;
-      host.$('menuSetupEyebrow').textContent = practice ? 'LATIHAN DUA JALUR' : 'EKSPEDISI DUA PULAU';
+      host.$('menuSetupEyebrow').textContent = practice ? 'LATIHAN DUA JALUR' : 'KAMPANYE TIGA BAB';
       host.$('menuSetupTitle').textContent = practice ? 'Siapkan pertahananmu.' : 'Siapkan perjalananmu.';
-      host.$('menuSetupRoute').textContent = practice ? 'Pulau Dua Arah · pintu kiri dan atas' : 'Pulau Embun → Pulau Dua Arah';
+      host.$('menuSetupRoute').textContent = practice ? 'Pulau Dua Arah · pintu kiri dan atas' : 'Bab 1 Barat → Bab 2 Utara → Bab 3 Barat Daya';
       host.$('menuSetupSummary').textContent = practice
         ? 'Lima gelombang dari dua arah. Mulai dengan 80 emas, 40 kayu, 3 bekal, dan satu pemanah. Upgrade dimulai dari nol.'
-        : 'Taklukkan lima gelombang di setiap pulau. Emas dan keenam jalur upgrade dibawa ke pulau berikutnya.';
+        : 'Satu benteng, tiga bab, lima belas gelombang. Mulai di Bab 1. Bekal, upgrade, HP aktual dan sekutu hidup tetap dibawa.';
       setup.querySelector('[data-difficulty][aria-pressed="true"]').focus({preventScroll: true});
     };
 
@@ -52,7 +52,7 @@
     };
 
     input.listen(expeditionButton, 'click', () => menu.showSetup('expedition'));
-    input.listen(practiceButton, 'click', () => menu.showSetup('practice'));
+    input.listen(practiceButton, 'click', () => {window.location.href='preview-map.html';});
     input.listen(host.$('menuBackButton'), 'click', () => {
       const returnButton = menu.selectedMode === 'practice' ? practiceButton : expeditionButton;
       menu.showMain();
