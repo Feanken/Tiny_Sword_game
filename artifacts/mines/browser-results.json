@@ -1,0 +1,25 @@
+{
+  "result": "PASS",
+  "results": [
+    {
+      "transport": "file",
+      "stages": 3,
+      "profiles": 2,
+      "quota20And21": true,
+      "exactPrices": true,
+      "repeatChapter": true,
+      "pauseAndDialog": true,
+      "desktopSizes": 4
+    },
+    {
+      "transport": "http",
+      "stages": 3,
+      "profiles": 2,
+      "quota20And21": true,
+      "exactPrices": true,
+      "repeatChapter": true,
+      "pauseAndDialog": true,
+      "desktopSizes": 4
+    }
+  ]
+}
